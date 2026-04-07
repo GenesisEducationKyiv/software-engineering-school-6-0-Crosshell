@@ -1,0 +1,25 @@
+{
+  "name": "github-release-notifier",
+  "version": "1.0.0",
+  "description": "github-release-notifier api",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Vladyslav Berdychevskyi",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.4.1",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.8.4",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.31.10",
+    "prettier": "3.8.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}
