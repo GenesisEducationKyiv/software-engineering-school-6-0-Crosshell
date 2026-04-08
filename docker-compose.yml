@@ -1,0 +1,45 @@
+name: notifier
+
+services:
+  notifier-api:
+    container_name: notifier-api
+    build: .
+    ports:
+      - "${API_PORT}:3000"
+    env_file: .env
+    environment:
+      API_PORT: "3000"
+    depends_on:
+      notifier-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - notifier-network
+
+  notifier-postgres:
+    image: postgres:16-alpine
+    container_name: notifier-postgres
+    restart: always
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - notifier-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+networks:
+  notifier-network:
+    driver: bridge
+
+volumes:
+  notifier-postgres:
