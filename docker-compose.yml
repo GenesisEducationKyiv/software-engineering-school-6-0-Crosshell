@@ -5,14 +5,33 @@ services:
     container_name: notifier-api
     build: .
     ports:
-      - "${API_PORT}:3000"
+      - "${APP_PORT}:3000"
     env_file: .env
     environment:
-      API_PORT: "3000"
+      APP_PORT: "3000"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@notifier-postgres:5432/${POSTGRES_DB}"
+      RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
     depends_on:
       notifier-postgres:
         condition: service_healthy
+      notifier-rabbitmq:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - notifier-network
+
+  notifier-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: notifier-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - notifier-network
 

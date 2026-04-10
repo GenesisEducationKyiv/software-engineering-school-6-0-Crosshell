@@ -48,3 +48,6 @@ export const subscriptionsRelations = relations(
     }),
   }),
 );
+
+export type Subscription = typeof subscriptionsTable.$inferSelect;
+export type Repository = typeof repositoriesTable.$inferSelect;

@@ -1,19 +1,65 @@
-import { createSubscriptionSchema } from '@/modules/subscription/subscription.schema';
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import {
+  subscribeSchema,
+  tokenSchema,
+  getSubscriptionsQuerySchema,
+  subscriptionWithRepoSchema,
+} from '@/modules/subscription/subscription.schemas';
+import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { AppServer } from '@/server';
+import { HttpStatus } from '@/shared/constants/http-statutes.constants';
 
-const subscriptionRoutes: FastifyPluginAsyncZod = async (server: AppServer) => {
-  server.post(
-    '/',
-    { schema: { body: createSubscriptionSchema } },
-    async (request, reply) => {
-      const { email, repositoryId } = request.body;
+const subscriptionRoutes =
+  (service: SubscriptionService): FastifyPluginAsyncZod =>
+  async (server: AppServer) => {
+    server.post(
+      '/subscribe',
+      { schema: { body: subscribeSchema } },
+      async (request, reply) => {
+        await service.subscribe(request.body);
+        return reply.code(HttpStatus.OK).send({
+          message: 'Subscription successful. Confirmation email sent',
+        });
+      },
+    );
 
-      return reply.code(201).send({
-        message: `Subscription created: ${email} and ${repositoryId}`,
-      });
-    },
-  );
-};
+    server.get(
+      '/confirm/:token',
+      { schema: { params: tokenSchema } },
+      async (request, reply) => {
+        await service.confirm(request.params.token);
+        return reply
+          .code(HttpStatus.OK)
+          .send({ message: 'Subscription confirmed successfully' });
+      },
+    );
+
+    server.get(
+      '/unsubscribe/:token',
+      { schema: { params: tokenSchema } },
+      async (request, reply) => {
+        await service.unsubscribe(request.params.token);
+        return reply
+          .code(HttpStatus.OK)
+          .send({ message: 'Unsubscribed successfully' });
+      },
+    );
+
+    server.get(
+      '/subscriptions',
+      {
+        schema: {
+          querystring: getSubscriptionsQuerySchema,
+          response: { [HttpStatus.OK]: subscriptionWithRepoSchema.array() },
+        },
+      },
+      async (request, reply) => {
+        const subscriptions = await service.getSubscriptionsByEmail(
+          request.query.email,
+        );
+        return reply.code(HttpStatus.OK).send(subscriptions);
+      },
+    );
+  };
 
 export default subscriptionRoutes;
