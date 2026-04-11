@@ -7,6 +7,10 @@ import type { RepositoryRepository } from '@/modules/repository/repository.repos
 import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { NotificationPublisher } from '@/modules/notification/notification-publisher.type';
+import {
+  scannerRunsTotal,
+  scannerNewReleasesTotal,
+} from '@/infrastructure/metrics/metrics.registry';
 
 export class ScannerService {
   constructor(
@@ -29,6 +33,7 @@ export class ScannerService {
   }
 
   async scan(): Promise<void> {
+    scannerRunsTotal.inc();
     logger.info('[Scanner] Running release scan...');
 
     const entries =
@@ -55,6 +60,8 @@ export class ScannerService {
 
       if (!release) return;
       if (release.tagName === repository.lastSeenTag) return;
+
+      scannerNewReleasesTotal.inc();
 
       this.notificationPublisher.publish({
         repositoryOwner: repository.owner,

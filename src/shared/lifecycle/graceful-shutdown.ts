@@ -5,6 +5,7 @@ export interface AppResources {
   grpcServer: { close(): Promise<void> };
   queueManager: { close(): Promise<void> };
   pool: { end(): Promise<void> };
+  cache: { quit(): Promise<void> };
 }
 
 export function registerGracefulShutdown(resources: AppResources): void {
@@ -14,6 +15,7 @@ export function registerGracefulShutdown(resources: AppResources): void {
     await resources.grpcServer.close();
     await resources.queueManager.close();
     await resources.pool.end();
+    await resources.cache.quit();
     process.exit(0);
   };
 

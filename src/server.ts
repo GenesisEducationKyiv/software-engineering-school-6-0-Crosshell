@@ -1,13 +1,13 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import type {
-  ZodTypeProvider} from 'fastify-type-provider-zod';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   serializerCompiler,
-  validatorCompiler
+  validatorCompiler,
 } from 'fastify-type-provider-zod';
 import { appConfig } from '@/shared/config';
 import errorHandlerPlugin from '@/shared/plugins/error-handler.plugin';
+import metricsPlugin from '@/shared/plugins/metrics.plugin';
 import { logger } from '@/shared/logger';
 import type { FastifyBaseLogger } from 'fastify';
 
@@ -23,6 +23,7 @@ server.register(cors, {
 });
 
 server.register(errorHandlerPlugin);
+server.register(metricsPlugin);
 
 export { server };
 

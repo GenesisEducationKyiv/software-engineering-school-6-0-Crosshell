@@ -5,7 +5,7 @@ services:
     container_name: notifier-api
     build: .
     ports:
-      - "${APP_PORT}:3000"
+      - "${APP_PORT:-3000}:3000"
       - "${GRPC_PORT:-50051}:50051"
     env_file: .env
     environment:
@@ -13,12 +13,31 @@ services:
       GRPC_PORT: "50051"
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@notifier-postgres:5432/${POSTGRES_DB}"
       RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
+      REDIS_URL: "redis://notifier-redis:6379"
     depends_on:
       notifier-postgres:
         condition: service_healthy
       notifier-rabbitmq:
         condition: service_healthy
+      notifier-redis:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - notifier-network
+
+  notifier-redis:
+    image: redis:7-alpine
+    container_name: notifier-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - notifier-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - notifier-network
 
@@ -42,7 +61,7 @@ services:
     container_name: notifier-postgres
     restart: always
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -64,3 +83,4 @@ networks:
 
 volumes:
   notifier-postgres:
+  notifier-redis:

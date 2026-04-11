@@ -2,6 +2,7 @@ import type { MailerService } from '@/modules/mailer/mailer.service';
 import { logger } from '@/shared/logger';
 import type { NotificationQueue } from '@/modules/notification/notification.queue';
 import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
+import { notificationsSentTotal } from '@/infrastructure/metrics/metrics.registry';
 
 export class NotificationService {
   constructor(
@@ -33,7 +34,10 @@ export class NotificationService {
       );
 
       results.forEach((result, i) => {
-        if (result.status === 'rejected') {
+        if (result.status === 'fulfilled') {
+          notificationsSentTotal.inc({ status: 'success' });
+        } else {
+          notificationsSentTotal.inc({ status: 'failure' });
           logger.error(
             { err: result.reason, email: subscribers[i].email, repo },
             '[Notifier] Failed to send release email',

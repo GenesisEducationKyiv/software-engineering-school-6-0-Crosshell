@@ -2,18 +2,21 @@ import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 import type {
   GitHubRepository,
-  GitHubRelease} from '@/modules/github/github.schemas';
+  GitHubRelease,
+} from '@/modules/github/github.schemas';
 import {
   gitHubRepositorySchema,
-  gitHubReleaseSchema
+  gitHubReleaseSchema,
 } from '@/modules/github/github.schemas';
 import { githubConfig } from '@/shared/config';
+import type { CacheService } from '@/infrastructure/cache/cache.service';
+import { githubApiRequestsTotal } from '@/infrastructure/metrics/metrics.registry';
 
 export class GithubClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
-  constructor() {
+  constructor(private readonly cache: CacheService) {
     this.baseUrl = githubConfig.baseUrl;
     this.headers = {
       Accept: 'application/vnd.github+json',
@@ -23,7 +26,19 @@ export class GithubClient {
         : {}),
     };
   }
+
   async getRepository(owner: string, repo: string): Promise<GitHubRepository> {
+    const key = GithubClient.cacheKeyRepo(owner, repo);
+
+    const cached = await this.cache.get(key, gitHubRepositorySchema);
+    if (cached) {
+      githubApiRequestsTotal.inc({
+        operation: 'getRepository',
+        cache: 'hit',
+      });
+      return cached;
+    }
+
     const res = await fetch(`${this.baseUrl}/repos/${owner}/${repo}`, {
       headers: this.headers,
     });
@@ -42,13 +57,28 @@ export class GithubClient {
     if (!res.ok)
       throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
 
-    return gitHubRepositorySchema.parse(await res.json());
+    githubApiRequestsTotal.inc({ operation: 'getRepository', cache: 'miss' });
+
+    const result = gitHubRepositorySchema.parse(await res.json());
+    await this.cache.set(key, result, githubConfig.cacheTtlSeconds);
+    return result;
   }
 
   async getLatestRelease(
     owner: string,
     repo: string,
   ): Promise<GitHubRelease | null> {
+    const key = GithubClient.cacheKeyRelease(owner, repo);
+
+    const cached = await this.cache.get(key, gitHubReleaseSchema);
+    if (cached) {
+      githubApiRequestsTotal.inc({
+        operation: 'getLatestRelease',
+        cache: 'hit',
+      });
+      return cached;
+    }
+
     const res = await fetch(
       `${this.baseUrl}/repos/${owner}/${repo}/releases/latest`,
       { headers: this.headers },
@@ -64,7 +94,22 @@ export class GithubClient {
     if (!res.ok)
       throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
 
-    return gitHubReleaseSchema.parse(await res.json());
+    githubApiRequestsTotal.inc({
+      operation: 'getLatestRelease',
+      cache: 'miss',
+    });
+
+    const result = gitHubReleaseSchema.parse(await res.json());
+    await this.cache.set(key, result, githubConfig.cacheTtlSeconds);
+    return result;
+  }
+
+  private static cacheKeyRepo(owner: string, repo: string): string {
+    return `github:repo:${owner}:${repo}`;
+  }
+
+  private static cacheKeyRelease(owner: string, repo: string): string {
+    return `github:release:${owner}:${repo}`;
   }
 
   private isRateLimited(res: Response): boolean {

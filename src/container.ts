@@ -8,10 +8,14 @@ import { MailerService } from '@/modules/mailer/mailer.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import type { NotificationQueue } from '@/modules/notification/notification.queue';
+import type { CacheService } from '@/infrastructure/cache/cache.service';
 
-export function createContainer(notificationQueue: NotificationQueue) {
+export function createContainer(
+  notificationQueue: NotificationQueue,
+  cache: CacheService,
+) {
   const mailer = new MailerService();
-  const github = new GithubClient();
+  const github = new GithubClient(cache);
   const uow = new UnitOfWork(db);
 
   const repositoryRepository = new RepositoryRepository(db);
