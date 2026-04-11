@@ -13,6 +13,30 @@ import type { CreateSubscriptionData } from '@/modules/subscription/types/create
 export class SubscriptionRepository {
   constructor(private readonly db: DbClient) {}
 
+  async existsByEmailAndRepo(
+    email: string,
+    owner: string,
+    repo: string,
+  ): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: subscriptionsTable.id })
+      .from(subscriptionsTable)
+      .innerJoin(
+        repositoriesTable,
+        eq(subscriptionsTable.repositoryId, repositoriesTable.id),
+      )
+      .where(
+        and(
+          eq(subscriptionsTable.email, email),
+          eq(repositoriesTable.owner, owner),
+          eq(repositoriesTable.repo, repo),
+        ),
+      )
+      .limit(1);
+
+    return row !== undefined;
+  }
+
   async createSubscription(
     data: CreateSubscriptionData,
   ): Promise<Subscription> {
