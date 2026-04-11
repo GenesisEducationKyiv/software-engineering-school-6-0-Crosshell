@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
-export type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
 
 const REPO_REGEX = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/;
 

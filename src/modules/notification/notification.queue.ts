@@ -4,7 +4,7 @@ import {
   releaseNotificationPayloadSchema,
   ReleaseNotificationPayload,
 } from '@/modules/notification/notification.schemas';
-import { NotificationPublisher } from './notification.publisher';
+import { NotificationPublisher } from './notification-publisher.type';
 
 const QUEUE_NAME = 'release.notifications';
 const DLX_NAME = 'release.notifications.dlx';

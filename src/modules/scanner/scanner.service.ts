@@ -6,7 +6,7 @@ import { scannerConfig } from '@/shared/config';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
 import { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 import { Subscriber } from '@/modules/notification/notification.schemas';
-import { NotificationPublisher } from '@/modules/notification/notification.publisher';
+import { NotificationPublisher } from '@/modules/notification/notification-publisher.type';
 
 export class ScannerService {
   constructor(
