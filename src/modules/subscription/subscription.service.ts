@@ -21,7 +21,7 @@ export class SubscriptionService {
     await this.github.getRepository(owner, repo);
 
     const sub = await this.uow.run(async ({ repositories, subscriptions }) => {
-      const repository = await repositories.upsertRepository(owner, repo);
+      const repository = await repositories.findOrCreate(owner, repo);
       try {
         return await subscriptions.createSubscription({
           email: input.email,

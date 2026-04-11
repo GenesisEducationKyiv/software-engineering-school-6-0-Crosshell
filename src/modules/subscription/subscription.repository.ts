@@ -7,14 +7,14 @@ import {
   Subscription,
 } from '@/infrastructure/database/schema';
 import { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
+import { CreateSubscriptionData } from '@/modules/subscription/types/create-subscription-data.type';
 
 export class SubscriptionRepository {
   constructor(private readonly db: DbClient) {}
 
-  async createSubscription(data: {
-    email: string;
-    repositoryId: string;
-  }): Promise<Subscription> {
+  async createSubscription(
+    data: CreateSubscriptionData,
+  ): Promise<Subscription> {
     const [subscription] = await this.db
       .insert(subscriptionsTable)
       .values({

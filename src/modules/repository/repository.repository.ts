@@ -1,6 +1,9 @@
 import { DbClient } from '@/infrastructure/database';
-import { repositoriesTable, subscriptionsTable } from '@/infrastructure/database/schema';
-import { eq } from 'drizzle-orm';
+import {
+  repositoriesTable,
+  subscriptionsTable,
+} from '@/infrastructure/database/schema';
+import { and, eq } from 'drizzle-orm';
 import { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
 import { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 
@@ -55,16 +58,33 @@ export class RepositoryRepository {
       .where(eq(repositoriesTable.id, repositoryId));
   }
 
-  async upsertRepository(owner: string, repo: string): Promise<TrackedRepository> {
-    const [row] = await this.db
+  async findOrCreate(owner: string, repo: string): Promise<TrackedRepository> {
+    const [inserted] = await this.db
       .insert(repositoriesTable)
       .values({ owner, repo })
-      .onConflictDoUpdate({
-        target: [repositoriesTable.owner, repositoriesTable.repo],
-        set: { updatedAt: new Date() },
-      })
+      .onConflictDoNothing()
       .returning();
 
+    if (inserted) {
+      return this.toTrackedRepository(inserted);
+    }
+
+    const [existing] = await this.db
+      .select()
+      .from(repositoriesTable)
+      .where(
+        and(
+          eq(repositoriesTable.owner, owner),
+          eq(repositoriesTable.repo, repo),
+        ),
+      );
+
+    return this.toTrackedRepository(existing);
+  }
+
+  private toTrackedRepository(
+    row: typeof repositoriesTable.$inferSelect,
+  ): TrackedRepository {
     return {
       id: row.id,
       owner: row.owner,
