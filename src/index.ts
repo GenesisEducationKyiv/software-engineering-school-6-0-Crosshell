@@ -40,7 +40,7 @@ const start = async () => {
     });
 
     if (appConfig.nodeEnv === 'development') {
-      console.log(server.printRoutes());
+      console.log(server.printRoutes({ commonPrefix: false }));
     }
   } catch (error) {
     logger.error(error);
