@@ -1,11 +1,12 @@
-import * as grpc from '@grpc/grpc-js';
-import { SubscriptionService } from './subscription.service';
+import type * as grpc from '@grpc/grpc-js';
+import type { SubscriptionService } from './subscription.service';
 import { loadServiceDefinition } from '@/infrastructure/grpc/grpc-server';
 import { toGrpcError } from '@/infrastructure/grpc/grpc-error.mapper';
-import {
+import type {
   GetSubscriptionsQuery,
   SubscribeInput,
-  UnsubscribeInput,
+  UnsubscribeInput} from './subscription.schemas';
+import {
   subscribeSchema,
   tokenSchema,
   getSubscriptionsQuerySchema,

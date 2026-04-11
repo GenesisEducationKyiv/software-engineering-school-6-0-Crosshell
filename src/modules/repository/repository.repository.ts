@@ -1,11 +1,11 @@
-import { DbClient } from '@/infrastructure/database';
+import type { DbClient } from '@/infrastructure/database';
 import {
   repositoriesTable,
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { and, eq } from 'drizzle-orm';
-import { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
-import { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
+import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
+import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 
 export class RepositoryRepository {
   constructor(private readonly db: DbClient) {}

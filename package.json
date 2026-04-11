@@ -6,6 +6,9 @@
     "dev": "npx tsx watch src/index.ts",
     "build": "tsup src/index.ts --format cjs --no-splitting",
     "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -37,9 +40,11 @@
     "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^10.2.0",
     "prettier": "3.8.1",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.1"
   }
 }

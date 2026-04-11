@@ -1,10 +1,11 @@
-import { QueueManager } from '@/infrastructure/queue/queue-manager';
+import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { logger } from '@/shared/logger';
+import type {
+  ReleaseNotificationPayload} from '@/modules/notification/notification.schemas';
 import {
-  releaseNotificationPayloadSchema,
-  ReleaseNotificationPayload,
+  releaseNotificationPayloadSchema
 } from '@/modules/notification/notification.schemas';
-import { NotificationPublisher } from './notification-publisher.type';
+import type { NotificationPublisher } from './notification-publisher.type';
 
 const QUEUE_NAME = 'release.notifications';
 const DLX_NAME = 'release.notifications.dlx';

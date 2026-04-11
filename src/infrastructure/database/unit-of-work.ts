@@ -1,4 +1,4 @@
-import { Database } from './index';
+import type { Database } from './index';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
 

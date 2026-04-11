@@ -1,12 +1,12 @@
-import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   subscribeSchema,
   tokenSchema,
   getSubscriptionsQuerySchema,
   subscriptionWithRepoSchema,
 } from '@/modules/subscription/subscription.schemas';
-import { SubscriptionService } from '@/modules/subscription/subscription.service';
-import { AppServer } from '@/server';
+import type { SubscriptionService } from '@/modules/subscription/subscription.service';
+import type { AppServer } from '@/server';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 
 const subscriptionRoutes =

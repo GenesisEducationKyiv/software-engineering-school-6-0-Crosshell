@@ -1,11 +1,11 @@
-import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
-import { SubscribeInput } from '@/modules/subscription/subscription.schemas';
-import { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
-import { GithubClient } from '@/modules/github/github.client';
-import { MailerService } from '@/modules/mailer/mailer.service';
+import type { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
+import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
+import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
+import type { GithubClient } from '@/modules/github/github.client';
+import type { MailerService } from '@/modules/mailer/mailer.service';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
-import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
+import type { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { buildConfirmUrl } from '@/modules/subscription/subscription.urls';
 
 export class SubscriptionService {

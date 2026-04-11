@@ -7,7 +7,7 @@ import { GithubClient } from '@/modules/github/github.client';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationService } from '@/modules/notification/notification.service';
-import { NotificationQueue } from '@/modules/notification/notification.queue';
+import type { NotificationQueue } from '@/modules/notification/notification.queue';
 
 export function createContainer(notificationQueue: NotificationQueue) {
   const mailer = new MailerService();

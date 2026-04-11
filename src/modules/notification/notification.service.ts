@@ -1,6 +1,6 @@
-import { MailerService } from '@/modules/mailer/mailer.service';
+import type { MailerService } from '@/modules/mailer/mailer.service';
 import { logger } from '@/shared/logger';
-import { NotificationQueue } from '@/modules/notification/notification.queue';
+import type { NotificationQueue } from '@/modules/notification/notification.queue';
 import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
 
 export class NotificationService {

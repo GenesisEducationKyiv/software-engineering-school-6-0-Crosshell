@@ -1,10 +1,11 @@
 import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
+import type {
+  GitHubRepository,
+  GitHubRelease} from '@/modules/github/github.schemas';
 import {
   gitHubRepositorySchema,
-  gitHubReleaseSchema,
-  GitHubRepository,
-  GitHubRelease,
+  gitHubReleaseSchema
 } from '@/modules/github/github.schemas';
 import { githubConfig } from '@/shared/config';
 

@@ -1,5 +1,5 @@
 import fp from 'fastify-plugin';
-import { FastifyError, FastifyPluginAsync } from 'fastify';
+import type { FastifyError, FastifyPluginAsync } from 'fastify';
 import {
   AppError,
   NotFoundError,

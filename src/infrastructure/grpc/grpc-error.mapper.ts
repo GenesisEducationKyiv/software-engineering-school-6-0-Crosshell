@@ -1,4 +1,5 @@
-import { status, ServerErrorResponse } from '@grpc/grpc-js';
+import type { ServerErrorResponse } from '@grpc/grpc-js';
+import { status } from '@grpc/grpc-js';
 import { ZodError } from 'zod';
 import {
   AppError,

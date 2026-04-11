@@ -1,12 +1,12 @@
 import cron from 'node-cron';
-import { GithubClient } from '@/modules/github/github.client';
+import type { GithubClient } from '@/modules/github/github.client';
 import { RateLimitError } from '@/shared/errors/app.errors';
 import { logger } from '@/shared/logger';
 import { scannerConfig } from '@/shared/config';
-import { RepositoryRepository } from '@/modules/repository/repository.repository';
-import { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
-import { Subscriber } from '@/modules/notification/notification.schemas';
-import { NotificationPublisher } from '@/modules/notification/notification-publisher.type';
+import type { RepositoryRepository } from '@/modules/repository/repository.repository';
+import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
+import type { Subscriber } from '@/modules/notification/notification.schemas';
+import type { NotificationPublisher } from '@/modules/notification/notification-publisher.type';
 
 export class ScannerService {
   constructor(

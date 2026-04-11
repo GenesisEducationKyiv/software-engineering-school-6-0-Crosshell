@@ -1,4 +1,5 @@
-import amqplib, { Channel, ChannelModel } from 'amqplib';
+import type { Channel, ChannelModel } from 'amqplib';
+import amqplib from 'amqplib';
 import { logger } from '@/shared/logger';
 import { queueConfig } from '@/shared/config';
 
