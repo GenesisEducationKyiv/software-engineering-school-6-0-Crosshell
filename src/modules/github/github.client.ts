@@ -59,9 +59,9 @@ export class GithubClient {
 
     githubApiRequestsTotal.inc({ operation: 'getRepository', cache: 'miss' });
 
-    const result = gitHubRepositorySchema.parse(await res.json());
-    await this.cache.set(key, result, githubConfig.cacheTtlSeconds);
-    return result;
+    const raw = await res.json();
+    await this.cache.set(key, raw, githubConfig.cacheTtlSeconds);
+    return gitHubRepositorySchema.parse(raw);
   }
 
   async getLatestRelease(
@@ -99,9 +99,9 @@ export class GithubClient {
       cache: 'miss',
     });
 
-    const result = gitHubReleaseSchema.parse(await res.json());
-    await this.cache.set(key, result, githubConfig.cacheTtlSeconds);
-    return result;
+    const raw = await res.json();
+    await this.cache.set(key, raw, githubConfig.cacheTtlSeconds);
+    return gitHubReleaseSchema.parse(raw);
   }
 
   private static cacheKeyRepo(owner: string, repo: string): string {
