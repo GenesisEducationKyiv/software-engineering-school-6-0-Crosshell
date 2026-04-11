@@ -1,5 +1,5 @@
-import nodemailer, { Transporter } from 'nodemailer';
-import { mailerConfig } from '@/shared/config/mailer.config';
+import nodemailer, { type Transporter } from 'nodemailer';
+import { mailerConfig } from '@/shared/config';
 import { confirmationEmailHtml } from '@/modules/mailer/templates/confirmation.template';
 import { releaseNotificationHtml } from '@/modules/mailer/templates/release-notification.template';
 
@@ -21,7 +21,7 @@ export class MailerService {
     await this.transporter.sendMail({
       from: mailerConfig.from,
       to,
-      subject: 'Confirm your subscription | GitHub Release Notifier',
+      subject: 'Confirm your subscription',
       html: confirmationEmailHtml(confirmUrl),
     });
   }

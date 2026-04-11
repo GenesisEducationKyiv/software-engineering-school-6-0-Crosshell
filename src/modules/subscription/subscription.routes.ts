@@ -7,7 +7,7 @@ import {
 } from '@/modules/subscription/subscription.schemas';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { AppServer } from '@/server';
-import { HttpStatus } from '@/shared/constants/http-statutes.constants';
+import { HttpStatus } from '@/shared/constants/http-status.constant';
 
 const subscriptionRoutes =
   (service: SubscriptionService): FastifyPluginAsyncZod =>

@@ -1,32 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { Database } from '@/infrastructure/database';
+import { DbClient } from '@/infrastructure/database';
 import {
   repositoriesTable,
   subscriptionsTable,
   Subscription,
 } from '@/infrastructure/database/schema';
-import { SubscriptionWithRepo } from '@/modules/subscription/subscription.schemas';
+import { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
 
 export class SubscriptionRepository {
-  constructor(private readonly db: Database) {}
-
-  async findByEmailAndRepositoryId(
-    email: string,
-    repositoryId: string,
-  ): Promise<Subscription | null> {
-    const [row] = await this.db
-      .select()
-      .from(subscriptionsTable)
-      .where(
-        and(
-          eq(subscriptionsTable.email, email),
-          eq(subscriptionsTable.repositoryId, repositoryId),
-        ),
-      );
-
-    return row ?? null;
-  }
+  constructor(private readonly db: DbClient) {}
 
   async createSubscription(data: {
     email: string;

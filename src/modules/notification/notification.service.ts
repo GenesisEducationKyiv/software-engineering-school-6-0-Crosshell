@@ -1,13 +1,16 @@
 import { MailerService } from '@/modules/mailer/mailer.service';
-import { appConfig } from '@/shared/config/app.config';
 import { logger } from '@/shared/logger';
-import { consumeReleaseNotifications } from '@/modules/notification/notification.queue';
+import { NotificationQueue } from '@/modules/notification/notification.queue';
+import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
 
 export class NotificationService {
-  constructor(private readonly mailer: MailerService) {}
+  constructor(
+    private readonly mailer: MailerService,
+    private readonly notificationQueue: NotificationQueue,
+  ) {}
 
   start(): void {
-    consumeReleaseNotifications(async (payload) => {
+    this.notificationQueue.consume(async (payload) => {
       const {
         repositoryOwner,
         repositoryRepo,
@@ -17,18 +20,26 @@ export class NotificationService {
       } = payload;
       const repo = `${repositoryOwner}/${repositoryRepo}`;
 
-      await Promise.allSettled(
-        subscribers.map(({ email, unsubscribeToken }) => {
-          const unsubscribeUrl = `${appConfig.appUrl}/api/unsubscribe/${unsubscribeToken}`;
-          return this.mailer.sendReleaseNotification(
+      const results = await Promise.allSettled(
+        subscribers.map(({ email, unsubscribeToken }) =>
+          this.mailer.sendReleaseNotification(
             email,
             repo,
             newTag,
             releaseUrl,
-            unsubscribeUrl,
-          );
-        }),
+            buildUnsubscribeUrl(unsubscribeToken),
+          ),
+        ),
       );
+
+      results.forEach((result, i) => {
+        if (result.status === 'rejected') {
+          logger.error(
+            { err: result.reason, email: subscribers[i].email, repo },
+            '[Notifier] Failed to send release email',
+          );
+        }
+      });
     });
 
     logger.info('[Notifier] Listening for release notifications');

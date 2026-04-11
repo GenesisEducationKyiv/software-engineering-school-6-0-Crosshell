@@ -4,10 +4,10 @@ import { registerConfig } from './register-config';
 export const mailerConfig = registerConfig(
   z
     .object({
-      SMTP_HOST: z.string().optional(),
+      SMTP_HOST: z.string(),
       SMTP_PORT: z.coerce.number().int().positive().default(587),
-      SMTP_USER: z.string().optional(),
-      SMTP_PASS: z.string().optional(),
+      SMTP_USER: z.string(),
+      SMTP_PASS: z.string(),
       SMTP_FROM: z
         .string()
         .default('"GitHub Release Notifier" <noreply@releases.app>'),

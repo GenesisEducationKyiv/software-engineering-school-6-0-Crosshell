@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { appConfig } from '@/shared/config/app.config';
+import { appConfig } from '@/shared/config';
 
 export const logger = pino({
   transport:

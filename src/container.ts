@@ -1,0 +1,41 @@
+import { db } from '@/infrastructure/database';
+import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
+import { RepositoryRepository } from '@/modules/repository/repository.repository';
+import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
+import { SubscriptionService } from '@/modules/subscription/subscription.service';
+import { GithubClient } from '@/modules/github/github.client';
+import { MailerService } from '@/modules/mailer/mailer.service';
+import { ScannerService } from '@/modules/scanner/scanner.service';
+import { NotificationService } from '@/modules/notification/notification.service';
+import { NotificationQueue } from '@/modules/notification/notification.queue';
+
+export function createContainer(notificationQueue: NotificationQueue) {
+  const mailer = new MailerService();
+  const github = new GithubClient();
+  const uow = new UnitOfWork(db);
+
+  const repositoryRepository = new RepositoryRepository(db);
+  const subscriptionRepository = new SubscriptionRepository(db);
+
+  const subscriptionService = new SubscriptionService(
+    uow,
+    subscriptionRepository,
+    github,
+    mailer,
+  );
+
+  const scannerService = new ScannerService(
+    repositoryRepository,
+    github,
+    notificationQueue,
+  );
+
+  const notificationService = new NotificationService(
+    mailer,
+    notificationQueue,
+  );
+
+  return { subscriptionService, scannerService, notificationService } as const;
+}
+
+export type AppContainer = ReturnType<typeof createContainer>;

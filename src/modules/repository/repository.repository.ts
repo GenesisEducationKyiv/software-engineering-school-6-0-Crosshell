@@ -1,14 +1,11 @@
-import { Database } from '@/infrastructure/database';
-import {
-  repositoriesTable,
-  Repository,
-  subscriptionsTable,
-} from '@/infrastructure/database/schema';
+import { DbClient } from '@/infrastructure/database';
+import { repositoriesTable, subscriptionsTable } from '@/infrastructure/database/schema';
 import { eq } from 'drizzle-orm';
-import { RepositoryWithSubscribers } from '@/modules/repository/repository.schemas';
+import { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
+import { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 
 export class RepositoryRepository {
-  constructor(private readonly db: Database) {}
+  constructor(private readonly db: DbClient) {}
 
   async getRepositoriesWithActiveSubscriptions(): Promise<
     RepositoryWithSubscribers[]
@@ -37,7 +34,12 @@ export class RepositoryRepository {
         existing.subscribers.push(subscriber);
       } else {
         map.set(row.repository.id, {
-          repository: row.repository,
+          repository: {
+            id: row.repository.id,
+            owner: row.repository.owner,
+            repo: row.repository.repo,
+            lastSeenTag: row.repository.lastSeenTag,
+          },
           subscribers: [subscriber],
         });
       }
@@ -53,7 +55,7 @@ export class RepositoryRepository {
       .where(eq(repositoriesTable.id, repositoryId));
   }
 
-  async upsertRepository(owner: string, repo: string): Promise<Repository> {
+  async upsertRepository(owner: string, repo: string): Promise<TrackedRepository> {
     const [row] = await this.db
       .insert(repositoriesTable)
       .values({ owner, repo })
@@ -63,6 +65,11 @@ export class RepositoryRepository {
       })
       .returning();
 
-    return row;
+    return {
+      id: row.id,
+      owner: row.owner,
+      repo: row.repo,
+      lastSeenTag: row.lastSeenTag,
+    };
   }
 }

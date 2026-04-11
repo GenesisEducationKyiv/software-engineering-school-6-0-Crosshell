@@ -1,12 +1,24 @@
 import fp from 'fastify-plugin';
 import { FastifyError, FastifyPluginAsync } from 'fastify';
-import { AppError } from '@/shared/errors/app.errors';
-import { HttpStatus } from '@/shared/constants/http-statutes.constants';
+import {
+  AppError,
+  NotFoundError,
+  ConflictError,
+  RateLimitError,
+} from '@/shared/errors/app.errors';
+import { HttpStatus } from '@/shared/constants/http-status.constant';
+
+function resolveStatus(error: AppError): number {
+  if (error instanceof NotFoundError) return HttpStatus.NOT_FOUND;
+  if (error instanceof ConflictError) return HttpStatus.CONFLICT;
+  if (error instanceof RateLimitError) return HttpStatus.SERVICE_UNAVAILABLE;
+  return HttpStatus.INTERNAL_SERVER_ERROR;
+}
 
 const errorHandlerPlugin: FastifyPluginAsync = fp(async (server) => {
   server.setErrorHandler((error: FastifyError | AppError, _request, reply) => {
     if (error instanceof AppError) {
-      return reply.code(error.statusCode).send({ message: error.message });
+      return reply.code(resolveStatus(error)).send({ message: error.message });
     }
 
     if (error.validation) {

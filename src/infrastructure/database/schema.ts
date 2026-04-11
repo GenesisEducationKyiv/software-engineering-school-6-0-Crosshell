@@ -1,5 +1,5 @@
 import { boolean, pgTable, unique, uuid, varchar } from 'drizzle-orm/pg-core';
-import { baseTableColumns } from '@/infrastructure/database/helpers/columns.helpers';
+import { baseTableColumns } from '@/infrastructure/database/helpers/columns.helper';
 import { relations } from 'drizzle-orm';
 
 export const repositoriesTable = pgTable(

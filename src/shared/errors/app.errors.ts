@@ -1,10 +1,7 @@
-import { HttpStatus } from '@/shared/constants/http-statutes.constants';
-
 export class AppError extends Error {
   constructor(
-    readonly statusCode: number,
+    readonly name: string,
     message: string,
-    name: string,
   ) {
     super(message);
     this.name = name;
@@ -13,18 +10,18 @@ export class AppError extends Error {
 
 export class NotFoundError extends AppError {
   constructor(message: string) {
-    super(HttpStatus.NOT_FOUND, message, 'NotFoundError');
+    super('NotFoundError', message);
   }
 }
 
 export class ConflictError extends AppError {
   constructor(message: string) {
-    super(HttpStatus.CONFLICT, message, 'ConflictError');
+    super('ConflictError', message);
   }
 }
 
 export class RateLimitError extends AppError {
   constructor(message: string) {
-    super(HttpStatus.SERVICE_UNAVAILABLE, message, 'RateLimitError');
+    super('RateLimitError', message);
   }
 }

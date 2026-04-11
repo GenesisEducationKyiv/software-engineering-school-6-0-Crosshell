@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
+export type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
 
 const REPO_REGEX = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/;
 
@@ -25,7 +27,6 @@ export const subscriptionWithRepoSchema = z.object({
   repo: z.string(),
   confirmed: z.boolean(),
   lastSeenTag: z.string().nullable(),
-});
+}) satisfies z.ZodType<SubscriptionWithRepo>;
 
 export type SubscribeInput = z.infer<typeof subscribeSchema>;
-export type SubscriptionWithRepo = z.infer<typeof subscriptionWithRepoSchema>;

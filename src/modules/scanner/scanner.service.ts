@@ -1,29 +1,38 @@
 import cron from 'node-cron';
 import { GithubClient } from '@/modules/github/github.client';
 import { RateLimitError } from '@/shared/errors/app.errors';
-import { Repository } from '@/infrastructure/database/schema';
 import { logger } from '@/shared/logger';
-import { appConfig } from '@/shared/config/app.config';
-import { RepositoryService } from '@/modules/repository/repository.service';
+import { scannerConfig } from '@/shared/config';
+import { RepositoryRepository } from '@/modules/repository/repository.repository';
+import { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 import { Subscriber } from '@/modules/notification/notification.schemas';
-import { publishReleaseNotification } from '@/modules/notification/notification.queue';
+import { NotificationPublisher } from '@/modules/notification/notification.publisher';
 
 export class ScannerService {
   constructor(
-    private readonly repositoryService: RepositoryService,
+    private readonly repositoryRepository: RepositoryRepository,
     private readonly github: GithubClient,
+    private readonly notificationPublisher: NotificationPublisher,
   ) {}
 
   start(): void {
-    cron.schedule(appConfig.scannerCron, () => void this.scan());
-    logger.info(`[Scanner] Started with schedule: ${appConfig.scannerCron}`);
+    cron.schedule(scannerConfig.scannerCron, async () => {
+      try {
+        await this.scan();
+      } catch (err) {
+        logger.error({ err }, '[Scanner] Unhandled error during scan');
+      }
+    });
+    logger.info(
+      `[Scanner] Started with schedule: ${scannerConfig.scannerCron}`,
+    );
   }
 
   async scan(): Promise<void> {
     logger.info('[Scanner] Running release scan...');
 
     const entries =
-      await this.repositoryService.getRepositoriesWithActiveSubscriptions();
+      await this.repositoryRepository.getRepositoriesWithActiveSubscriptions();
 
     await Promise.allSettled(
       entries.map(({ repository, subscribers }) =>
@@ -35,7 +44,7 @@ export class ScannerService {
   }
 
   private async scanRepository(
-    repository: Repository,
+    repository: TrackedRepository,
     subscribers: Subscriber[],
   ): Promise<void> {
     try {
@@ -47,18 +56,18 @@ export class ScannerService {
       if (!release) return;
       if (release.tagName === repository.lastSeenTag) return;
 
-      await this.repositoryService.updateLastSeenTag(
-        repository.id,
-        release.tagName,
-      );
-
-      publishReleaseNotification({
+      this.notificationPublisher.publish({
         repositoryOwner: repository.owner,
         repositoryRepo: repository.repo,
         newTag: release.tagName,
         releaseUrl: release.htmlUrl,
         subscribers,
       });
+
+      await this.repositoryRepository.updateLastSeenTag(
+        repository.id,
+        release.tagName,
+      );
 
       logger.info(
         `[Scanner] New release ${release.tagName} for ${repository.owner}/${repository.repo}`,
