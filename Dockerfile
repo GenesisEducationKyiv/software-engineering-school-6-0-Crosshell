@@ -32,7 +32,7 @@ COPY --chown=nodejs:nodejs package.json ./
 
 USER nodejs
 
-EXPOSE 3000
+EXPOSE 3000 50051
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/index.js"]

@@ -6,9 +6,11 @@ services:
     build: .
     ports:
       - "${APP_PORT}:3000"
+      - "${GRPC_PORT:-50051}:50051"
     env_file: .env
     environment:
       APP_PORT: "3000"
+      GRPC_PORT: "50051"
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@notifier-postgres:5432/${POSTGRES_DB}"
       RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
     depends_on:

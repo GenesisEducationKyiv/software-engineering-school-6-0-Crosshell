@@ -5,10 +5,15 @@ import { db, pool } from '@/infrastructure/database';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
 import subscriptionRoutes from '@/modules/subscription/subscription.routes';
+import {
+  createSubscriptionGrpcHandlers,
+  getSubscriptionServiceDefinition,
+} from '@/modules/subscription/subscription.grpc';
+import { GrpcServer } from '@/infrastructure/grpc/grpc-server';
 import { logger } from '@/shared/logger';
 import { createContainer } from '@/container';
 import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
-import { appConfig } from '@/shared/config';
+import { appConfig, grpcConfig } from '@/shared/config';
 
 const start = async () => {
   try {
@@ -23,13 +28,20 @@ const start = async () => {
     const { subscriptionService, scannerService, notificationService } =
       createContainer(notificationQueue);
 
-    registerGracefulShutdown({ server, queueManager, pool });
+    const grpcServer = new GrpcServer();
+    grpcServer.addService(
+      getSubscriptionServiceDefinition(),
+      createSubscriptionGrpcHandlers(subscriptionService),
+    );
+
+    registerGracefulShutdown({ server, grpcServer, queueManager, pool });
 
     await server.register(subscriptionRoutes(subscriptionService), {
       prefix: '/api',
     });
 
     await server.listen({ port: appConfig.port, host: '0.0.0.0' });
+    await grpcServer.start(grpcConfig.port);
 
     notificationService.start();
     scannerService.start();

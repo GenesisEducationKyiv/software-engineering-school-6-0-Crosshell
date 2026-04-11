@@ -29,3 +29,5 @@ export const subscriptionWithRepoSchema = z.object({
 }) satisfies z.ZodType<SubscriptionWithRepo>;
 
 export type SubscribeInput = z.infer<typeof subscribeSchema>;
+export type UnsubscribeInput = z.infer<typeof tokenSchema>;
+export type GetSubscriptionsQuery = z.infer<typeof getSubscriptionsQuerySchema>;
