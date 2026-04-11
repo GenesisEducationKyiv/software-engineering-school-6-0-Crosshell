@@ -25,3 +25,9 @@ export class RateLimitError extends AppError {
     super('RateLimitError', message);
   }
 }
+
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Unauthorized') {
+    super('UnauthorizedError', message);
+  }
+}

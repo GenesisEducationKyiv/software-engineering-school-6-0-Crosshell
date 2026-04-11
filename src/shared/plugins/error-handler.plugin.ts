@@ -5,10 +5,12 @@ import {
   NotFoundError,
   ConflictError,
   RateLimitError,
+  UnauthorizedError,
 } from '@/shared/errors/app.errors';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 
 function resolveStatus(error: AppError): number {
+  if (error instanceof UnauthorizedError) return HttpStatus.UNAUTHORIZED;
   if (error instanceof NotFoundError) return HttpStatus.NOT_FOUND;
   if (error instanceof ConflictError) return HttpStatus.CONFLICT;
   if (error instanceof RateLimitError) return HttpStatus.SERVICE_UNAVAILABLE;
