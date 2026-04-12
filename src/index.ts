@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import '@/shared/config';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { server } from './server';

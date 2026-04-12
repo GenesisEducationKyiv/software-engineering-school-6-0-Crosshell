@@ -1,7 +1,4 @@
-import dotenv from 'dotenv';
 import type { z } from 'zod';
-
-dotenv.config();
 
 export function registerConfig<T>(schema: z.ZodSchema<T>): T {
   const parsed = schema.safeParse(process.env);
