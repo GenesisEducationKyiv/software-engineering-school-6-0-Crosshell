@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
 export default defineConfig({
@@ -12,5 +12,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ['tests/setup.ts'],
     clearMocks: true,
+    exclude: [...configDefaults.exclude, 'tests/integration/**'],
   },
 });
