@@ -70,7 +70,10 @@ describe('apiKeyPlugin', () => {
     });
 
     it('should return 401 when the x-api-key header is missing', async () => {
-      const response = await app.inject({ method: 'GET', url: '/protected' });
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/protected',
+      });
 
       expect(response.statusCode).toBe(HttpStatus.UNAUTHORIZED);
     });
@@ -78,7 +81,7 @@ describe('apiKeyPlugin', () => {
     it('should return 401 when the x-api-key header has the wrong value', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/protected',
+        url: '/api/protected',
         headers: { 'x-api-key': 'wrong-key' },
       });
 
@@ -88,7 +91,7 @@ describe('apiKeyPlugin', () => {
     it('should return 401 when the x-api-key header is an empty string', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/protected',
+        url: '/api/protected',
         headers: { 'x-api-key': '' },
       });
 
@@ -98,7 +101,7 @@ describe('apiKeyPlugin', () => {
     it('should return 401 when the key matches a prefix but not the full value', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/protected',
+        url: '/api/protected',
         headers: { 'x-api-key': CONFIGURED_KEY.slice(0, 5) },
       });
 
