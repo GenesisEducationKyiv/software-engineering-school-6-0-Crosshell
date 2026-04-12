@@ -73,7 +73,6 @@ describe('SubscriptionService', () => {
     uow.run.mockImplementation((fn) => fn(txCtx));
 
     subscriptionRepository = mock<SubscriptionRepository>();
-    subscriptionRepository.existsByEmailAndRepo.mockResolvedValue(false);
     subscriptionRepository.findByConfirmToken.mockResolvedValue(null);
     subscriptionRepository.findByUnsubscribeToken.mockResolvedValue(null);
     subscriptionRepository.confirm.mockResolvedValue(undefined);
@@ -99,51 +98,6 @@ describe('SubscriptionService', () => {
   });
 
   describe('subscribe', () => {
-    describe('duplicate subscription guard', () => {
-      it('should throw ConflictError when email is already subscribed to the repository', async () => {
-        subscriptionRepository.existsByEmailAndRepo.mockResolvedValue(true);
-
-        await expect(service.subscribe(VALID_INPUT)).rejects.toThrow(
-          new ConflictError('Email is already subscribed to this repository'),
-        );
-      });
-
-      it('should not call the GitHub API when email is already subscribed', async () => {
-        subscriptionRepository.existsByEmailAndRepo.mockResolvedValue(true);
-
-        await expect(service.subscribe(VALID_INPUT)).rejects.toThrow(
-          ConflictError,
-        );
-
-        expect(github.getRepository).not.toHaveBeenCalled();
-      });
-
-      it('should not open a transaction when email is already subscribed', async () => {
-        subscriptionRepository.existsByEmailAndRepo.mockResolvedValue(true);
-
-        await expect(service.subscribe(VALID_INPUT)).rejects.toThrow(
-          ConflictError,
-        );
-
-        expect(uow.run).not.toHaveBeenCalled();
-      });
-    });
-
-    describe('duplicate subscription check arguments', () => {
-      it('should split the repo slug into owner and repo parts before checking', async () => {
-        const input: SubscribeInput = {
-          email: 'a@b.com',
-          repo: 'myorg/my-repo',
-        };
-
-        await service.subscribe(input);
-
-        expect(
-          subscriptionRepository.existsByEmailAndRepo,
-        ).toHaveBeenCalledWith('a@b.com', 'myorg', 'my-repo');
-      });
-    });
-
     describe('GitHub validation', () => {
       it('should propagate NotFoundError when the GitHub repository does not exist', async () => {
         github.getRepository.mockRejectedValue(
@@ -202,6 +156,21 @@ describe('SubscriptionService', () => {
         );
       });
 
+      it('should use canonical owner/repo from GitHub fullName regardless of input casing', async () => {
+        github.getRepository.mockResolvedValue({
+          id: 1,
+          fullName: 'acc/testName',
+          htmlUrl: '',
+        });
+
+        await service.subscribe({ email: 'user@example.com', repo: 'ACC/TestName' });
+
+        expect(txCtx.repositories.findOrCreate).toHaveBeenCalledWith(
+          'acc',
+          'testName',
+        );
+      });
+
       it('should create the subscription with the email and resolved repositoryId', async () => {
         await service.subscribe(VALID_INPUT);
 
@@ -249,15 +218,9 @@ describe('SubscriptionService', () => {
         expect(result).toBeUndefined();
       });
 
-      it('should execute steps in the correct order: guard - GitHub - transaction - email', async () => {
+      it('should execute steps in the correct order: GitHub - transaction - email', async () => {
         const callOrder: string[] = [];
 
-        subscriptionRepository.existsByEmailAndRepo.mockImplementation(
-          async () => {
-            callOrder.push('existsByEmailAndRepo');
-            return false;
-          },
-        );
         github.getRepository.mockImplementation(async () => {
           callOrder.push('getRepository');
           return { id: 1, fullName: 'acc/testName', htmlUrl: '' };
@@ -273,7 +236,6 @@ describe('SubscriptionService', () => {
         await service.subscribe(VALID_INPUT);
 
         expect(callOrder).toEqual([
-          'existsByEmailAndRepo',
           'getRepository',
           'uow.run',
           'sendConfirmationEmail',

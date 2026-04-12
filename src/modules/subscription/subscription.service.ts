@@ -17,19 +17,10 @@ export class SubscriptionService {
   ) {}
 
   async subscribe(input: SubscribeInput): Promise<void> {
-    const [owner, repo] = input.repo.split('/');
+    const [rawOwner, rawRepo] = input.repo.split('/');
 
-    const alreadySubscribed =
-      await this.subscriptionRepository.existsByEmailAndRepo(
-        input.email,
-        owner,
-        repo,
-      );
-    if (alreadySubscribed) {
-      throw new ConflictError('Email is already subscribed to this repository');
-    }
-
-    await this.github.getRepository(owner, repo);
+    const githubRepo = await this.github.getRepository(rawOwner, rawRepo);
+    const [owner, repo] = githubRepo.fullName.split('/');
 
     const sub = await this.uow.run(async ({ repositories, subscriptions }) => {
       const repository = await repositories.findOrCreate(owner, repo);
