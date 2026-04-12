@@ -6,6 +6,7 @@ import {
   ConflictError,
   NotFoundError,
   RateLimitError,
+  UnauthorizedError,
 } from '@/shared/errors/app.errors';
 
 type GrpcError = ServerErrorResponse & { code: status };
@@ -27,6 +28,9 @@ export function toGrpcError(err: unknown): GrpcError {
       message: err.message,
       code: status.RESOURCE_EXHAUSTED,
     };
+  }
+  if (err instanceof UnauthorizedError) {
+    return { name: err.name, message: err.message, code: status.UNAUTHENTICATED };
   }
   if (err instanceof AppError) {
     return { name: err.name, message: err.message, code: status.INTERNAL };
