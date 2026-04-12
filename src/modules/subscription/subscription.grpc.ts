@@ -5,12 +5,15 @@ import { toGrpcError } from '@/infrastructure/grpc/grpc-error.mapper';
 import type {
   GetSubscriptionsQuery,
   SubscribeInput,
-  UnsubscribeInput} from './subscription.schemas';
+  UnsubscribeInput,
+} from './subscription.schemas';
 import {
   subscribeSchema,
   tokenSchema,
   getSubscriptionsQuerySchema,
 } from './subscription.schemas';
+import { appConfig } from '@/shared/config';
+import { UnauthorizedError } from '@/shared/errors/app.errors';
 
 type SubscribeRequest = SubscribeInput;
 type TokenRequest = UnsubscribeInput;
@@ -24,6 +27,17 @@ export function getSubscriptionServiceDefinition(): grpc.ServiceDefinition {
   );
 }
 
+function verifyApiKey(metadata: grpc.Metadata): void {
+  if (!appConfig.apiKey) return;
+
+  const keys = metadata.get('x-api-key');
+  const key = keys.length > 0 ? keys[0].toString() : undefined;
+
+  if (key !== appConfig.apiKey) {
+    throw new UnauthorizedError();
+  }
+}
+
 export function createSubscriptionGrpcHandlers(
   service: SubscriptionService,
 ): grpc.UntypedServiceImplementation {
@@ -32,6 +46,8 @@ export function createSubscriptionGrpcHandlers(
     callback,
   ) => {
     try {
+      verifyApiKey(call.metadata);
+
       const input = subscribeSchema.parse(call.request);
       await service.subscribe(input);
       callback(null, {});
@@ -45,6 +61,8 @@ export function createSubscriptionGrpcHandlers(
     object
   > = async (call, callback) => {
     try {
+      verifyApiKey(call.metadata);
+
       const { token } = tokenSchema.parse(call.request);
       await service.confirm(token);
       callback(null, {});
@@ -58,6 +76,8 @@ export function createSubscriptionGrpcHandlers(
     callback,
   ) => {
     try {
+      verifyApiKey(call.metadata);
+
       const { token } = tokenSchema.parse(call.request);
       await service.unsubscribe(token);
       callback(null, {});
@@ -71,6 +91,8 @@ export function createSubscriptionGrpcHandlers(
     object
   > = async (call, callback) => {
     try {
+      verifyApiKey(call.metadata);
+
       const { email } = getSubscriptionsQuerySchema.parse(call.request);
       const subscriptions = await service.getSubscriptionsByEmail(email);
       callback(null, { subscriptions });
