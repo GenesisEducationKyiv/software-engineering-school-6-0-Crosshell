@@ -9,12 +9,37 @@ import {
 } from '@/shared/errors/app.errors';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 
+const STATUS_MAP = new Map<Function, number>([
+  [UnauthorizedError, HttpStatus.UNAUTHORIZED],
+  [NotFoundError, HttpStatus.NOT_FOUND],
+  [ConflictError, HttpStatus.CONFLICT],
+  [RateLimitError, HttpStatus.TOO_MANY_REQUESTS],
+]);
+
+const STATUS_CACHE = new WeakMap<Function, number>();
+
 function resolveStatus(error: AppError): number {
-  if (error instanceof UnauthorizedError) return HttpStatus.UNAUTHORIZED;
-  if (error instanceof NotFoundError) return HttpStatus.NOT_FOUND;
-  if (error instanceof ConflictError) return HttpStatus.CONFLICT;
-  if (error instanceof RateLimitError) return HttpStatus.SERVICE_UNAVAILABLE;
-  return HttpStatus.INTERNAL_SERVER_ERROR;
+  const ctor = error.constructor;
+
+  if (STATUS_CACHE.has(ctor)) {
+    return STATUS_CACHE.get(ctor)!;
+  }
+
+  let proto = Object.getPrototypeOf(error);
+  while (proto !== null) {
+    const status = STATUS_MAP.get(proto.constructor);
+
+    if (status !== undefined) {
+      STATUS_CACHE.set(ctor, status);
+      return status;
+    }
+
+    proto = Object.getPrototypeOf(proto);
+  }
+
+  const defaultStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+  STATUS_CACHE.set(ctor, defaultStatus);
+  return defaultStatus;
 }
 
 const errorHandlerPlugin: FastifyPluginAsync = fp(async (server) => {
