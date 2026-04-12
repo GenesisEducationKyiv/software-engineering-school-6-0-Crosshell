@@ -28,7 +28,8 @@ RUN addgroup --system --gid 1001 nodejs \
 COPY --chown=nodejs:nodejs --from=prod-deps /app/node_modules ./node_modules
 COPY --chown=nodejs:nodejs --from=builder   /app/dist         ./dist
 COPY --chown=nodejs:nodejs --from=builder   /app/drizzle      ./drizzle
-COPY --chown=nodejs:nodejs --from=builder /app/proto ./proto
+COPY --chown=nodejs:nodejs --from=builder   /app/proto        ./proto
+COPY --chown=nodejs:nodejs --from=builder   /app/public       ./public
 COPY --chown=nodejs:nodejs package.json ./
 
 USER nodejs
