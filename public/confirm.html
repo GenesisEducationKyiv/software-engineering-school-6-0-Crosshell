@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirm subscription - GitHub Release Notifier</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 40px 32px;
+            width: 100%;
+            max-width: 440px;
+            text-align: center;
+        }
+
+        .icon {
+            width: 52px; height: 52px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px; font-size: 1.5rem;
+        }
+
+        .icon.loading { background: #1f3a5f; animation: pulse 1.2s infinite; }
+        .icon.success { background: #0d2e0d; }
+        .icon.error   { background: #2d1a1a; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        h2 { font-size: 1.2rem; font-weight: 600; color: #f0f6fc; margin-bottom: 8px; }
+        p  { font-size: 0.9rem; color: #8b949e; line-height: 1.5; }
+
+        .form-group { text-align: left; margin-bottom: 16px; }
+        label { display: block; font-size: 0.85rem; font-weight: 500; color: #c9d1d9; margin-bottom: 6px; }
+        input {
+            width: 100%; background: #0d1117; border: 1px solid #30363d;
+            border-radius: 6px; color: #c9d1d9; font-size: 0.9rem;
+            padding: 8px 12px; outline: none; transition: border-color 0.15s;
+        }
+        input:focus { border-color: #1f6feb; }
+        input[readonly] { color: #8b949e; background: #161b22; }
+
+        button {
+            width: 100%; background: #238636; border: none; border-radius: 6px;
+            color: #fff; font-size: 0.9rem; font-weight: 500; padding: 10px;
+            cursor: pointer; transition: background 0.15s; margin-top: 8px;
+        }
+        button:hover { background: #2ea043; }
+        button:disabled { background: #1f3a5f; color: #8b949e; cursor: not-allowed; }
+
+        a.link-btn {
+            display: inline-block; margin-top: 24px; color: #58a6ff;
+            font-size: 0.875rem; text-decoration: none;
+        }
+        a.link-btn:hover { text-decoration: underline; }
+
+        #status-view { display: none; }
+    </style>
+</head>
+<body>
+<div class="card">
+
+    <div id="form-view">
+        <h2>Confirm Subscription</h2>
+        <p style="margin-bottom: 24px;">Verify your settings to activate.</p>
+
+        <div class="form-group">
+            <label for="token">Subscription Token</label>
+            <input id="token" type="text" readonly />
+        </div>
+
+        <div class="form-group">
+            <label for="api-key">API Key</label>
+            <input id="api-key" type="password" placeholder="Enter x-api-key..." />
+        </div>
+
+        <button id="submit-btn" onclick="processConfirm()">Confirm Subscription</button>
+    </div>
+
+    <div id="status-view">
+        <div class="icon loading" id="icon">⏳</div>
+        <h2 id="title">Confirming…</h2>
+        <p id="message">Please wait...</p>
+        <a href="/" class="link-btn" id="link" style="display:none">Back to home</a>
+    </div>
+
+</div>
+
+<script>
+    const params = new URLSearchParams(location.search);
+    const tokenParam = params.get('token') || '';
+
+    const tokenInput = document.getElementById('token');
+    const apiKeyInput = document.getElementById('api-key');
+
+    tokenInput.value = tokenParam;
+    apiKeyInput.value = localStorage.getItem('apiKey') || '';
+
+    apiKeyInput.addEventListener('input', (e) => localStorage.setItem('apiKey', e.target.value));
+
+    function getBackendUrl() {
+        const url = '%%BACKEND_URL%%';
+        return url.startsWith('%%') ? 'http://127.0.0.1:3000' : url;
+    }
+
+    async function processConfirm() {
+        const token = tokenInput.value.trim();
+        const apiKey = apiKeyInput.value.trim();
+
+        document.getElementById('form-view').style.display = 'none';
+        document.getElementById('status-view').style.display = 'block';
+
+        const link = document.getElementById('link');
+
+        if (!token) {
+            showStatus('error', '✕', 'Invalid link', 'No confirmation token found.');
+            link.style.display = 'inline-block';
+            return;
+        }
+
+        try {
+            const res = await fetch(`${getBackendUrl()}/api/confirm/${token}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey
+                }
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showStatus('success', '✓', 'Confirmed!', 'You will now receive email notifications.');
+            } else if (res.status === 401) {
+                showStatus('error', '✕', 'Unauthorized', 'Invalid API Key provided.');
+            } else {
+                showStatus('error', '✕', 'Confirmation failed', data.message || 'Token may be invalid or already used.');
+            }
+        } catch (e) {
+            showStatus('error', '✕', 'Network error', 'Could not reach the server.');
+        }
+
+        link.style.display = 'inline-block';
+    }
+
+    function showStatus(type, iconText, titleText, msgText) {
+        const icon = document.getElementById('icon');
+        icon.className = `icon ${type}`;
+        icon.textContent = iconText;
+        document.getElementById('title').textContent = titleText;
+        document.getElementById('message').textContent = msgText;
+    }
+</script>
+</body>
+</html>

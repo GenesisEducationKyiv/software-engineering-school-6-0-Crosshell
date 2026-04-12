@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Release Notifier</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0d1117; color: #e6edf3; min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center; padding: 48px 16px;
+        }
+
+        header { text-align: center; margin-bottom: 40px; }
+        header svg { color: #f0f6fc; margin-bottom: 12px; }
+        h1 { font-size: 1.75rem; font-weight: 600; color: #f0f6fc; }
+        header p { margin-top: 6px; color: #8b949e; font-size: 0.95rem; }
+
+        .card {
+            background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+            padding: 32px; width: 100%; max-width: 480px; margin-bottom: 24px;
+        }
+
+        .tabs { display: flex; border-bottom: 1px solid #30363d; margin-bottom: 28px; gap: 4px; }
+        .tab {
+            background: none; border: none; color: #8b949e; font-size: 0.9rem;
+            padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent;
+            margin-bottom: -1px; transition: color 0.15s;
+        }
+        .tab.active { color: #f0f6fc; border-bottom-color: #1f6feb; }
+        .tab:hover:not(.active) { color: #c9d1d9; }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        label { display: block; font-size: 0.85rem; font-weight: 500; color: #c9d1d9; margin-bottom: 6px; }
+        input {
+            width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+            color: #c9d1d9; font-size: 0.9rem; padding: 8px 12px; outline: none; margin-bottom: 16px;
+        }
+        input:focus { border-color: #1f6feb; }
+
+        button.btn {
+            width: 100%; background: #1f6feb; border: none; border-radius: 6px;
+            color: #fff; font-size: 0.9rem; font-weight: 500; padding: 10px; cursor: pointer;
+        }
+        button.btn:hover { background: #388bfd; }
+        button.btn:disabled { background: #1f3a5f; color: #8b949e; cursor: not-allowed; }
+
+        .alert { display: none; border-radius: 6px; padding: 12px 14px; font-size: 0.875rem; margin-top: 16px; }
+        .alert.success { background: #0d2e0d; border: 1px solid #238636; color: #3fb950; }
+        .alert.error   { background: #2d1a1a; border: 1px solid #da3633; color: #f85149; }
+        .alert.show    { display: block; }
+
+        .sub-list { list-style: none; margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+        .sub-item { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+        .sub-item .repo-name a { color: #58a6ff; text-decoration: none; font-weight: 500;}
+        .sub-item .tag { font-size: 0.78rem; color: #8b949e; margin-top: 2px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #238636; flex-shrink: 0; }
+        .empty { text-align: center; color: #8b949e; font-size: 0.875rem; padding: 24px 0; }
+    </style>
+</head>
+<body>
+<header>
+    <svg width="40" height="40" viewBox="0 0 98 96" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M49 0C21.9 0 0 22 0 49.2c0 21.8 13.9 40.2 33.2 46.7 2.4.5 3.3-1.1 3.3-2.4v-8.4c-13.5 3-16.3-6.5-16.3-6.5-2.2-5.7-5.4-7.2-5.4-7.2-4.4-3 .3-3 .3-3 4.9.4 7.4 5 7.4 5 4.3 7.4 11.3 5.3 14.1 4 .4-3.1 1.7-5.3 3-6.5-10.8-1.2-22.1-5.4-22.1-24.1 0-5.3 1.9-9.7 5-13.1-.5-1.2-2.2-6.2.5-12.9 0 0 4.1-1.3 13.4 5 3.9-1.1 8-1.6 12.2-1.6 4.1 0 8.3.5 12.2 1.6 9.3-6.4 13.4-5 13.4-5 2.7 6.7 1 11.7.5 12.9 3.1 3.4 5 7.8 5 13.1 0 18.7-11.4 22.8-22.2 24 1.7 1.5 3.3 4.5 3.3 9v13.4c0 1.3.9 2.9 3.3 2.4C84.1 89.4 98 71 98 49.2 98 22 76.1 0 49 0z"/>
+    </svg>
+    <h1>GitHub Release Notifier</h1>
+    <p>Get notified by email when a repository releases a new version</p>
+</header>
+
+<div class="card">
+
+    <div style="margin-bottom: 24px; padding-bottom: 8px; border-bottom: 1px solid #30363d;">
+        <label for="api-key">API Key (x-api-key)</label>
+        <input id="api-key" type="password" placeholder="Enter API Key to authenticate..." style="margin-bottom: 0;" />
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="subscribe">Subscribe</button>
+        <button class="tab" data-tab="subscriptions">My subscriptions</button>
+    </div>
+
+    <div class="panel active" id="panel-subscribe">
+        <form id="subscribe-form">
+            <label for="sub-email">Email</label>
+            <input id="sub-email" type="email" placeholder="you@example.com" required />
+
+            <label for="sub-repo">Repository</label>
+            <input id="sub-repo" type="text" placeholder="owner/repo (e.g. golang/go)" required pattern="[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+" />
+
+            <button type="submit" class="btn">Subscribe</button>
+        </form>
+        <div class="alert" id="sub-alert"></div>
+    </div>
+
+    <div class="panel" id="panel-subscriptions">
+        <form id="lookup-form">
+            <label for="lookup-email">Email</label>
+            <input id="lookup-email" type="email" placeholder="you@example.com" required />
+            <button type="submit" class="btn">Look up</button>
+        </form>
+        <div class="alert" id="lookup-alert"></div>
+        <ul class="sub-list" id="sub-list"></ul>
+    </div>
+</div>
+
+<script>
+    const apiKeyInput = document.getElementById('api-key');
+
+    apiKeyInput.value = localStorage.getItem('apiKey') || '';
+    apiKeyInput.addEventListener('input', (e) => localStorage.setItem('apiKey', e.target.value));
+
+    function getBackendUrl() {
+        const url = '%%BACKEND_URL%%';
+        return url.startsWith('%%') ? 'http://127.0.0.1:3000' : url;
+    }
+
+    function getHeaders() {
+        return {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKeyInput.value.trim()
+        };
+    }
+
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    function showAlert(el, type, msg) {
+        el.className = `alert ${type} show`;
+        el.textContent = msg;
+    }
+
+    document.getElementById('subscribe-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button');
+        const alert = document.getElementById('sub-alert');
+        btn.disabled = true;
+        btn.textContent = 'Subscribing…';
+        try {
+            const res = await fetch(`${getBackendUrl()}/api/subscribe`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    email: document.getElementById('sub-email').value.trim(),
+                    repo: document.getElementById('sub-repo').value.trim(),
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showAlert(alert, 'success', data.message);
+                e.target.reset();
+            } else if (res.status === 401) {
+                showAlert(alert, 'error', 'Unauthorized. Check your API Key.');
+            } else {
+                showAlert(alert, 'error', data.message || 'Something went wrong');
+            }
+        } catch {
+            showAlert(alert, 'error', 'Network error. Try again.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Subscribe';
+        }
+    });
+
+    document.getElementById('lookup-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button');
+        const alert = document.getElementById('lookup-alert');
+        const list = document.getElementById('sub-list');
+        btn.disabled = true;
+        btn.textContent = 'Loading…';
+        list.innerHTML = '';
+        alert.className = 'alert';
+
+        try {
+            const email = document.getElementById('lookup-email').value.trim();
+            const res = await fetch(`${getBackendUrl()}/api/subscriptions?email=${encodeURIComponent(email)}`, {
+                headers: getHeaders()
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                if (res.status === 401) showAlert(alert, 'error', 'Unauthorized. Check your API Key.');
+                else showAlert(alert, 'error', data.message || 'Something went wrong');
+                return;
+            }
+
+            if (!data.length) {
+                list.innerHTML = '<li class="empty">No confirmed subscriptions found.</li>';
+                return;
+            }
+
+            list.innerHTML = data.map(s => `
+          <li class="sub-item">
+            <div class="dot"></div>
+            <div>
+              <div class="repo-name"><a href="https://github.com/${s.repo}/releases/tag/${s.lastSeenTag}" target="_blank" rel="noopener">${s.repo}</a></div>
+              <div class="tag">${s.lastSeenTag ? 'Latest: ' + s.lastSeenTag : 'No release seen yet'}</div>
+            </div>
+          </li>`).join('');
+        } catch {
+            showAlert(alert, 'error', 'Network error. Check environment setting.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Look up';
+        }
+    });
+</script>
+</body>
+</html>
