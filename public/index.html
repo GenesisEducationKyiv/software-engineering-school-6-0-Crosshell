@@ -6,23 +6,19 @@
     <title>GitHub Release Notifier</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #0d1117; color: #e6edf3; min-height: 100vh;
             display: flex; flex-direction: column; align-items: center; padding: 48px 16px;
         }
-
         header { text-align: center; margin-bottom: 40px; }
         header svg { color: #f0f6fc; margin-bottom: 12px; }
         h1 { font-size: 1.75rem; font-weight: 600; color: #f0f6fc; }
         header p { margin-top: 6px; color: #8b949e; font-size: 0.95rem; }
-
         .card {
             background: #161b22; border: 1px solid #30363d; border-radius: 12px;
             padding: 32px; width: 100%; max-width: 480px; margin-bottom: 24px;
         }
-
         .tabs { display: flex; border-bottom: 1px solid #30363d; margin-bottom: 28px; gap: 4px; }
         .tab {
             background: none; border: none; color: #8b949e; font-size: 0.9rem;
@@ -31,29 +27,24 @@
         }
         .tab.active { color: #f0f6fc; border-bottom-color: #1f6feb; }
         .tab:hover:not(.active) { color: #c9d1d9; }
-
         .panel { display: none; }
         .panel.active { display: block; }
-
         label { display: block; font-size: 0.85rem; font-weight: 500; color: #c9d1d9; margin-bottom: 6px; }
         input {
             width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
             color: #c9d1d9; font-size: 0.9rem; padding: 8px 12px; outline: none; margin-bottom: 16px;
         }
         input:focus { border-color: #1f6feb; }
-
         button.btn {
             width: 100%; background: #1f6feb; border: none; border-radius: 6px;
             color: #fff; font-size: 0.9rem; font-weight: 500; padding: 10px; cursor: pointer;
         }
         button.btn:hover { background: #388bfd; }
         button.btn:disabled { background: #1f3a5f; color: #8b949e; cursor: not-allowed; }
-
         .alert { display: none; border-radius: 6px; padding: 12px 14px; font-size: 0.875rem; margin-top: 16px; }
         .alert.success { background: #0d2e0d; border: 1px solid #238636; color: #3fb950; }
         .alert.error   { background: #2d1a1a; border: 1px solid #da3633; color: #f85149; }
         .alert.show    { display: block; }
-
         .sub-list { list-style: none; margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
         .sub-item { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
         .sub-item .repo-name a { color: #58a6ff; text-decoration: none; font-weight: 500;}
@@ -72,7 +63,6 @@
 </header>
 
 <div class="card">
-
     <div style="margin-bottom: 24px; padding-bottom: 8px; border-bottom: 1px solid #30363d;">
         <label for="api-key">API Key (x-api-key)</label>
         <input id="api-key" type="password" placeholder="Enter API Key to authenticate..." style="margin-bottom: 0;" />
@@ -87,10 +77,8 @@
         <form id="subscribe-form">
             <label for="sub-email">Email</label>
             <input id="sub-email" type="email" placeholder="you@example.com" required />
-
             <label for="sub-repo">Repository</label>
             <input id="sub-repo" type="text" placeholder="owner/repo (e.g. golang/go)" required pattern="[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+" />
-
             <button type="submit" class="btn">Subscribe</button>
         </form>
         <div class="alert" id="sub-alert"></div>
@@ -112,11 +100,6 @@
 
     apiKeyInput.value = localStorage.getItem('apiKey') || '';
     apiKeyInput.addEventListener('input', (e) => localStorage.setItem('apiKey', e.target.value));
-
-    function getBackendUrl() {
-        const url = '%%BACKEND_URL%%';
-        return url.startsWith('%%') ? 'http://127.0.0.1:3000' : url;
-    }
 
     function getHeaders() {
         return {
@@ -146,7 +129,7 @@
         btn.disabled = true;
         btn.textContent = 'Subscribing…';
         try {
-            const res = await fetch(`${getBackendUrl()}/api/subscribe`, {
+            const res = await fetch('/api/subscribe', {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify({
@@ -183,7 +166,7 @@
 
         try {
             const email = document.getElementById('lookup-email').value.trim();
-            const res = await fetch(`${getBackendUrl()}/api/subscriptions?email=${encodeURIComponent(email)}`, {
+            const res = await fetch(`/api/subscriptions?email=${encodeURIComponent(email)}`, {
                 headers: getHeaders()
             });
 

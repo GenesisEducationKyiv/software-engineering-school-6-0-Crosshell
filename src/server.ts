@@ -12,6 +12,8 @@ import metricsPlugin from '@/shared/plugins/metrics.plugin';
 import apiKeyPlugin from '@/shared/plugins/api-key.plugin';
 import { logger } from '@/shared/logger';
 import type { FastifyBaseLogger } from 'fastify';
+import path from 'path';
+import fastifyStatic from '@fastify/static';
 
 const server = Fastify({
   loggerInstance: logger as FastifyBaseLogger,
@@ -21,12 +23,14 @@ server.setValidatorCompiler(validatorCompiler);
 server.setSerializerCompiler(serializerCompiler);
 
 server.register(cors, {
-  origin: [
-    appConfig.nodeEnv === 'development' ? true : appConfig.appUrl,
-    appConfig.frontendUrl,
-  ],
+  origin: [appConfig.nodeEnv === 'development' ? true : appConfig.appUrl],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-api-key'],
+});
+
+server.register(fastifyStatic, {
+  root: path.join(process.cwd(), 'public'),
+  prefix: '/',
 });
 
 server.register(errorHandlerPlugin);
