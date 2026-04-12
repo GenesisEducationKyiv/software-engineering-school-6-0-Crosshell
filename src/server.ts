@@ -21,7 +21,12 @@ server.setValidatorCompiler(validatorCompiler);
 server.setSerializerCompiler(serializerCompiler);
 
 server.register(cors, {
-  origin: appConfig.nodeEnv === 'development' ? true : appConfig.appUrl,
+  origin: [
+    appConfig.nodeEnv === 'development' ? true : appConfig.appUrl,
+    appConfig.frontendUrl,
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-api-key'],
 });
 
 server.register(errorHandlerPlugin);
