@@ -36,11 +36,6 @@ const PARSED_REPO: GitHubRepository = {
   htmlUrl: `https://github.com/${OWNER}/${REPO}`,
 };
 
-const RAW_RELEASE = {
-  tag_name: 'v1.0.0',
-  html_url: 'https://github.com/owner/repo/releases/tag/v1.0.0',
-};
-
 const PARSED_RELEASE: GitHubRelease = {
   tagName: 'v1.0.0',
   htmlUrl: 'https://github.com/owner/repo/releases/tag/v1.0.0',
@@ -246,53 +241,11 @@ describe('GithubClient', () => {
   });
 
   describe('getLatestRelease', () => {
-    describe('cache hit', () => {
-      it('should return the cached release without making an HTTP request', async () => {
-        cache.get.mockResolvedValue(PARSED_RELEASE);
-
-        const result = await client.getLatestRelease(OWNER, REPO);
-
-        expect(result).toEqual(PARSED_RELEASE);
-      });
-
-      it('should increment the cache-hit counter', async () => {
-        cache.get.mockResolvedValue(PARSED_RELEASE);
-
-        await client.getLatestRelease(OWNER, REPO);
-
-        expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
-          operation: 'getLatestRelease',
-          cache: 'hit',
-        });
-      });
-
-      it('should look up the cache with the correct key', async () => {
-        cache.get.mockResolvedValue(PARSED_RELEASE);
-
-        await client.getLatestRelease(OWNER, REPO);
-
-        expect(cache.get).toHaveBeenCalledWith(
-          `github:release:${OWNER}:${REPO}`,
-          expect.anything(),
-        );
-      });
-    });
-
-    describe('cache miss successful fetch', () => {
+    describe('successful fetch', () => {
       it('should return the parsed release data', async () => {
         const result = await client.getLatestRelease(OWNER, REPO);
 
         expect(result).toEqual(PARSED_RELEASE);
-      });
-
-      it('should store the raw response in the cache with the correct TTL', async () => {
-        await client.getLatestRelease(OWNER, REPO);
-
-        expect(cache.set).toHaveBeenCalledWith(
-          `github:release:${OWNER}:${REPO}`,
-          RAW_RELEASE,
-          600,
-        );
       });
 
       it('should increment the cache-miss counter', async () => {

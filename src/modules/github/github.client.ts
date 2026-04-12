@@ -68,17 +68,6 @@ export class GithubClient {
     owner: string,
     repo: string,
   ): Promise<GitHubRelease | null> {
-    const key = GithubClient.cacheKeyRelease(owner, repo);
-
-    const cached = await this.cache.get(key, gitHubReleaseSchema);
-    if (cached) {
-      githubApiRequestsTotal.inc({
-        operation: 'getLatestRelease',
-        cache: 'hit',
-      });
-      return cached;
-    }
-
     const res = await fetch(
       `${this.baseUrl}/repos/${owner}/${repo}/releases/latest`,
       { headers: this.headers },
@@ -94,22 +83,14 @@ export class GithubClient {
     if (!res.ok)
       throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
 
-    githubApiRequestsTotal.inc({
-      operation: 'getLatestRelease',
-      cache: 'miss',
-    });
+    githubApiRequestsTotal.inc({ operation: 'getLatestRelease', cache: 'miss' });
 
     const raw = await res.json();
-    await this.cache.set(key, raw, githubConfig.cacheTtlSeconds);
     return gitHubReleaseSchema.parse(raw);
   }
 
   private static cacheKeyRepo(owner: string, repo: string): string {
     return `github:repo:${owner}:${repo}`;
-  }
-
-  private static cacheKeyRelease(owner: string, repo: string): string {
-    return `github:release:${owner}:${repo}`;
   }
 
   private isRateLimited(res: Response): boolean {
