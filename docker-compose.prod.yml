@@ -1,0 +1,59 @@
+name: notifier-prod
+
+services:
+  notifier-api:
+    container_name: notifier-api
+    image: notifier-api:latest
+    ports:
+      - "${APP_PORT:-3000}:3000"
+      - "${GRPC_PORT:-50051}:50051"
+    env_file: .env
+    environment:
+      APP_PORT: "3000"
+      GRPC_PORT: "50051"
+      RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
+      REDIS_URL: "redis://notifier-redis:6379"
+    depends_on:
+      notifier-rabbitmq:
+        condition: service_healthy
+      notifier-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - notifier-network
+
+  notifier-redis:
+    image: redis:7-alpine
+    container_name: notifier-redis
+    restart: unless-stopped
+    volumes:
+      - notifier-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+  notifier-rabbitmq:
+    image: rabbitmq:3-alpine
+    container_name: notifier-rabbitmq
+    restart: unless-stopped
+    volumes:
+      - notifier-rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+networks:
+  notifier-network:
+    driver: bridge
+
+volumes:
+  notifier-redis:
+  notifier-rabbitmq:

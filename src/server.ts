@@ -7,6 +7,7 @@ import {
 } from 'fastify-type-provider-zod';
 import { appConfig } from '@/shared/config';
 import errorHandlerPlugin from '@/shared/plugins/error-handler.plugin';
+import healthPlugin from '@/shared/plugins/health.plugin';
 import metricsPlugin from '@/shared/plugins/metrics.plugin';
 import apiKeyPlugin from '@/shared/plugins/api-key.plugin';
 import { logger } from '@/shared/logger';
@@ -24,6 +25,7 @@ server.register(cors, {
 });
 
 server.register(errorHandlerPlugin);
+server.register(healthPlugin);
 server.register(apiKeyPlugin);
 server.register(metricsPlugin);
 
