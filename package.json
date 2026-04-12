@@ -14,7 +14,11 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:integration:up": "docker compose -f docker-compose.test.yml up -d --wait",
+    "test:integration:down": "docker compose -f docker-compose.test.yml down",
+    "test:integration": "npm run test:integration:up && vitest run --config vitest.integration.config.ts; npm run test:integration:down",
+    "test:integration:run": "vitest run --config vitest.integration.config.ts"
   },
   "keywords": [],
   "author": "Vladyslav Berdychevskyi",
