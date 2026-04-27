@@ -1,0 +1,86 @@
+name: notifier
+
+services:
+  notifier-api:
+    container_name: notifier-api
+    build: .
+    ports:
+      - "${APP_PORT:-3000}:3000"
+      - "${GRPC_PORT:-50051}:50051"
+    env_file: .env
+    environment:
+      APP_PORT: "3000"
+      GRPC_PORT: "50051"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@notifier-postgres:5432/${POSTGRES_DB}"
+      RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
+      REDIS_URL: "redis://notifier-redis:6379"
+    depends_on:
+      notifier-postgres:
+        condition: service_healthy
+      notifier-rabbitmq:
+        condition: service_healthy
+      notifier-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - notifier-network
+
+  notifier-redis:
+    image: redis:7-alpine
+    container_name: notifier-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - notifier-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+  notifier-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: notifier-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+  notifier-postgres:
+    image: postgres:16-alpine
+    container_name: notifier-postgres
+    restart: always
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - notifier-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+networks:
+  notifier-network:
+    driver: bridge
+
+volumes:
+  notifier-postgres:
+  notifier-redis:

@@ -1,0 +1,17 @@
+import { configDefaults, defineConfig } from 'vitest/config';
+import { resolve } from 'path';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
+  test: {
+    environment: 'node',
+    globals: true,
+    setupFiles: ['tests/setup.ts'],
+    clearMocks: true,
+    exclude: [...configDefaults.exclude, 'tests/integration/**'],
+  },
+});
