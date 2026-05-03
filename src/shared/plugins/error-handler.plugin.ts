@@ -10,6 +10,7 @@ import {
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 
 type Constructor = abstract new (...args: never[]) => object;
+type Proto = { constructor: Constructor } | null;
 
 const STATUS_MAP = new Map<Constructor, number>([
   [UnauthorizedError, HttpStatus.UNAUTHORIZED],
@@ -27,7 +28,7 @@ function resolveStatus(error: AppError): number {
     return STATUS_CACHE.get(<Constructor>ctor)!;
   }
 
-  let proto = Object.getPrototypeOf(error);
+  let proto = Object.getPrototypeOf(error) as Proto;
   while (proto !== null) {
     const status = STATUS_MAP.get(proto.constructor);
 
@@ -36,7 +37,7 @@ function resolveStatus(error: AppError): number {
       return status;
     }
 
-    proto = Object.getPrototypeOf(proto);
+    proto = Object.getPrototypeOf(proto) as Proto;
   }
 
   const defaultStatus = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -44,7 +45,7 @@ function resolveStatus(error: AppError): number {
   return defaultStatus;
 }
 
-const errorHandlerPlugin: FastifyPluginAsync = fp(async (server) => {
+const errorHandlerPlugin: FastifyPluginAsync = fp((server): Promise<void> => {
   server.setErrorHandler((error: FastifyError | AppError, _request, reply) => {
     if (error instanceof AppError) {
       return reply.code(resolveStatus(error)).send({ message: error.message });
@@ -62,6 +63,8 @@ const errorHandlerPlugin: FastifyPluginAsync = fp(async (server) => {
       .code(HttpStatus.INTERNAL_SERVER_ERROR)
       .send({ message: 'Internal server error' });
   });
+
+  return Promise.resolve();
 });
 
 export default errorHandlerPlugin;
