@@ -1,5 +1,5 @@
 import type * as grpc from '@grpc/grpc-js';
-import type { SubscriptionService } from './subscription.service';
+import type { ISubscriptionService } from './subscription.service.interface';
 import { loadServiceDefinition } from '@/infrastructure/grpc/grpc-server';
 import { toGrpcError } from '@/infrastructure/grpc/grpc-error.mapper';
 import type {
@@ -50,7 +50,7 @@ function unaryHandler<Req, Res extends object>(
 }
 
 export function createSubscriptionGrpcHandlers(
-  service: SubscriptionService,
+  service: ISubscriptionService,
 ): grpc.UntypedServiceImplementation {
   const subscribe = unaryHandler<SubscribeRequest, object>(async (call) => {
     verifyApiKey(call.metadata);
@@ -59,12 +59,14 @@ export function createSubscriptionGrpcHandlers(
     return {};
   });
 
-  const confirmSubscription = unaryHandler<TokenRequest, object>(async (call) => {
-    verifyApiKey(call.metadata);
-    const { token } = tokenSchema.parse(call.request);
-    await service.confirm(token);
-    return {};
-  });
+  const confirmSubscription = unaryHandler<TokenRequest, object>(
+    async (call) => {
+      verifyApiKey(call.metadata);
+      const { token } = tokenSchema.parse(call.request);
+      await service.confirm(token);
+      return {};
+    },
+  );
 
   const unsubscribe = unaryHandler<TokenRequest, object>(async (call) => {
     verifyApiKey(call.metadata);
@@ -73,12 +75,14 @@ export function createSubscriptionGrpcHandlers(
     return {};
   });
 
-  const getSubscriptions = unaryHandler<GetSubscriptionsRequest, object>(async (call) => {
-    verifyApiKey(call.metadata);
-    const { email } = getSubscriptionsQuerySchema.parse(call.request);
-    const subscriptions = await service.getSubscriptionsByEmail(email);
-    return { subscriptions };
-  });
+  const getSubscriptions = unaryHandler<GetSubscriptionsRequest, object>(
+    async (call) => {
+      verifyApiKey(call.metadata);
+      const { email } = getSubscriptionsQuerySchema.parse(call.request);
+      const subscriptions = await service.getSubscriptionsByEmail(email);
+      return { subscriptions };
+    },
+  );
 
   return { subscribe, confirmSubscription, unsubscribe, getSubscriptions };
 }

@@ -1,19 +1,20 @@
-import type { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
+import type { ISubscriptionRepository } from '@/modules/subscription/subscription.repository.interface';
 import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
-import type { GithubClient } from '@/modules/github/github.client';
-import type { MailerService } from '@/modules/mailer/mailer.service';
+import type { IGithubClient } from '@/modules/github/github.client.interface';
+import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
-import type { UnitOfWork } from '@/infrastructure/database/unit-of-work';
+import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { buildConfirmUrl } from '@/modules/subscription/subscription.urls';
+import type { ISubscriptionService } from './subscription.service.interface';
 
-export class SubscriptionService {
+export class SubscriptionService implements ISubscriptionService {
   constructor(
-    private readonly uow: UnitOfWork,
-    private readonly subscriptionRepository: SubscriptionRepository,
-    private readonly github: GithubClient,
-    private readonly mailer: MailerService,
+    private readonly uow: IUnitOfWork,
+    private readonly subscriptionRepository: ISubscriptionRepository,
+    private readonly github: IGithubClient,
+    private readonly mailer: IMailerService,
   ) {}
 
   async subscribe(input: SubscribeInput): Promise<void> {

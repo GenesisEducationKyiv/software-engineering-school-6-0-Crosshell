@@ -2,8 +2,9 @@ import nodemailer, { type Transporter } from 'nodemailer';
 import { mailerConfig } from '@/shared/config';
 import { confirmationEmailHtml } from '@/modules/mailer/templates/confirmation.template';
 import { releaseNotificationHtml } from '@/modules/mailer/templates/release-notification.template';
+import type { IMailerService } from './mailer.service.interface';
 
-export class MailerService {
+export class MailerService implements IMailerService {
   private readonly transporter: Transporter;
 
   constructor() {

@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock, mockDeep } from 'vitest-mock-extended';
 import { SubscriptionService } from './subscription.service';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
-import type { SubscriptionRepository } from './subscription.repository';
-import type { GithubClient } from '@/modules/github/github.client';
-import type { MailerService } from '@/modules/mailer/mailer.service';
+import type { ISubscriptionRepository } from './subscription.repository.interface';
+import type { IGithubClient } from '@/modules/github/github.client.interface';
+import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
 import type {
-  UnitOfWork,
+  IUnitOfWork,
   UnitOfWorkContext,
 } from '@/infrastructure/database/unit-of-work';
 import type { SubscribeInput } from './subscription.schemas';
@@ -56,10 +56,10 @@ const MOCK_SUBSCRIPTION: Subscription = {
 
 describe('SubscriptionService', () => {
   let service: SubscriptionService;
-  let uow: ReturnType<typeof mock<UnitOfWork>>;
-  let subscriptionRepository: ReturnType<typeof mock<SubscriptionRepository>>;
-  let github: ReturnType<typeof mock<GithubClient>>;
-  let mailer: ReturnType<typeof mock<MailerService>>;
+  let uow: ReturnType<typeof mock<IUnitOfWork>>;
+  let subscriptionRepository: ReturnType<typeof mock<ISubscriptionRepository>>;
+  let github: ReturnType<typeof mock<IGithubClient>>;
+  let mailer: ReturnType<typeof mock<IMailerService>>;
   let txCtx: ReturnType<typeof mockDeep<UnitOfWorkContext>>;
 
   beforeEach(() => {
@@ -69,24 +69,24 @@ describe('SubscriptionService', () => {
     txCtx.repositories.findOrCreate.mockResolvedValue(MOCK_REPOSITORY);
     txCtx.subscriptions.createSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
 
-    uow = mock<UnitOfWork>();
+    uow = mock<IUnitOfWork>();
     uow.run.mockImplementation((fn) => fn(txCtx));
 
-    subscriptionRepository = mock<SubscriptionRepository>();
+    subscriptionRepository = mock<ISubscriptionRepository>();
     subscriptionRepository.findByConfirmToken.mockResolvedValue(null);
     subscriptionRepository.findByUnsubscribeToken.mockResolvedValue(null);
     subscriptionRepository.confirm.mockResolvedValue(undefined);
     subscriptionRepository.deleteById.mockResolvedValue(undefined);
     subscriptionRepository.findConfirmedByEmail.mockResolvedValue([]);
 
-    github = mock<GithubClient>();
+    github = mock<IGithubClient>();
     github.getRepository.mockResolvedValue({
       id: 1,
       fullName: 'acc/testName',
       htmlUrl: '',
     });
 
-    mailer = mock<MailerService>();
+    mailer = mock<IMailerService>();
     mailer.sendConfirmationEmail.mockResolvedValue(undefined);
 
     service = new SubscriptionService(

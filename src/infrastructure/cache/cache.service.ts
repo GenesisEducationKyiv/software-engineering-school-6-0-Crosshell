@@ -1,8 +1,9 @@
 import type { Redis } from 'ioredis';
 import type { ZodType } from 'zod';
 import { logger } from '@/shared/logger';
+import type { ICacheService } from './cache.service.interface';
 
-export class CacheService {
+export class CacheService implements ICacheService {
   constructor(private readonly client: Redis) {}
 
   async get<T>(key: string, schema: ZodType<T>): Promise<T | null> {

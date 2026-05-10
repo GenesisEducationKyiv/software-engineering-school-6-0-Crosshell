@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { ScannerService } from './scanner.service';
 import { RateLimitError } from '@/shared/errors/app.errors';
-import type { RepositoryRepository } from '@/modules/repository/repository.repository';
-import type { GithubClient } from '@/modules/github/github.client';
-import type { NotificationPublisher } from '@/modules/notification/notification-publisher.type';
+import type { IRepositoryRepository } from '@/modules/repository/repository.repository.interface';
+import type { IGithubClient } from '@/modules/github/github.client.interface';
+import type { INotificationPublisher } from '../notification/notification-publisher.interface';
 import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { GitHubRelease } from '@/modules/github/github.schemas';
@@ -60,21 +60,21 @@ function makeEntry(
 
 describe('ScannerService', () => {
   let service: ScannerService;
-  let repositoryRepository: ReturnType<typeof mock<RepositoryRepository>>;
-  let github: ReturnType<typeof mock<GithubClient>>;
-  let notificationPublisher: ReturnType<typeof mock<NotificationPublisher>>;
+  let repositoryRepository: ReturnType<typeof mock<IRepositoryRepository>>;
+  let github: ReturnType<typeof mock<IGithubClient>>;
+  let notificationPublisher: ReturnType<typeof mock<INotificationPublisher>>;
 
   beforeEach(() => {
-    repositoryRepository = mock<RepositoryRepository>();
+    repositoryRepository = mock<IRepositoryRepository>();
     repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
       [],
     );
     repositoryRepository.updateLastSeenTag.mockResolvedValue(undefined);
 
-    github = mock<GithubClient>();
+    github = mock<IGithubClient>();
     github.getLatestRelease.mockResolvedValue(null);
 
-    notificationPublisher = mock<NotificationPublisher>();
+    notificationPublisher = mock<INotificationPublisher>();
 
     service = new ScannerService(
       repositoryRepository,

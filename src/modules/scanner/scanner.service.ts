@@ -1,12 +1,12 @@
 import cron from 'node-cron';
-import type { GithubClient } from '@/modules/github/github.client';
+import type { IGithubClient } from '@/modules/github/github.client.interface';
 import { RateLimitError } from '@/shared/errors/app.errors';
 import { logger } from '@/shared/logger';
 import { scannerConfig } from '@/shared/config';
-import type { RepositoryRepository } from '@/modules/repository/repository.repository';
+import type { IRepositoryRepository } from '@/modules/repository/repository.repository.interface';
 import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
-import type { NotificationPublisher } from '@/modules/notification/notification-publisher.type';
+import type { INotificationPublisher } from '../notification/notification-publisher.interface';
 import {
   scannerRunsTotal,
   scannerNewReleasesTotal,
@@ -14,9 +14,9 @@ import {
 
 export class ScannerService {
   constructor(
-    private readonly repositoryRepository: RepositoryRepository,
-    private readonly github: GithubClient,
-    private readonly notificationPublisher: NotificationPublisher,
+    private readonly repositoryRepository: IRepositoryRepository,
+    private readonly github: IGithubClient,
+    private readonly notificationPublisher: INotificationPublisher,
   ) {}
 
   start(): void {

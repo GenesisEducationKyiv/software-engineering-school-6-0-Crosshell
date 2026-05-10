@@ -6,8 +6,9 @@ import {
 import { and, eq } from 'drizzle-orm';
 import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
 import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
+import type { IRepositoryRepository } from './repository.repository.interface';
 
-export class RepositoryRepository {
+export class RepositoryRepository implements IRepositoryRepository {
   constructor(private readonly db: DbClient) {}
 
   async getRepositoriesWithActiveSubscriptions(): Promise<

@@ -5,12 +5,12 @@ import {
   getSubscriptionsQuerySchema,
   subscriptionWithRepoSchema,
 } from '@/modules/subscription/subscription.schemas';
-import type { SubscriptionService } from '@/modules/subscription/subscription.service';
+import type { ISubscriptionService } from '@/modules/subscription/subscription.service.interface';
 import type { AppServer } from '@/server';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 
 const subscriptionRoutes =
-  (service: SubscriptionService): FastifyPluginAsyncZod =>
+  (service: ISubscriptionService): FastifyPluginAsyncZod =>
   (server: AppServer): Promise<void> => {
     server.post(
       '/subscribe',

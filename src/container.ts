@@ -7,12 +7,13 @@ import { GithubClient } from '@/modules/github/github.client';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationService } from '@/modules/notification/notification.service';
-import type { NotificationQueue } from '@/modules/notification/notification.queue';
-import type { CacheService } from '@/infrastructure/cache/cache.service';
+import type { INotificationPublisher } from '@/modules/notification/notification-publisher.interface';
+import type { INotificationConsumer } from '@/modules/notification/notification.consumer.interface';
+import type { ICacheService } from '@/infrastructure/cache/cache.service.interface';
 
 export function createContainer(
-  notificationQueue: NotificationQueue,
-  cache: CacheService,
+  notificationQueue: INotificationPublisher & INotificationConsumer,
+  cache: ICacheService,
 ) {
   const mailer = new MailerService();
   const github = new GithubClient(cache);

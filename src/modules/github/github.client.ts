@@ -9,14 +9,15 @@ import {
   gitHubReleaseSchema,
 } from '@/modules/github/github.schemas';
 import { githubConfig } from '@/shared/config';
-import type { CacheService } from '@/infrastructure/cache/cache.service';
+import type { ICacheService } from '@/infrastructure/cache/cache.service.interface';
 import { githubApiRequestsTotal } from '@/infrastructure/metrics/metrics.registry';
+import type { IGithubClient } from './github.client.interface';
 
-export class GithubClient {
+export class GithubClient implements IGithubClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
-  constructor(private readonly cache: CacheService) {
+  constructor(private readonly cache: ICacheService) {
     this.baseUrl = githubConfig.baseUrl;
     this.headers = {
       Accept: 'application/vnd.github+json',

@@ -1,15 +1,19 @@
+import type { Channel, ConsumeMessage } from 'amqplib';
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { logger } from '@/shared/logger';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import { releaseNotificationPayloadSchema } from '@/modules/notification/notification.schemas';
-import type { NotificationPublisher } from './notification-publisher.type';
+import type { INotificationPublisher } from './notification-publisher.interface';
+import type { INotificationConsumer } from './notification.consumer.interface';
 
 const QUEUE_NAME = 'release.notifications';
 const DLX_NAME = 'release.notifications.dlx';
 const DLQ_NAME = 'release.notifications.dead';
 const MAX_RETRIES = 3;
 
-export class NotificationQueue implements NotificationPublisher {
+export class NotificationQueue
+  implements INotificationPublisher, INotificationConsumer
+{
   constructor(private readonly queueManager: QueueManager) {}
 
   async setup(): Promise<void> {
@@ -57,30 +61,31 @@ export class NotificationQueue implements NotificationPublisher {
           await handler(payload);
           channel.ack(msg);
         } catch (err) {
-          const retryCount =
-            (msg.properties.headers?.['x-retry-count'] as number | undefined) ??
-            0;
-
-          logger.error(
-            { err, retryCount },
-            '[Queue] Failed to process message',
-          );
-
-          if (retryCount < MAX_RETRIES) {
-            channel.sendToQueue(QUEUE_NAME, msg.content, {
-              persistent: true,
-              headers: { 'x-retry-count': retryCount + 1 },
-            });
-            channel.ack(msg);
-          } else {
-            logger.error(
-              { err },
-              '[Queue] Max retries reached. Sending to DLQ',
-            );
-            channel.nack(msg, false, false);
-          }
+          this.handleRetry(channel, msg, err);
         }
       })();
     });
+  }
+
+  private handleRetry(
+    channel: Channel,
+    msg: ConsumeMessage,
+    err: unknown,
+  ): void {
+    const retryCount =
+      (msg.properties.headers?.['x-retry-count'] as number | undefined) ?? 0;
+
+    logger.error({ err, retryCount }, '[Queue] Failed to process message');
+
+    if (retryCount < MAX_RETRIES) {
+      channel.sendToQueue(QUEUE_NAME, msg.content, {
+        persistent: true,
+        headers: { 'x-retry-count': retryCount + 1 },
+      });
+      channel.ack(msg);
+    } else {
+      logger.error({ err }, '[Queue] Max retries reached. Sending to DLQ');
+      channel.nack(msg, false, false);
+    }
   }
 }

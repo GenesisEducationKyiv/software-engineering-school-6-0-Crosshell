@@ -1,17 +1,17 @@
-import type { MailerService } from '@/modules/mailer/mailer.service';
+import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
 import { logger } from '@/shared/logger';
-import type { NotificationQueue } from '@/modules/notification/notification.queue';
-import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
+import type { INotificationConsumer } from '@/modules/notification/notification.consumer.interface';
+import { buildUnsubscribeUrl } from '@/modules/notification/notification.urls';
 import { notificationsSentTotal } from '@/infrastructure/metrics/metrics.registry';
 
 export class NotificationService {
   constructor(
-    private readonly mailer: MailerService,
-    private readonly notificationQueue: NotificationQueue,
+    private readonly mailer: IMailerService,
+    private readonly notificationConsumer: INotificationConsumer,
   ) {}
 
   start(): void {
-    this.notificationQueue.consume(async (payload) => {
+    this.notificationConsumer.consume(async (payload) => {
       const {
         repositoryOwner,
         repositoryRepo,

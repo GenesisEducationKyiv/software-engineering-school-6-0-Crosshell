@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { http, HttpResponse } from 'msw';
 import { GithubClient } from './github.client';
-import type { CacheService } from '@/infrastructure/cache/cache.service';
+import type { ICacheService } from '@/infrastructure/cache/cache.service.interface';
 import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import type { GitHubRelease, GitHubRepository } from './github.schemas';
 
@@ -42,11 +42,11 @@ const PARSED_RELEASE: GitHubRelease = {
 };
 
 describe('GithubClient', () => {
-  let cache: ReturnType<typeof mock<CacheService>>;
+  let cache: ReturnType<typeof mock<ICacheService>>;
   let client: GithubClient;
 
   beforeEach(() => {
-    cache = mock<CacheService>();
+    cache = mock<ICacheService>();
     cache.get.mockResolvedValue(null);
     cache.set.mockResolvedValue(undefined);
 

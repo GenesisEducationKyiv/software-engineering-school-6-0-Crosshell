@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { NotificationService } from './notification.service';
-import type { MailerService } from '@/modules/mailer/mailer.service';
-import type { NotificationQueue } from '@/modules/notification/notification.queue';
+import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
+import type { INotificationConsumer } from '@/modules/notification/notification.consumer.interface';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 
-vi.mock('@/modules/subscription/subscription.urls', () => ({
+vi.mock('@/modules/notification/notification.urls', () => ({
   buildUnsubscribeUrl: vi.fn(
     (token: string) => `http://localhost:3000/api/unsubscribe/${token}`,
   ),
@@ -20,7 +20,7 @@ vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
   notificationsSentTotal: { inc: vi.fn() },
 }));
 
-import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
+import { buildUnsubscribeUrl } from '@/modules/notification/notification.urls';
 import { logger } from '@/shared/logger';
 import { notificationsSentTotal } from '@/infrastructure/metrics/metrics.registry';
 
@@ -44,28 +44,28 @@ const MOCK_PAYLOAD: ReleaseNotificationPayload = {
 
 describe('NotificationService', () => {
   let service: NotificationService;
-  let mailer: ReturnType<typeof mock<MailerService>>;
-  let notificationQueue: ReturnType<typeof mock<NotificationQueue>>;
+  let mailer: ReturnType<typeof mock<IMailerService>>;
+  let notificationConsumer: ReturnType<typeof mock<INotificationConsumer>>;
   let capturedHandler: (payload: ReleaseNotificationPayload) => Promise<void>;
 
   beforeEach(() => {
-    mailer = mock<MailerService>();
+    mailer = mock<IMailerService>();
     mailer.sendReleaseNotification.mockResolvedValue(undefined);
 
-    notificationQueue = mock<NotificationQueue>();
-    notificationQueue.consume.mockImplementation((handler) => {
+    notificationConsumer = mock<INotificationConsumer>();
+    notificationConsumer.consume.mockImplementation((handler) => {
       capturedHandler = handler;
     });
 
-    service = new NotificationService(mailer, notificationQueue);
+    service = new NotificationService(mailer, notificationConsumer);
   });
 
   describe('start', () => {
     it('should register a consumer on the notification queue', () => {
       service.start();
 
-      expect(notificationQueue.consume).toHaveBeenCalledOnce();
-      expect(notificationQueue.consume).toHaveBeenCalledWith(
+      expect(notificationConsumer.consume).toHaveBeenCalledOnce();
+      expect(notificationConsumer.consume).toHaveBeenCalledWith(
         expect.any(Function),
       );
     });

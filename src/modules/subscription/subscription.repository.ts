@@ -1,16 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import type { DbClient } from '@/infrastructure/database';
-import type {
-  Subscription} from '@/infrastructure/database/schema';
+import type { Subscription } from '@/infrastructure/database/schema';
 import {
   repositoriesTable,
-  subscriptionsTable
+  subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
 import type { CreateSubscriptionData } from '@/modules/subscription/types/create-subscription-data.type';
+import type { ISubscriptionRepository } from './subscription.repository.interface';
 
-export class SubscriptionRepository {
+export class SubscriptionRepository implements ISubscriptionRepository {
   constructor(private readonly db: DbClient) {}
 
   async existsByEmailAndRepo(

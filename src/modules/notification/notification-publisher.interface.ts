@@ -1,5 +1,5 @@
 import type { ReleaseNotificationPayload } from './notification.schemas';
 
-export interface NotificationPublisher {
+export interface INotificationPublisher {
   publish(payload: ReleaseNotificationPayload): void;
 }
