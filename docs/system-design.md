@@ -24,11 +24,11 @@ The service tracks GitHub repositories and sends email notifications to subscrib
 
 | #  | Requirement                                                                                                             |
 |----|-------------------------------------------------------------------------------------------------------------------------|
-| N1 | **Reliable delivery:** a notification email must never be silently lost; up to 3 retries, then DLQ                      |
+| N1 | **Reliable delivery:** release notification messages are never silently lost; message-level processing failures (parse/validation errors, unexpected throws) trigger up to 3 retries, then DLQ. Individual per-subscriber SMTP failures are logged and metricked but do not trigger message retry. |
 | N2 | **Fault tolerance:** temporary unavailability of RabbitMQ or SMTP must not interrupt the scanner                        |
 | N3 | **Observability:** Prometheus metrics for HTTP, GitHub API, scanner, and notifications; structured Pino logs            |
 | N4 | **Graceful shutdown:** on SIGTERM the service finishes active requests and closes all connections (DB, RabbitMQ, Redis) |
-| N5 | **Security:** optional API key (`X-API-Key` header) to protect all endpoints                                            |
+| N5 | **Security:** optional API key (`X-API-Key` header) to protect `/api/*` endpoints; `/health` and `/metrics` remain public regardless |
 | N6 | **Consistency:** subscription is an atomic operation (find-or-create repo + create subscription in one transaction)     |
 
 ### Constraints
@@ -139,7 +139,7 @@ Infrastructure:
 
 **Responsibility:** HTTP transport, request validation, authentication.
 
-- `api-key.plugin` – validates the `X-API-Key` header when `API_KEY` is set in the environment. If `API_KEY` is not configured, all endpoints are publicly accessible.
+- `api-key.plugin` – validates the `X-API-Key` header when `API_KEY` is set in the environment. `/api/*` endpoints are protected only when `API_KEY` is set; `/health` and `/metrics` remain public regardless.
 - `error-handler.plugin` – maps the `AppError` hierarchy to HTTP status codes: `NotFoundError → 404`, `ConflictError → 409`, `UnauthorizedError → 401`, `RateLimitError → 429`.
 - `health.plugin` – `GET /health` returns `200 OK`; used by Docker healthcheck and load balancers.
 - `metrics.plugin` – `GET /metrics` exposes the Prometheus scrape endpoint.
@@ -207,9 +207,12 @@ consume loop:
 
   if ok:
     sendReleaseNotification(email) for each subscriber (Promise.allSettled)
+    // Promise.allSettled never throws — per-subscriber SMTP failures are
+    // logged and metricked; they do NOT trigger retry or DLQ
     channel.ack(msg)
 
-  if error:
+  if error (parse / validation failure or unexpected throw):
+    // retry/DLQ applies only to message-level handler failures, not per-email SMTP errors
     retryCount = msg.headers['x-retry-count'] ?? 0
     if retryCount < 3:
       channel.sendToQueue(queue, msg.content, { headers: { x-retry-count: retryCount+1 } })
@@ -224,7 +227,7 @@ consume loop:
 
 - `getRepository` is cached in Redis with a TTL (env `GITHUB_CACHE_TTL_SECONDS`). `getLatestRelease` is intentionally not cached – fresh data is required for release detection.
 - On 429 or 403 with `x-ratelimit-remaining: 0` – `RateLimitError` is thrown. The scanner logs it as `warn`, not `error`, to avoid alert noise.
-- `CacheService.get` validates cached values through a Zod schema – on invalid data it silently returns `null` (cache miss), preventing failures from stale or corrupted cache entries.
+- `CacheService.get` validates cached values through a Zod schema – on invalid data it gracefully returns `null` (cache miss) after logging a warning, preventing failures from stale or corrupted cache entries.
 
 ---
 
@@ -275,7 +278,7 @@ subscriptions
 | `GET`  | `/health`                   | No       | Health check                       |
 | `GET`  | `/metrics`                  | No       | Prometheus metrics                 |
 
-**Authentication:** `X-API-Key: <key>` header, when `API_KEY` is set in the environment.
+**Authentication:** `X-API-Key: <key>` header, applied to `/api/*` routes only when `API_KEY` is set in the environment. The key is optional to accommodate development environments and self-hosted deployments where access control is already enforced at the infrastructure level (e.g. reverse proxy, VPN). `/health` and `/metrics` are always public.
 
 **Response codes:**
 - `200` – success
@@ -353,8 +356,9 @@ NotificationService (listening on 'release.notifications')
   ├─ for each subscriber (Promise.allSettled):
   │       MailerService.sendReleaseNotification(email, repo, tag, url, unsubscribeUrl)
   │
-  ├─ ack all successful
-  └─ retry / DLQ for failed
+  ├─ ack message (regardless of per-subscriber SMTP outcome)
+  └─ per-subscriber SMTP failures: logged + metrics only (no per-email retry)
+     handler/parse errors → retry (up to 3×) → DLQ
 ```
 
 ---
@@ -394,8 +398,9 @@ The service runs as a single Docker container; infrastructure services run as se
 | `SMTP_USER`    | SMTP login                                                       |
 | `SMTP_PASS`    | SMTP password                                                    |
 | `APP_URL`      | Public service URL (used in confirm/unsubscribe links in emails) |
-| `GITHUB_TOKEN` | *(optional)* GitHub PAT for 5,000 req/h instead of 60            |
-| `API_KEY`      | *(optional)* Key to protect the API                              |
+| `GITHUB_TOKEN`            | *(optional)* GitHub PAT for 5,000 req/h instead of 60            |
+| `GITHUB_CACHE_TTL_SECONDS`| *(optional)* Redis TTL for `getRepository` responses (default: 3600) |
+| `API_KEY`                 | *(optional)* Key to protect `/api/*` endpoints                   |
 
 ### Integration Tests
 

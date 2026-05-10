@@ -88,16 +88,20 @@ Scanner
        NotificationService
              │
              ├─ success → channel.ack(msg)
+             │            (per-subscriber SMTP failures are logged/metricked
+             │             inside Promise.allSettled; handler does not throw)
              │
-             └─ failure (retry < 3) → re-publish with x-retry-count++
+             └─ handler throws (parse/validation error, unexpected exception):
                          │
-                         └─ failure (retry = 3) → channel.nack → DLX
-                                                         │
-                                                         ▼
-                                              ┌──────────────────────┐
-                                              │ release.notifications│
-                                              │       .dead  (DLQ)   │
-                                              └──────────────────────┘
+                         ├─ retry < 3 → re-publish with x-retry-count++, channel.ack
+                         │
+                         └─ retry = 3 → channel.nack → DLX
+                                                 │
+                                                 ▼
+                                      ┌──────────────────────┐
+                                      │ release.notifications│
+                                      │       .dead  (DLQ)   │
+                                      └──────────────────────┘
 ```
 
 **Key implementation properties:**
@@ -114,7 +118,7 @@ Scanner
 
 - **Reliable delivery.** Messages are persisted to disk; the scanner and the email sender can restart independently without losing events.
 - **Separation of concerns.** `ScannerService` publishes a single message and forgets; `NotificationService` processes at its own pace. Each component focuses on its own responsibility.
-- **Retry logic.** Temporary SMTP unavailability does not lose a message – after 3 attempts it lands in the DLQ for manual inspection rather than silently disappearing.
+- **Retry logic.** Message-level failures (parse/validation errors, unexpected throws in the handler) trigger up to 3 retries before the message lands in the DLQ for manual inspection. Note: per-subscriber SMTP failures are handled via `Promise.allSettled` inside the handler and do not cause a handler throw — they are logged and metricked, but do not trigger message retry.
 - **Observability.** The DLQ is an explicit signal of problems; a RabbitMQ Prometheus exporter or DLQ depth monitoring can be connected.
 - **Testability.** `NotificationPublisher` is an interface; in unit tests `ScannerService` is mocked without a real broker.
 

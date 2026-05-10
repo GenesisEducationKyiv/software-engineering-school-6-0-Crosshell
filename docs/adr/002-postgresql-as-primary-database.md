@@ -15,6 +15,8 @@ The service needs persistent storage for two entities:
 - **Repository** – a unique `(owner, repo)` pair plus `last_seen_tag` for new-release detection.
 - **Subscription** – an `(email, repository_id)` association with confirmation and unsubscribe tokens, and a `confirmed` flag.
 
+**Drizzle ORM** has already been selected as the data access layer (type-safe query builder with a migration workflow via `drizzle-kit`). The database choice must therefore be compatible with Drizzle's supported adapters.
+
 Key requirements for the database:
 
 1. **Atomicity** on subscribe: the "find-or-create repository → create subscription" operation must execute within a single transaction. Partial writes are unacceptable.
