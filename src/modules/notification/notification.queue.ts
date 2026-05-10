@@ -1,10 +1,7 @@
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { logger } from '@/shared/logger';
-import type {
-  ReleaseNotificationPayload} from '@/modules/notification/notification.schemas';
-import {
-  releaseNotificationPayloadSchema
-} from '@/modules/notification/notification.schemas';
+import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
+import { releaseNotificationPayloadSchema } from '@/modules/notification/notification.schemas';
 import type { NotificationPublisher } from './notification-publisher.type';
 
 const QUEUE_NAME = 'release.notifications';
@@ -49,33 +46,41 @@ export class NotificationQueue implements NotificationPublisher {
   ): void {
     const channel = this.queueManager.getChannel();
 
-    void channel.consume(QUEUE_NAME, async (msg) => {
+    void channel.consume(QUEUE_NAME, (msg) => {
       if (!msg) return;
 
-      try {
-        const payload = releaseNotificationPayloadSchema.parse(
-          JSON.parse(msg.content.toString()),
-        );
-        await handler(payload);
-        channel.ack(msg);
-      } catch (err) {
-        const retryCount =
-          (msg.properties.headers?.['x-retry-count'] as number | undefined) ??
-          0;
-
-        logger.error({ err, retryCount }, '[Queue] Failed to process message');
-
-        if (retryCount < MAX_RETRIES) {
-          channel.sendToQueue(QUEUE_NAME, msg.content, {
-            persistent: true,
-            headers: { 'x-retry-count': retryCount + 1 },
-          });
+      void (async () => {
+        try {
+          const payload = releaseNotificationPayloadSchema.parse(
+            JSON.parse(msg.content.toString()),
+          );
+          await handler(payload);
           channel.ack(msg);
-        } else {
-          logger.error({ err }, '[Queue] Max retries reached. Sending to DLQ');
-          channel.nack(msg, false, false);
+        } catch (err) {
+          const retryCount =
+            (msg.properties.headers?.['x-retry-count'] as number | undefined) ??
+            0;
+
+          logger.error(
+            { err, retryCount },
+            '[Queue] Failed to process message',
+          );
+
+          if (retryCount < MAX_RETRIES) {
+            channel.sendToQueue(QUEUE_NAME, msg.content, {
+              persistent: true,
+              headers: { 'x-retry-count': retryCount + 1 },
+            });
+            channel.ack(msg);
+          } else {
+            logger.error(
+              { err },
+              '[Queue] Max retries reached. Sending to DLQ',
+            );
+            channel.nack(msg, false, false);
+          }
         }
-      }
+      })();
     });
   }
 }

@@ -163,7 +163,10 @@ describe('SubscriptionService', () => {
           htmlUrl: '',
         });
 
-        await service.subscribe({ email: 'user@example.com', repo: 'ACC/TestName' });
+        await service.subscribe({
+          email: 'user@example.com',
+          repo: 'ACC/TestName',
+        });
 
         expect(txCtx.repositories.findOrCreate).toHaveBeenCalledWith(
           'acc',
@@ -221,16 +224,21 @@ describe('SubscriptionService', () => {
       it('should execute steps in the correct order: GitHub - transaction - email', async () => {
         const callOrder: string[] = [];
 
-        github.getRepository.mockImplementation(async () => {
+        github.getRepository.mockImplementation(() => {
           callOrder.push('getRepository');
-          return { id: 1, fullName: 'acc/testName', htmlUrl: '' };
+          return Promise.resolve({
+            id: 1,
+            fullName: 'acc/testName',
+            htmlUrl: '',
+          });
         });
         uow.run.mockImplementation(async (fn) => {
           callOrder.push('uow.run');
           return fn(txCtx);
         });
-        mailer.sendConfirmationEmail.mockImplementation(async () => {
+        mailer.sendConfirmationEmail.mockImplementation(() => {
           callOrder.push('sendConfirmationEmail');
+          return Promise.resolve();
         });
 
         await service.subscribe(VALID_INPUT);

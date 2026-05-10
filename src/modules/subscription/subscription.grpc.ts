@@ -38,68 +38,47 @@ function verifyApiKey(metadata: grpc.Metadata): void {
   }
 }
 
+function unaryHandler<Req, Res extends object>(
+  fn: (call: grpc.ServerUnaryCall<Req, Res>) => Promise<Res>,
+): grpc.handleUnaryCall<Req, Res> {
+  return (call, callback) => {
+    void fn(call).then(
+      (result) => callback(null, result),
+      (err: unknown) => callback(toGrpcError(err)),
+    );
+  };
+}
+
 export function createSubscriptionGrpcHandlers(
   service: SubscriptionService,
 ): grpc.UntypedServiceImplementation {
-  const subscribe: grpc.handleUnaryCall<SubscribeRequest, object> = async (
-    call,
-    callback,
-  ) => {
-    try {
-      verifyApiKey(call.metadata);
+  const subscribe = unaryHandler<SubscribeRequest, object>(async (call) => {
+    verifyApiKey(call.metadata);
+    const input = subscribeSchema.parse(call.request);
+    await service.subscribe(input);
+    return {};
+  });
 
-      const input = subscribeSchema.parse(call.request);
-      await service.subscribe(input);
-      callback(null, {});
-    } catch (err) {
-      callback(toGrpcError(err));
-    }
-  };
+  const confirmSubscription = unaryHandler<TokenRequest, object>(async (call) => {
+    verifyApiKey(call.metadata);
+    const { token } = tokenSchema.parse(call.request);
+    await service.confirm(token);
+    return {};
+  });
 
-  const confirmSubscription: grpc.handleUnaryCall<
-    TokenRequest,
-    object
-  > = async (call, callback) => {
-    try {
-      verifyApiKey(call.metadata);
+  const unsubscribe = unaryHandler<TokenRequest, object>(async (call) => {
+    verifyApiKey(call.metadata);
+    const { token } = tokenSchema.parse(call.request);
+    await service.unsubscribe(token);
+    return {};
+  });
 
-      const { token } = tokenSchema.parse(call.request);
-      await service.confirm(token);
-      callback(null, {});
-    } catch (err) {
-      callback(toGrpcError(err));
-    }
-  };
-
-  const unsubscribe: grpc.handleUnaryCall<TokenRequest, object> = async (
-    call,
-    callback,
-  ) => {
-    try {
-      verifyApiKey(call.metadata);
-
-      const { token } = tokenSchema.parse(call.request);
-      await service.unsubscribe(token);
-      callback(null, {});
-    } catch (err) {
-      callback(toGrpcError(err));
-    }
-  };
-
-  const getSubscriptions: grpc.handleUnaryCall<
-    GetSubscriptionsRequest,
-    object
-  > = async (call, callback) => {
-    try {
-      verifyApiKey(call.metadata);
-
-      const { email } = getSubscriptionsQuerySchema.parse(call.request);
-      const subscriptions = await service.getSubscriptionsByEmail(email);
-      callback(null, { subscriptions });
-    } catch (err) {
-      callback(toGrpcError(err));
-    }
-  };
+  const getSubscriptions = unaryHandler<GetSubscriptionsRequest, object>(async (call) => {
+    verifyApiKey(call.metadata);
+    const { email } = getSubscriptionsQuerySchema.parse(call.request);
+    const subscriptions = await service.getSubscriptionsByEmail(email);
+    return { subscriptions };
+  });
 
   return { subscribe, confirmSubscription, unsubscribe, getSubscriptions };
 }

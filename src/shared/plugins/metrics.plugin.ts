@@ -5,7 +5,7 @@ import {
   httpRequestDurationSeconds,
 } from '@/infrastructure/metrics/metrics.registry';
 
-export default async function metricsPlugin(app: FastifyInstance): Promise<void> {
+export default function metricsPlugin(app: FastifyInstance): Promise<void> {
   app.addHook('onResponse', (request, reply, done) => {
     const route = request.routeOptions?.url ?? 'unknown';
 
@@ -29,4 +29,6 @@ export default async function metricsPlugin(app: FastifyInstance): Promise<void>
     reply.header('Content-Type', registry.contentType);
     return registry.metrics();
   });
+
+  return Promise.resolve();
 }

@@ -47,7 +47,7 @@ describe('errorHandlerPlugin', () => {
     ])(
       'should return %s with status %s',
       async (_name, error, expectedStatus) => {
-        app.get('/throw', async () => {
+        app.get('/throw', () => {
           throw error;
         });
 
@@ -58,7 +58,7 @@ describe('errorHandlerPlugin', () => {
     );
 
     it('should include the error message in the response body', async () => {
-      app.get('/throw', async () => {
+      app.get('/throw', () => {
         throw new NotFoundError('user not found');
       });
 
@@ -73,7 +73,7 @@ describe('errorHandlerPlugin', () => {
           super('ObscureAppError', 'something obscure');
         }
       }
-      app.get('/throw', async () => {
+      app.get('/throw', () => {
         throw new ObscureAppError();
       });
 
@@ -88,7 +88,7 @@ describe('errorHandlerPlugin', () => {
           super('repository does not exist');
         }
       }
-      app.get('/throw', async () => {
+      app.get('/throw', () => {
         throw new RepositoryNotFoundError();
       });
 
@@ -98,7 +98,7 @@ describe('errorHandlerPlugin', () => {
     });
 
     it('should use the cached status on repeated requests with the same error type', async () => {
-      app.get('/throw', async () => {
+      app.get('/throw', () => {
         throw new ConflictError('dupe');
       });
 
@@ -123,7 +123,7 @@ describe('errorHandlerPlugin', () => {
             },
           },
         },
-        async () => ({ ok: true }),
+        () => ({ ok: true }),
       );
     });
 
@@ -144,14 +144,13 @@ describe('errorHandlerPlugin', () => {
         payload: {},
       });
 
-      expect(response.json()).toHaveProperty('message');
-      expect(typeof response.json().message).toBe('string');
+      expect(response.json()).toMatchObject({ message: expect.any(String) });
     });
   });
 
   describe('unknown errors', () => {
     it('should return 500 for a plain unhandled Error', async () => {
-      app.get('/throw', async () => {
+      app.get('/throw', () => {
         throw new Error('internal details');
       });
 
@@ -161,7 +160,7 @@ describe('errorHandlerPlugin', () => {
     });
 
     it('should respond with the generic "Internal server error" message', async () => {
-      app.get('/throw', async () => {
+      app.get('/throw', () => {
         throw new Error('internal details');
       });
 
@@ -171,7 +170,7 @@ describe('errorHandlerPlugin', () => {
     });
 
     it('should not leak internal error details in the response body', async () => {
-      app.get('/throw', async () => {
+      app.get('/throw', () => {
         throw new Error('secret DB password is hunter2');
       });
 

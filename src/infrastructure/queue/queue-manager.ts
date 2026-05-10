@@ -69,29 +69,30 @@ export class QueueManager {
     const delay =
       RECONNECT_DELAYS_MS[Math.min(attempt, RECONNECT_DELAYS_MS.length - 1)];
 
-    setTimeout(async () => {
-      try {
-        logger.info(`[Queue] Reconnect attempt ${attempt + 1}...`);
-
-        this.channel = null;
-        this.connection = null;
-
-        await this.connect();
-
-        if (this.reconnectHandler) {
-          await this.reconnectHandler();
-        }
-
-        logger.info('[Queue] Reconnected and queues re-initialised');
-        this.isReconnecting = false;
-      } catch (err) {
-        logger.error(
-          { err },
-          `[Queue] Reconnect attempt ${attempt + 1} failed`,
-        );
-        this.isReconnecting = false;
-        this.scheduleReconnect(attempt + 1);
-      }
+    setTimeout(() => {
+      void this.performReconnect(attempt);
     }, delay);
+  }
+
+  private async performReconnect(attempt: number): Promise<void> {
+    try {
+      logger.info(`[Queue] Reconnect attempt ${attempt + 1}...`);
+
+      this.channel = null;
+      this.connection = null;
+
+      await this.connect();
+
+      if (this.reconnectHandler) {
+        await this.reconnectHandler();
+      }
+
+      logger.info('[Queue] Reconnected and queues re-initialised');
+      this.isReconnecting = false;
+    } catch (err) {
+      logger.error({ err }, `[Queue] Reconnect attempt ${attempt + 1} failed`);
+      this.isReconnecting = false;
+      this.scheduleReconnect(attempt + 1);
+    }
   }
 }

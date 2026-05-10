@@ -59,7 +59,7 @@ export class GithubClient {
 
     githubApiRequestsTotal.inc({ operation: 'getRepository', cache: 'miss' });
 
-    const raw = await res.json();
+    const raw: unknown = await res.json();
     await this.cache.set(key, raw, githubConfig.cacheTtlSeconds);
     return gitHubRepositorySchema.parse(raw);
   }
@@ -83,9 +83,12 @@ export class GithubClient {
     if (!res.ok)
       throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
 
-    githubApiRequestsTotal.inc({ operation: 'getLatestRelease', cache: 'miss' });
+    githubApiRequestsTotal.inc({
+      operation: 'getLatestRelease',
+      cache: 'miss',
+    });
 
-    const raw = await res.json();
+    const raw: unknown = await res.json();
     return gitHubReleaseSchema.parse(raw);
   }
 
