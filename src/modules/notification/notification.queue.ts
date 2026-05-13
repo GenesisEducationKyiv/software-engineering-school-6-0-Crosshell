@@ -49,22 +49,26 @@ export class NotificationQueue
     handler: (payload: ReleaseNotificationPayload) => Promise<void>,
   ): void {
     const channel = this.queueManager.getChannel();
-
     void channel.consume(QUEUE_NAME, (msg) => {
       if (!msg) return;
-
-      void (async () => {
-        try {
-          const payload = releaseNotificationPayloadSchema.parse(
-            JSON.parse(msg.content.toString()),
-          );
-          await handler(payload);
-          channel.ack(msg);
-        } catch (err) {
-          this.handleRetry(channel, msg, err);
-        }
-      })();
+      void this.processMessage(channel, msg, handler);
     });
+  }
+
+  private async processMessage(
+    channel: Channel,
+    msg: ConsumeMessage,
+    handler: (payload: ReleaseNotificationPayload) => Promise<void>,
+  ): Promise<void> {
+    try {
+      const payload = releaseNotificationPayloadSchema.parse(
+        JSON.parse(msg.content.toString()),
+      );
+      await handler(payload);
+      channel.ack(msg);
+    } catch (err) {
+      this.handleRetry(channel, msg, err);
+    }
   }
 
   private handleRetry(
