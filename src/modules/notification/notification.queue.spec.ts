@@ -148,16 +148,20 @@ describe('NotificationQueue', () => {
 
   describe('consume', () => {
     let capturedMsgHandler: (msg: ConsumeMessage | null) => Promise<void>;
-    let handler: ReturnType<typeof vi.fn<(payload: ReleaseNotificationPayload) => Promise<void>>>;
+    let handler: ReturnType<
+      typeof vi.fn<(payload: ReleaseNotificationPayload) => Promise<void>>
+    >;
 
     beforeEach(() => {
-      handler = vi.fn<(payload: ReleaseNotificationPayload) => Promise<void>>().mockResolvedValue(undefined);
+      handler = vi
+        .fn<(payload: ReleaseNotificationPayload) => Promise<void>>()
+        .mockResolvedValue(undefined);
 
-      channel.consume.mockImplementation((_queue, msgHandler) => {
+      channel.consume.mockImplementation(async (_queue, msgHandler) => {
         capturedMsgHandler = msgHandler as (
           msg: ConsumeMessage | null,
         ) => Promise<void>;
-        return Promise.resolve({ consumerTag: 'test' });
+        return { consumerTag: 'test' };
       });
 
       queue.consume(handler);

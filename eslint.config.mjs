@@ -30,6 +30,7 @@ export default tseslint.config(
           allowNumber: true,
         },
       ],
+      '@typescript-eslint/require-await': 'off',
     },
   },
   {
