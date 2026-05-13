@@ -11,10 +11,16 @@ import type { INotificationPublisher } from '@/modules/notification/notification
 import type { INotificationConsumer } from '@/modules/notification/notification.consumer.interface';
 import type { ICacheService } from '@/infrastructure/cache/cache.service.interface';
 
+export interface AppContainer {
+  subscriptionService: SubscriptionService;
+  scannerService: ScannerService;
+  notificationService: NotificationService;
+}
+
 export function createContainer(
   notificationQueue: INotificationPublisher & INotificationConsumer,
   cache: ICacheService,
-) {
+): AppContainer {
   const mailer = new MailerService();
   const github = new GithubClient(cache);
   const uow = new UnitOfWork(db);
@@ -40,7 +46,5 @@ export function createContainer(
     notificationQueue,
   );
 
-  return { subscriptionService, scannerService, notificationService } as const;
+  return { subscriptionService, scannerService, notificationService };
 }
-
-export type AppContainer = ReturnType<typeof createContainer>;

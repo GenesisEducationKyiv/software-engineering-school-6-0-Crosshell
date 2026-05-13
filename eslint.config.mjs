@@ -2,12 +2,14 @@ import tseslint from 'typescript-eslint';
 import eslint from '@eslint/js';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import vitestPlugin from '@vitest/eslint-plugin';
+import sonarjs from 'eslint-plugin-sonarjs';
 
 export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**', 'drizzle/**'] },
   eslint.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
   {
+    plugins: { sonarjs },
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -26,11 +28,16 @@ export default tseslint.config(
       ],
       '@typescript-eslint/restrict-template-expressions': [
         'error',
-        {
-          allowNumber: true,
-        },
+        { allowNumber: true },
       ],
       '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
+      eqeqeq: 'error',
+      'no-template-curly-in-string': 'error',
+      'array-callback-return': 'error',
+      'no-else-return': 'error',
+      'max-depth': ['error', 4],
+      'sonarjs/cognitive-complexity': ['error', 15],
     },
   },
   {
