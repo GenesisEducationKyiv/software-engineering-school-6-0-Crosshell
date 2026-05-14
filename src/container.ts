@@ -22,11 +22,7 @@ export interface AppContainer {
 export function createContainer(
   notificationQueue: INotificationPublisher & INotificationConsumer,
   cache: ICacheService,
-<<<<<<< fix-hw1-linter-and-code-review
 ): AppContainer {
-  const mailer = new MailerService();
-=======
-) {
   const transporter = nodemailer.createTransport({
     host: mailerConfig.host,
     port: mailerConfig.port,
@@ -37,7 +33,6 @@ export function createContainer(
   });
   const mailer = new MailerService(transporter);
 
->>>>>>> hw3-solid&grasp
   const github = new GithubClient(cache);
   const uow = new UnitOfWork(db);
 
