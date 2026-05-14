@@ -41,64 +41,39 @@ The service tracks GitHub repositories and sends email notifications to subscrib
 
 ## 3. Architecture
 
-```
-                              ┌─────────────────────────────────────────────────────┐
-                              │                  Node.js Process                    │
-                              │                                                     │
-  Client (REST)  ──HTTP:3000──►  ┌─────────────────────────────────────────────┐   │
-                              │  │            Fastify REST Server              │   │
-  Client (gRPC)  ──gRPC:50051─►  │  POST /api/subscribe                       │   │
-                              │  │  GET  /api/confirm/:token                  │   │
-                              │  │  GET  /api/unsubscribe/:token              │   │
-                              │  │  GET  /api/subscriptions                   │   │
-                              │  │  GET  /health   GET /metrics               │   │
-                              │  └──────────────┬──────────────────────────────┘   │
-                              │                 │                                   │
-                              │  ┌──────────────▼──────────────────────────────┐   │
-                              │  │            SubscriptionService              │   │
-                              │  └──────────────┬──────────────────────────────┘   │
-                              │                 │                                   │
-                              │      ┌──────────┴──────────┐                       │
-                              │      │                     │                       │
-                              │  ┌───▼────┐          ┌─────▼────┐                 │
-                              │  │  DB    │          │  GitHub  │                 │
-                              │  │  Tx    │          │  Client  │                 │
-                              │  │        │          │ + Cache  │                 │
-                              │  └───┬────┘          └──────────┘                 │
-                              │      │                                             │
-                              │   ┌──▼──┐                                         │
-                              │   │ DB  │  ◄─── PostgreSQL                        │
-                              │   └─────┘                                         │
-                              │                                                    │
-                              │  ┌──────────────────────────────────────────────┐ │
-                              │  │               Scanner (every 10 min)         │ │
-                              │  │                                              │ │
-                              │  │  load repos with active subscriptions        │ │
-                              │  │   └─► GitHub API (latest release)            │ │
-                              │  │        └─► if new tag: publish to queue      │ │
-                              │  │             └─► record new tag in DB         │ │
-                              │  └───────────────────────┬──────────────────────┘ │
-                              │                          │ publish                 │
-                              │                          ▼                         │
-                              │              ┌───────────────────────┐             │
-                              │              │   Notification Queue  │             │
-                              │              └───────────┬───────────┘             │
-                              │                          │ consume                 │
-                              │  ┌───────────────────────▼──────────────────────┐ │
-                              │  │           NotificationService                │ │
-                              │  │            send emails                       │ │
-                              │  └───────────────────────┬──────────────────────┘ │
-                              │                          │                         │
-                              └──────────────────────────┼─────────────────────────┘
-                                                         │
-                                                         ▼
-                                                  [Email Provider]
+```mermaid
+flowchart TD
+    REST["Client (REST)"]
+    GRPC["Client (gRPC)"]
 
+    subgraph proc["Node.js Process"]
+        Servers["REST & gRPC Servers"]
+        SS["SubscriptionService"]
+        DBTx["DB Tx"]
+        GHClient["GitHub Client + Cache"]
+        Scanner["Scanner (every 10 min)"]
+        NS["NotificationService"]
+    end
 
-Infrastructure:
-  PostgreSQL  ──── persistent data (subscriptions, repositories)
-  Redis       ──── GitHub API response cache (TTL-based)
-  RabbitMQ    ──── async event bus (scanner → notifier)
+    PG[("PostgreSQL")]
+    Redis[("Redis")]
+    Queue[/"Notification Queue"/]
+    GitHub(["GitHub"])
+    Email(["Email Provider"])
+
+    REST -->|HTTP| Servers
+    GRPC -->|gRPC| Servers
+    Servers --> SS
+    SS --> DBTx
+    SS --> GHClient
+    DBTx --> PG
+    GHClient --> Redis
+    GHClient -->|API| GitHub
+    Scanner -->|read / write| PG
+    Scanner --> GHClient
+    Scanner -->|publish| Queue
+    Queue -->|consume| NS
+    NS --> Email
 ```
 
 ---
