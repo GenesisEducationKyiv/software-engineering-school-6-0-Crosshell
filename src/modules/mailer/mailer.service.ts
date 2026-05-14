@@ -1,22 +1,11 @@
-import nodemailer, { type Transporter } from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import { mailerConfig } from '@/shared/config';
 import { confirmationEmailHtml } from '@/modules/mailer/templates/confirmation.template';
 import { releaseNotificationHtml } from '@/modules/mailer/templates/release-notification.template';
 import type { IMailerService } from './mailer.service.interface';
 
 export class MailerService implements IMailerService {
-  private readonly transporter: Transporter;
-
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: mailerConfig.host,
-      port: mailerConfig.port,
-      auth: {
-        user: mailerConfig.user,
-        pass: mailerConfig.pass,
-      },
-    });
-  }
+  constructor(private readonly transporter: Transporter) {}
 
   async sendConfirmationEmail(to: string, confirmUrl: string): Promise<void> {
     await this.transporter.sendMail({

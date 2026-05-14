@@ -1,4 +1,6 @@
+import nodemailer from 'nodemailer';
 import { db } from '@/infrastructure/database';
+import { mailerConfig } from '@/shared/config';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
@@ -15,7 +17,16 @@ export function createContainer(
   notificationQueue: INotificationPublisher & INotificationConsumer,
   cache: ICacheService,
 ) {
-  const mailer = new MailerService();
+  const transporter = nodemailer.createTransport({
+    host: mailerConfig.host,
+    port: mailerConfig.port,
+    auth: {
+      user: mailerConfig.user,
+      pass: mailerConfig.pass,
+    },
+  });
+  const mailer = new MailerService(transporter);
+
   const github = new GithubClient(cache);
   const uow = new UnitOfWork(db);
 
