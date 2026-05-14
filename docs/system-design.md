@@ -26,15 +26,15 @@ The service tracks GitHub repositories and sends email notifications to subscrib
 |----|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | N1 | **Reliable delivery:** release notification messages are never silently lost; failed deliveries are retried automatically, and persistent failures are quarantined for manual inspection. Per-subscriber email failures are isolated and do not block other notifications. |
 | N2 | **Fault tolerance:** temporary unavailability of the messaging system or email provider must not interrupt the scanner                                                                                                                                                     |
-| N3 | **Observability:** Prometheus metrics for HTTP, GitHub API, scanner, and notifications; structured Pino logs                                                                                                                                                               |
-| N4 | **Graceful shutdown:** on SIGTERM the service finishes active requests and closes all connections (DB, RabbitMQ, Redis)                                                                                                                                                    |
+| N3 | **Observability:** Prometheus metrics for HTTP, GitHub API, scanner, and notifications; structured logs                                                                                                                                                                    |
+| N4 | **Graceful shutdown:** on SIGTERM the service finishes active requests and closes all connections                                                                                                                                                                          |
 | N5 | **Security:** optional API key (`X-API-Key` header) to protect `/api/*` endpoints; `/health` and `/metrics` remain public regardless                                                                                                                                       |
 | N6 | **Consistency:** subscription is an atomic operation (find-or-create repo + create subscription in one transaction)                                                                                                                                                        |
 
 ### Constraints
 
-- **GitHub API rate limit:** 60 req/h unauthenticated, 5000 req/h with a token. With a 10-minute cron and N tracked repositories: `N × 6` requests/hour. A token is mandatory for more than ~10 repositories.
-- **SMTP:** an external provider; latency and availability are outside the service's control – hence the queue.
+- **GitHub API rate limit:** unauthenticated access has a low hourly cap; a token is required for tracking more than a handful of repositories.
+- **Email delivery:** an external provider; latency and availability are outside the service's control – hence the queue.
 - **Single process:** the current architecture is a monolithic Node.js process. Horizontal scaling will require an external scheduler for the cron job (to prevent parallel scan runs).
 
 ---
@@ -56,24 +56,22 @@ The service tracks GitHub repositories and sends email notifications to subscrib
                               │                 │                                   │
                               │  ┌──────────────▼──────────────────────────────┐   │
                               │  │            SubscriptionService              │   │
-                              │  │  subscribe / confirm / unsubscribe          │   │
-                              │  │  getSubscriptionsByEmail                    │   │
                               │  └──────────────┬──────────────────────────────┘   │
                               │                 │                                   │
                               │      ┌──────────┴──────────┐                       │
                               │      │                     │                       │
                               │  ┌───▼────┐          ┌─────▼────┐                 │
-                              │  │UnitOf  │          │  GitHub  │                 │
-                              │  │Work    │          │  Client  │                 │
-                              │  │(tx)    │          │+CacheLayer│                │
+                              │  │  DB    │          │  GitHub  │                 │
+                              │  │  Tx    │          │  Client  │                 │
+                              │  │        │          │ + Cache  │                 │
                               │  └───┬────┘          └──────────┘                 │
                               │      │                                             │
                               │   ┌──▼──┐                                         │
-                              │   │ DB  │  ◄─── PostgreSQL (port 5432)            │
+                              │   │ DB  │  ◄─── PostgreSQL                        │
                               │   └─────┘                                         │
                               │                                                    │
                               │  ┌──────────────────────────────────────────────┐ │
-                              │  │               Scanner (cron */10 * * * *)    │ │
+                              │  │               Scanner (every 10 min)         │ │
                               │  │                                              │ │
                               │  │  load repos with active subscriptions        │ │
                               │  │   └─► GitHub API (latest release)            │ │
@@ -83,17 +81,16 @@ The service tracks GitHub repositories and sends email notifications to subscrib
                               │                          │ publish                 │
                               │                          ▼                         │
                               │              ┌───────────────────────┐             │
-                              │              │  release.notifications │             │
-                              │              │      (RabbitMQ)        │             │
+                              │              │   Notification Queue  │             │
                               │              └───────────┬───────────┘             │
                               │                          │ consume                 │
                               │  ┌───────────────────────▼──────────────────────┐ │
                               │  │           NotificationService                │ │
-                              │  │   send emails / ack / retry / DLQ            │ │
+                              │  │            send emails                       │ │
                               │  └───────────────────────┬──────────────────────┘ │
                               │                          │                         │
                               └──────────────────────────┼─────────────────────────┘
-                                                         │ SMTP
+                                                         │
                                                          ▼
                                                   [Email Provider]
 
@@ -108,7 +105,7 @@ Infrastructure:
 
 ## 4. API Reference
 
-### REST (port 3000)
+### REST
 
 | Method | Path                        | Auth     | Description                 |
 |--------|-----------------------------|----------|-----------------------------|
@@ -143,7 +140,7 @@ Mirrors all REST subscription operations via protobuf RPC. See `proto/subscripti
 
 ```bash
 docker compose up -d notifier-postgres notifier-redis notifier-rabbitmq
-npm run dev   # tsx watch – hot reload
+npm run dev
 ```
 
 ### Production
@@ -159,7 +156,7 @@ The service runs as a single Docker container; infrastructure services run as se
 ### Integration Tests
 
 ```bash
-npm run test:integration  # docker-compose.test.yml: PG:5433, Redis:6380, RabbitMQ:5673
+npm run test:integration
 ```
 
 Separate ports prevent conflicts with the local dev environment during test runs.
