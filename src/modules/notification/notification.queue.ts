@@ -78,10 +78,15 @@ export class NotificationQueue
     logger.error({ err, retryCount }, '[Queue] Failed to process message');
 
     if (retryCount < MAX_RETRIES) {
-      channel.sendToQueue(QUEUE_NAME, msg.content, {
+      const ok = channel.sendToQueue(QUEUE_NAME, msg.content, {
         persistent: true,
         headers: { 'x-retry-count': retryCount + 1 },
       });
+      if (!ok) {
+        logger.warn(
+          '[Queue] sendToQueue returned false during retry. Channel write buffer is full',
+        );
+      }
       channel.ack(msg);
     } else {
       logger.error({ err }, '[Queue] Max retries reached. Sending to DLQ');
