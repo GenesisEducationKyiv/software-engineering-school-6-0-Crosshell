@@ -10,10 +10,8 @@ import type {
   UnitOfWorkContext,
 } from '@/infrastructure/database/unit-of-work';
 import type { SubscribeInput } from './subscription.schemas';
-import type {
-  Repository,
-  Subscription,
-} from '@/infrastructure/database/schema';
+import type { Repository } from '@/modules/repository/types/repository.type';
+import type { Subscription } from '@/modules/subscription/types/subscription.type';
 import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
 
 vi.mock('@/modules/subscription/subscription.urls', () => ({
