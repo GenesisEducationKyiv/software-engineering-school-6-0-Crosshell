@@ -73,41 +73,23 @@ A classic message broker with support for queues, exchanges, routing keys, and D
 
 Queue topology:
 
-```
-Scanner
-  │
-  │  publish (persistent)
-  ▼
-┌─────────────────────────┐
-│  release.notifications  │  ← main queue (durable)
-│  x-dead-letter-exchange │
-│  x-dead-letter-routing  │
-└────────────┬────────────┘
-             │ consume (ack/nack)
-             ▼
-       NotificationService
-             │
-             ├─ success → channel.ack(msg)
-             │            (per-subscriber SMTP failures are logged/metricked
-             │             inside Promise.allSettled; handler does not throw)
-             │
-             └─ handler throws (parse/validation error, unexpected exception):
-                         │
-                         ├─ retry < 3 → re-publish with x-retry-count++, channel.ack
-                         │
-                         └─ retry = 3 → channel.nack → DLX
-                                                 │
-                                                 ▼
-                                      ┌──────────────────────┐
-                                      │ release.notifications│
-                                      │       .dead  (DLQ)   │
-                                      └──────────────────────┘
+```mermaid
+flowchart TD
+    Scanner -->|"publish (persistent)"| Queue["release.notifications\n(durable)"]
+    Queue -->|consume| NS[NotificationService]
+    NS -->|success| ACK["ack\n(per-subscriber email failures\nare logged and metricked;\nno retry triggered)"]
+    NS -->|"handler throws\n(parse / validation / unexpected)"| Retry{"retry count < 3?"}
+    Retry -->|yes| Republish["re-publish\nx-retry-count++\nack"]
+    Republish -->|back to queue| Queue
+    Retry -->|no| Nack[nack]
+    Nack --> DLX[dead-letter exchange]
+    DLX --> DLQ["release.notifications.dead\n(DLQ)"]
 ```
 
 **Key implementation properties:**
 - Both the main queue and the DLQ are `durable: true`; messages are `persistent: true`. A RabbitMQ restart does not lose data.
 - `MAX_RETRIES = 3`: each failed attempt increments `x-retry-count` in the message headers and re-publishes to the same queue. After 3 failures – `nack` without requeue → the message moves to the DLQ.
-- On TCP disconnection, `QueueManager` reconnects with exponential backoff (1s → 2s → 5s → 10s → 30s) and after a successful reconnect re-calls `notificationQueue.setup()` + `notificationService.start()`.
+- On TCP disconnection, `QueueManager` reconnects with exponential backoff (1s → 2s → 5s → 10s → 30s) and after a successful reconnect re-sets up the queue and restarts the consumer.
 - `sendToQueue` returns `false` when the channel write buffer is full – this is logged as a warning (backpressure signal).
 
 ---
@@ -118,13 +100,13 @@ Scanner
 
 - **Reliable delivery.** Messages are persisted to disk; the scanner and the email sender can restart independently without losing events.
 - **Separation of concerns.** `ScannerService` publishes a single message and forgets; `NotificationService` processes at its own pace. Each component focuses on its own responsibility.
-- **Retry logic.** Message-level failures (parse/validation errors, unexpected throws in the handler) trigger up to 3 retries before the message lands in the DLQ for manual inspection. Note: per-subscriber SMTP failures are handled via `Promise.allSettled` inside the handler and do not cause a handler throw — they are logged and metricked, but do not trigger message retry.
+- **Retry logic.** Message-level failures (parse/validation errors, unexpected throws in the handler) trigger up to 3 retries before the message lands in the DLQ for manual inspection. Per-subscriber email failures do not cause a handler throw — they are logged and metricked, but do not trigger message retry.
 - **Observability.** The DLQ is an explicit signal of problems; a RabbitMQ Prometheus exporter or DLQ depth monitoring can be connected.
 - **Testability.** `NotificationPublisher` is an interface; in unit tests `ScannerService` is mocked without a real broker.
 
 ### Negative
 
 - **Another infrastructure dependency.** Requires a Docker container locally and in CI, and correct `RABBITMQ_URL` configuration.
-- **More complex reconnect logic.** On connection loss, queues must be re-`setup()` and the consumer re-registered – the current `reconnectHandler` does this, but the code is non-obvious.
-- **Risk of duplicate messages.** RabbitMQ guarantees at-least-once delivery. If the consumer acks after `sendReleaseNotification` but before the commit is confirmed (or vice versa), an email may arrive twice. This is acceptable for the current use case – better to receive two emails than none.
+- **More complex reconnect logic.** On connection loss, queues must be re-declared and the consumer re-registered on reconnect, which adds non-obvious complexity.
+- **Risk of duplicate messages.** RabbitMQ guarantees at-least-once delivery. If a crash occurs between sending emails and acknowledging the message (or vice versa), an email may arrive twice. This is acceptable for the current use case – better to receive two emails than none.
 - **Single instance.** The implementation relies on a single channel; parallel consumers across multiple processes will require separate channels.
