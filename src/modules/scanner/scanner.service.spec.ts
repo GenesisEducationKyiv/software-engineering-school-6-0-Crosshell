@@ -5,8 +5,8 @@ import { RateLimitError } from '@/shared/errors/app.errors';
 import type { IRepositoryRepository } from '@/modules/repository/repository.repository.interface';
 import type { IGithubClient } from '@/modules/github/github.client.interface';
 import type { INotificationPublisher } from '../notification/notification-publisher.interface';
-import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
+import type { Repository } from '@/modules/repository/types/repository.type';
 import type { GitHubRelease } from '@/modules/github/github.schemas';
 import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
 
@@ -34,11 +34,13 @@ import {
   scannerNewReleasesTotal,
 } from '@/infrastructure/metrics/metrics.registry';
 
-const MOCK_REPOSITORY: TrackedRepository = {
+const MOCK_REPOSITORY: Repository = {
   id: 'repo-uuid-1',
   owner: 'acc',
   repo: 'testName',
   lastSeenTag: 'v1.0.0',
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 const MOCK_SUBSCRIBER: Subscriber = {
@@ -52,7 +54,7 @@ const MOCK_RELEASE: GitHubRelease = {
 };
 
 function makeEntry(
-  repository: TrackedRepository,
+  repository: Repository,
   subscribers: Subscriber[] = [MOCK_SUBSCRIBER],
 ): RepositoryWithSubscribers {
   return { repository, subscribers };
@@ -150,12 +152,12 @@ describe('ScannerService', () => {
     });
 
     it('should call getLatestRelease for every tracked repository', async () => {
-      const repoA: TrackedRepository = {
+      const repoA: Repository = {
         ...MOCK_REPOSITORY,
         id: 'a',
         repo: 'repoA',
       };
-      const repoB: TrackedRepository = {
+      const repoB: Repository = {
         ...MOCK_REPOSITORY,
         id: 'b',
         repo: 'repoB',
@@ -286,7 +288,7 @@ describe('ScannerService', () => {
       });
 
       it('should treat a repository with a null last-seen tag as having a new release', async () => {
-        const freshRepo: TrackedRepository = {
+        const freshRepo: Repository = {
           ...MOCK_REPOSITORY,
           lastSeenTag: null,
         };
@@ -342,12 +344,12 @@ describe('ScannerService', () => {
       });
 
       it('should continue scanning remaining repositories when one throws a RateLimitError', async () => {
-        const failingRepo: TrackedRepository = {
+        const failingRepo: Repository = {
           ...MOCK_REPOSITORY,
           id: 'a',
           repo: 'failing',
         };
-        const passingRepo: TrackedRepository = {
+        const passingRepo: Repository = {
           ...MOCK_REPOSITORY,
           id: 'b',
           repo: 'passing',
@@ -369,12 +371,12 @@ describe('ScannerService', () => {
       });
 
       it('should continue scanning remaining repositories when one throws an unexpected error', async () => {
-        const failingRepo: TrackedRepository = {
+        const failingRepo: Repository = {
           ...MOCK_REPOSITORY,
           id: 'a',
           repo: 'failing',
         };
-        const passingRepo: TrackedRepository = {
+        const passingRepo: Repository = {
           ...MOCK_REPOSITORY,
           id: 'b',
           repo: 'passing',

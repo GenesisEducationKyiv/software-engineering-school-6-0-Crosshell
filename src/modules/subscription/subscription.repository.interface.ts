@@ -1,4 +1,4 @@
-import type { Subscription } from '@/infrastructure/database/schema';
+import type { Subscription } from './types/subscription.type';
 import type { CreateSubscriptionData } from './types/create-subscription-data.type';
 import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
 

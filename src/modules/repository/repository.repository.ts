@@ -5,7 +5,7 @@ import {
 } from '@/infrastructure/database/schema';
 import { and, eq } from 'drizzle-orm';
 import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
-import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
+import type { Repository } from '@/modules/repository/types/repository.type';
 import type { IRepositoryRepository } from './repository.repository.interface';
 
 export class RepositoryRepository implements IRepositoryRepository {
@@ -38,12 +38,7 @@ export class RepositoryRepository implements IRepositoryRepository {
         existing.subscribers.push(subscriber);
       } else {
         map.set(row.repository.id, {
-          repository: {
-            id: row.repository.id,
-            owner: row.repository.owner,
-            repo: row.repository.repo,
-            lastSeenTag: row.repository.lastSeenTag,
-          },
+          repository: row.repository,
           subscribers: [subscriber],
         });
       }
@@ -59,7 +54,7 @@ export class RepositoryRepository implements IRepositoryRepository {
       .where(eq(repositoriesTable.id, repositoryId));
   }
 
-  async findOrCreate(owner: string, repo: string): Promise<TrackedRepository> {
+  async findOrCreate(owner: string, repo: string): Promise<Repository> {
     const [inserted] = await this.db
       .insert(repositoriesTable)
       .values({ owner, repo })
@@ -67,7 +62,7 @@ export class RepositoryRepository implements IRepositoryRepository {
       .returning();
 
     if (inserted) {
-      return this.toTrackedRepository(inserted);
+      return inserted;
     }
 
     const [existing] = await this.db
@@ -80,17 +75,6 @@ export class RepositoryRepository implements IRepositoryRepository {
         ),
       );
 
-    return this.toTrackedRepository(existing);
-  }
-
-  private toTrackedRepository(
-    row: typeof repositoriesTable.$inferSelect,
-  ): TrackedRepository {
-    return {
-      id: row.id,
-      owner: row.owner,
-      repo: row.repo,
-      lastSeenTag: row.lastSeenTag,
-    };
+    return existing;
   }
 }

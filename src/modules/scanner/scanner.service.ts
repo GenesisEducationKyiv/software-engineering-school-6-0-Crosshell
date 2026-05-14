@@ -4,7 +4,7 @@ import { RateLimitError } from '@/shared/errors/app.errors';
 import { logger } from '@/shared/logger';
 import { scannerConfig } from '@/shared/config';
 import type { IRepositoryRepository } from '@/modules/repository/repository.repository.interface';
-import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
+import type { TrackedRepository } from './types/tracked-repository.type';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { INotificationPublisher } from '../notification/notification-publisher.interface';
 import {

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import type { DbClient } from '@/infrastructure/database';
-import type { Subscription } from '@/infrastructure/database/schema';
+import type { Subscription } from '@/modules/subscription/types/subscription.type';
 import {
   repositoriesTable,
   subscriptionsTable,
@@ -40,7 +40,7 @@ export class SubscriptionRepository implements ISubscriptionRepository {
   async createSubscription(
     data: CreateSubscriptionData,
   ): Promise<Subscription> {
-    const [subscription] = await this.db
+    const [row] = await this.db
       .insert(subscriptionsTable)
       .values({
         email: data.email,
@@ -50,7 +50,7 @@ export class SubscriptionRepository implements ISubscriptionRepository {
       })
       .returning();
 
-    return subscription;
+    return row;
   }
 
   async findByConfirmToken(token: string): Promise<Subscription | null> {

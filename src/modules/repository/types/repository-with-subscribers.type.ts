@@ -1,7 +1,7 @@
 import type { Subscriber } from '@/modules/notification/notification.schemas';
-import type { TrackedRepository } from './tracked-repository.type';
+import type { Repository } from '@/modules/repository/types/repository.type';
 
 export interface RepositoryWithSubscribers {
-  repository: TrackedRepository;
+  repository: Repository;
   subscribers: Subscriber[];
 }

@@ -21,7 +21,7 @@ export const subscriptionsTable = pgTable(
     repositoryId: uuid('repository_id')
       .notNull()
       .references(() => repositoriesTable.id, { onDelete: 'cascade' }),
-    confirmed: boolean().default(false),
+    confirmed: boolean().default(false).notNull(),
     confirmToken: varchar('confirm_token', { length: 64 }).notNull().unique(),
     unsubscribeToken: varchar('unsubscribe_token', { length: 64 })
       .notNull()
@@ -48,6 +48,3 @@ export const subscriptionsRelations = relations(
     }),
   }),
 );
-
-export type Subscription = typeof subscriptionsTable.$inferSelect;
-export type Repository = typeof repositoriesTable.$inferSelect;
