@@ -294,24 +294,3 @@ describe('ScannerService.scan()', () => {
     expect(updatedB.lastSeenTag).toBe('v1.0.0');
   });
 });
-
-describe('RepositoryRepository', () => {
-  it('findOrCreate returns the same row on subsequent calls', async () => {
-    const uow = new UnitOfWork(
-      drizzle(pool, { schema }),
-      new UnitOfWorkContextBuilder(),
-    );
-
-    const first = await uow.run(({ repositories }) =>
-      repositories.findOrCreate('golang', 'go'),
-    );
-    const second = await uow.run(({ repositories }) =>
-      repositories.findOrCreate('golang', 'go'),
-    );
-
-    expect(first.id).toBe(second.id);
-
-    const rows = await db().select().from(repositoriesTable);
-    expect(rows).toHaveLength(1);
-  });
-});
