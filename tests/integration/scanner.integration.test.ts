@@ -94,18 +94,18 @@ async function seedRepoWithConfirmedSubscriber(
     .insert(subscriptionsTable)
     .values({
       email: subscriberEmail,
-      repositoryId: repoRow!.id,
+      repositoryId: repoRow.id,
       confirmed: true,
       confirmToken: randomUUID(),
       unsubscribeToken: randomUUID(),
     })
     .returning();
 
-  return { repoRow: repoRow!, subRow: subRow! };
+  return { repoRow, subRow };
 }
 
 describe('ScannerService.scan()', () => {
-  it('Scenario B: publishes a notification and updates lastSeenTag when a new release is detected', async () => {
+  it('publishes a notification and updates lastSeenTag when a new release is detected', async () => {
     const { repoRow, subRow } = await seedRepoWithConfirmedSubscriber(
       'vercel',
       'next.js',
@@ -146,7 +146,7 @@ describe('ScannerService.scan()', () => {
       .from(repositoriesTable)
       .where(eq(repositoriesTable.id, repoRow.id));
 
-    expect(updatedRepo!.lastSeenTag).toBe('v15.0.0');
+    expect(updatedRepo.lastSeenTag).toBe('v15.0.0');
   });
 
   it('does not publish and does not update the DB when the release tag is unchanged', async () => {
@@ -166,7 +166,7 @@ describe('ScannerService.scan()', () => {
       .from(repositoriesTable)
       .where(eq(repositoriesTable.id, repoRow.id));
 
-    expect(row!.lastSeenTag).toBe('v1.0.0');
+    expect(row.lastSeenTag).toBe('v1.0.0');
   });
 
   it('does not publish for repositories that have no confirmed subscriptions', async () => {
@@ -177,7 +177,7 @@ describe('ScannerService.scan()', () => {
 
     await db().insert(subscriptionsTable).values({
       email: 'unconfirmed@example.com',
-      repositoryId: repoRow!.id,
+      repositoryId: repoRow.id,
       confirmed: false,
       confirmToken: randomUUID(),
       unsubscribeToken: randomUUID(),
@@ -203,14 +203,14 @@ describe('ScannerService.scan()', () => {
       .values([
         {
           email: 'alice@example.com',
-          repositoryId: repoRow!.id,
+          repositoryId: repoRow.id,
           confirmed: true,
           confirmToken: randomUUID(),
           unsubscribeToken: token1,
         },
         {
           email: 'bob@example.com',
-          repositoryId: repoRow!.id,
+          repositoryId: repoRow.id,
           confirmed: true,
           confirmToken: randomUUID(),
           unsubscribeToken: token2,
@@ -261,7 +261,7 @@ describe('ScannerService.scan()', () => {
       .from(repositoriesTable)
       .where(eq(repositoriesTable.id, repoRow.id));
 
-    expect(updatedRepo!.lastSeenTag).toBe('v1.0.0');
+    expect(updatedRepo.lastSeenTag).toBe('v1.0.0');
   });
 
   it('continues scanning other repos when one GitHub API call returns 404', async () => {
@@ -291,7 +291,7 @@ describe('ScannerService.scan()', () => {
       .from(repositoriesTable)
       .where(eq(repositoriesTable.id, repoBRow.id));
 
-    expect(updatedB!.lastSeenTag).toBe('v1.0.0');
+    expect(updatedB.lastSeenTag).toBe('v1.0.0');
   });
 });
 

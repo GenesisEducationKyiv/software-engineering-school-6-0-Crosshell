@@ -1,14 +1,13 @@
-import type { FastifyInstance } from 'fastify';
+import fp from 'fastify-plugin';
+import type { FastifyPluginAsync } from 'fastify';
 import {
   registry,
   httpRequestsTotal,
   httpRequestDurationSeconds,
 } from '@/infrastructure/metrics/metrics.registry';
 
-export default async function metricsPlugin(
-  app: FastifyInstance,
-): Promise<void> {
-  app.addHook('onResponse', (request, reply, done) => {
+const metricsPlugin: FastifyPluginAsync = fp(async (server): Promise<void> => {
+  server.addHook('onResponse', (request, reply, done) => {
     const route = request.routeOptions?.url ?? 'unknown';
 
     if (route === '/metrics') {
@@ -29,9 +28,11 @@ export default async function metricsPlugin(
     done();
   });
 
-  app.get('/metrics', async (_request, reply) => {
+  server.get('/metrics', async (_request, reply) => {
     reply.header('Content-Type', registry.contentType);
 
     return registry.metrics();
   });
-}
+});
+
+export default metricsPlugin;

@@ -28,7 +28,9 @@ import { GithubAdapter } from '@/modules/github/github.adapter';
 import nodemailer from 'nodemailer';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
+import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
+import type { ISubscriptionService } from '@/modules/subscription/subscription.service.interface';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 
 import { buildTestApp, type TestApp } from './helpers/app.helper';
@@ -38,8 +40,9 @@ import { mswServer } from './setup';
 let app: TestApp;
 let pool: Pool;
 let redisClient: Redis;
-let mailer: MailerService;
+let mailer: IMailerService;
 let sendConfirmationSpy: MockInstance;
+let subscriptionService: ISubscriptionService;
 
 beforeAll(async () => {
   pool = new Pool({ connectionString: process.env['DATABASE_URL']! });
@@ -63,7 +66,7 @@ beforeAll(async () => {
     .spyOn(mailer, 'sendConfirmationEmail')
     .mockImplementation(async () => {});
 
-  const subscriptionService = new SubscriptionService(
+  subscriptionService = new SubscriptionService(
     uow,
     subscriptionRepository,
     github,
@@ -243,6 +246,15 @@ describe('GET /api/unsubscribe/:token', () => {
     const remaining = await getDb().select().from(subscriptionsTable);
     expect(remaining).toHaveLength(0);
   });
+
+  it('returns 404 for an invalid unsubscribe token', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/unsubscribe/00000000-0000-0000-0000-000000000000',
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
 });
 
 describe('GET /api/subscriptions', () => {
@@ -279,5 +291,64 @@ describe('GET /api/subscriptions', () => {
     expect(body).toHaveLength(1);
     expect(body[0]?.confirmed).toBe(true);
     expect(body[0]?.email).toBe('alice@example.com');
+    expect(body[0]?.repo).toMatch(/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/);
+  });
+
+  it('returns an empty array when there are no confirmed subscriptions', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/subscribe',
+      payload: { email: 'alice@example.com', repo: 'golang/go' },
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/subscriptions?email=alice@example.com',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([]);
+  });
+
+  it('returns 400 when the email query param is missing', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/subscriptions',
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('API Key auth', () => {
+  let apiKeyApp: TestApp;
+
+  beforeAll(async () => {
+    apiKeyApp = await buildTestApp(subscriptionService, { apiKey: 'test-key' });
+  });
+
+  afterAll(async () => {
+    await apiKeyApp.close();
+  });
+
+  it('returns 401 when x-api-key header is missing', async () => {
+    const response = await apiKeyApp.inject({
+      method: 'POST',
+      url: '/api/subscribe',
+      payload: { email: 'alice@example.com', repo: 'golang/go' },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('returns 200 when correct x-api-key header is provided', async () => {
+    const response = await apiKeyApp.inject({
+      method: 'POST',
+      url: '/api/subscribe',
+      payload: { email: 'alice@example.com', repo: 'golang/go' },
+      headers: { 'x-api-key': 'test-key' },
+    });
+
+    expect(response.statusCode).toBe(200);
   });
 });
