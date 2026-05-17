@@ -18,13 +18,19 @@ vi.mock('@/modules/subscription/subscription.urls', () => ({
   buildConfirmUrl: vi.fn(
     (token: string) => `http://localhost:3000/api/confirm/${token}`,
   ),
+  buildUnsubscribeUrl: vi.fn(
+    (token: string) => `http://localhost:3000/unsubscribe.html?token=${token}`,
+  ),
 }));
 
 vi.mock('@/infrastructure/database/helpers/pg-errors.helper', () => ({
   isUniqueConstraintError: vi.fn(() => false),
 }));
 
-import { buildConfirmUrl } from '@/modules/subscription/subscription.urls';
+import {
+  buildConfirmUrl,
+  buildUnsubscribeUrl,
+} from '@/modules/subscription/subscription.urls';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
 
 const VALID_INPUT: SubscribeInput = {
@@ -190,13 +196,23 @@ describe('SubscriptionService', () => {
         );
       });
 
-      it('should send a confirmation email to the subscriber with the built URL', async () => {
+      it('should build the unsubscribe URL using the subscription unsubscribeToken', async () => {
         await service.subscribe(VALID_INPUT);
 
-        const expectedUrl = `http://localhost:3000/api/confirm/${MOCK_SUBSCRIPTION.confirmToken}`;
+        expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
+          MOCK_SUBSCRIPTION.unsubscribeToken,
+        );
+      });
+
+      it('should send a confirmation email to the subscriber with the confirm and unsubscribe URLs', async () => {
+        await service.subscribe(VALID_INPUT);
+
+        const expectedConfirmUrl = `http://localhost:3000/api/confirm/${MOCK_SUBSCRIPTION.confirmToken}`;
+        const expectedUnsubscribeUrl = `http://localhost:3000/unsubscribe.html?token=${MOCK_SUBSCRIPTION.unsubscribeToken}`;
         expect(mailer.sendConfirmationEmail).toHaveBeenCalledWith(
           VALID_INPUT.email,
-          expectedUrl,
+          expectedConfirmUrl,
+          expectedUnsubscribeUrl,
         );
       });
 

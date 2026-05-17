@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { clearEmails } from './helpers/email.helper';
-import { getUnsubscribeToken } from './helpers/db.helper';
+import {
+  clearEmails,
+  extractUnsubscribeToken,
+  waitForEmail,
+} from './helpers/email.helper';
 
 const TEST_REPO = 'golang/go';
 
@@ -18,7 +21,8 @@ test('shows success message for valid unsubscribe token', async ({
     data: { email, repo: TEST_REPO },
   });
 
-  const token = await getUnsubscribeToken(email);
+  const body = await waitForEmail(request, email);
+  const token = extractUnsubscribeToken(body);
 
   await page.goto(`/unsubscribe.html?token=${token}`);
   await page.locator('#form-view button').click();

@@ -1,4 +1,7 @@
-export function confirmationEmailHtml(confirmUrl: string): string {
+export function confirmationEmailHtml(
+  confirmUrl: string,
+  unsubscribeUrl: string,
+): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,6 +38,7 @@ export function confirmationEmailHtml(confirmUrl: string): string {
             <td style="background:#f6f8fa;border-top:1px solid #e8eaed;padding:20px 40px;">
               <p style="margin:0;font-size:12px;color:#8c959f;">
                 If you didn't request this, you can safely ignore this email - no account will be created.
+                &nbsp;<a href="${unsubscribeUrl}" style="color:#8c959f;">Unsubscribe</a>
               </p>
             </td>
           </tr>

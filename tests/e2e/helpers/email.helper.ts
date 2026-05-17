@@ -48,3 +48,9 @@ export function extractConfirmToken(body: string): string {
   if (!match?.[1]) throw new Error('Confirm token not found in email body');
   return match[1];
 }
+
+export function extractUnsubscribeToken(body: string): string {
+  const match = body.match(/unsubscribe\.html\?token=([a-f0-9-]+)/i);
+  if (!match?.[1]) throw new Error('Unsubscribe token not found in email body');
+  return match[1];
+}

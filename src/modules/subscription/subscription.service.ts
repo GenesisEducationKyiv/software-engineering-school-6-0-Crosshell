@@ -6,8 +6,11 @@ import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
-import { buildConfirmUrl } from '@/modules/subscription/subscription.urls';
 import type { ISubscriptionService } from './interfaces/subscription.service.interface';
+import {
+  buildConfirmUrl,
+  buildUnsubscribeUrl,
+} from '@/modules/subscription/subscription.urls';
 
 export class SubscriptionService implements ISubscriptionService {
   constructor(
@@ -43,7 +46,12 @@ export class SubscriptionService implements ISubscriptionService {
     });
 
     const confirmUrl = buildConfirmUrl(sub.confirmToken);
-    await this.mailer.sendConfirmationEmail(input.email, confirmUrl);
+    const unsubscribeUrl = buildUnsubscribeUrl(sub.unsubscribeToken);
+    await this.mailer.sendConfirmationEmail(
+      input.email,
+      confirmUrl,
+      unsubscribeUrl,
+    );
   }
 
   async confirm(token: string): Promise<void> {

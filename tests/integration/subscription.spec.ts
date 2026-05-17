@@ -138,6 +138,7 @@ describe('POST /api/subscribe', () => {
     expect(sendConfirmationSpy).toHaveBeenCalledWith(
       'alice@example.com',
       expect.stringContaining(subRow.confirmToken),
+      expect.stringContaining(subRow.unsubscribeToken),
     );
   });
 

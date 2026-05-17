@@ -6,7 +6,7 @@ import type { INotificationConsumer } from '@/modules/notification/interfaces/no
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 
-vi.mock('@/modules/notification/notification.urls', () => ({
+vi.mock('@/modules/subscription/subscription.urls', () => ({
   buildUnsubscribeUrl: vi.fn(
     (token: string) => `http://localhost:3000/api/unsubscribe/${token}`,
   ),
@@ -20,7 +20,7 @@ vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
   notificationsSentTotal: { inc: vi.fn() },
 }));
 
-import { buildUnsubscribeUrl } from '@/modules/notification/notification.urls';
+import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
 import { logger } from '@/shared/logger';
 import { notificationsSentTotal } from '@/infrastructure/metrics/metrics.registry';
 
