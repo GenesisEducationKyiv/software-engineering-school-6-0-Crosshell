@@ -24,12 +24,6 @@ import { server } from '../../../tests/mocks/server';
 const OWNER = 'acc';
 const REPO = 'testName';
 
-const RAW_REPO = {
-  id: 1,
-  full_name: `${OWNER}/${REPO}`,
-  html_url: `https://github.com/${OWNER}/${REPO}`,
-};
-
 const GITHUB_REPO: GitHubRepository = {
   id: 1,
   fullName: `${OWNER}/${REPO}`,
@@ -93,12 +87,12 @@ describe('GithubHttpClient', () => {
         expect(result).toEqual(GITHUB_REPO);
       });
 
-      it('should store the raw response in the cache with the correct TTL', async () => {
+      it('should store the parsed response in the cache with the correct TTL', async () => {
         await client.fetchRepository(OWNER, REPO);
 
         expect(cache.setWithExpiry).toHaveBeenCalledWith(
           `github:repo:${OWNER}:${REPO}`,
-          RAW_REPO,
+          GITHUB_REPO,
           600,
         );
       });

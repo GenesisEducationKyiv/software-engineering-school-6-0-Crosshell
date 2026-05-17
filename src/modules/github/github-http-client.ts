@@ -55,8 +55,9 @@ export class GithubHttpClient implements IGithubHttpClient {
     githubApiRequestsTotal.inc({ operation: 'getRepository', cache: 'miss' });
 
     const raw: unknown = await res.json();
-    await this.cache.setWithExpiry(key, raw, githubConfig.cacheTtlSeconds);
-    return gitHubRepositorySchema.parse(raw);
+    const parsed = gitHubRepositorySchema.parse(raw);
+    await this.cache.setWithExpiry(key, parsed, githubConfig.cacheTtlSeconds);
+    return parsed;
   }
 
   async fetchLatestRelease(
