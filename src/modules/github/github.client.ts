@@ -61,7 +61,7 @@ export class GithubClient implements IGithubClient {
     githubApiRequestsTotal.inc({ operation: 'getRepository', cache: 'miss' });
 
     const raw: unknown = await res.json();
-    await this.cache.set(key, raw, githubConfig.cacheTtlSeconds);
+    await this.cache.setWithExpiry(key, raw, githubConfig.cacheTtlSeconds);
     return gitHubRepositorySchema.parse(raw);
   }
 

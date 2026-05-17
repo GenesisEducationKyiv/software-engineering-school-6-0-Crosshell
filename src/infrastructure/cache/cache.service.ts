@@ -25,7 +25,11 @@ export class CacheService implements ICacheService {
     }
   }
 
-  async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+  async setWithExpiry(
+    key: string,
+    value: unknown,
+    ttlSeconds: number,
+  ): Promise<void> {
     try {
       await this.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
     } catch (err) {

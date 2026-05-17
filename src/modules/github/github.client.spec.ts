@@ -48,7 +48,7 @@ describe('GithubClient', () => {
   beforeEach(() => {
     cache = mock<ICacheService>();
     cache.get.mockResolvedValue(null);
-    cache.set.mockResolvedValue(undefined);
+    cache.setWithExpiry.mockResolvedValue(undefined);
 
     client = new GithubClient(cache);
   });
@@ -96,7 +96,7 @@ describe('GithubClient', () => {
       it('should store the raw response in the cache with the correct TTL', async () => {
         await client.getRepository(OWNER, REPO);
 
-        expect(cache.set).toHaveBeenCalledWith(
+        expect(cache.setWithExpiry).toHaveBeenCalledWith(
           `github:repo:${OWNER}:${REPO}`,
           RAW_REPO,
           600,
@@ -137,7 +137,7 @@ describe('GithubClient', () => {
 
       it('should not cache anything', async () => {
         await expect(client.getRepository(OWNER, REPO)).rejects.toThrow();
-        expect(cache.set).not.toHaveBeenCalled();
+        expect(cache.setWithExpiry).not.toHaveBeenCalled();
       });
     });
 
@@ -277,7 +277,7 @@ describe('GithubClient', () => {
       it('should not cache anything on 404', async () => {
         await client.getLatestRelease(OWNER, REPO);
 
-        expect(cache.set).not.toHaveBeenCalled();
+        expect(cache.setWithExpiry).not.toHaveBeenCalled();
       });
     });
 

@@ -131,9 +131,9 @@ describe('CacheService', () => {
     });
   });
 
-  describe('set', () => {
+  describe('setWithExpiry', () => {
     it('should serialize the value and store it with the correct TTL', async () => {
-      await service.set(CACHE_KEY, VALID_PAYLOAD, TTL);
+      await service.setWithExpiry(CACHE_KEY, VALID_PAYLOAD, TTL);
 
       expect(client.set).toHaveBeenCalledWith(
         CACHE_KEY,
@@ -147,7 +147,7 @@ describe('CacheService', () => {
       client.set.mockRejectedValue(new Error('Redis write error'));
 
       await expect(
-        service.set(CACHE_KEY, VALID_PAYLOAD, TTL),
+        service.setWithExpiry(CACHE_KEY, VALID_PAYLOAD, TTL),
       ).resolves.toBeUndefined();
     });
 
@@ -155,7 +155,7 @@ describe('CacheService', () => {
       const redisError = new Error('Redis write error');
       client.set.mockRejectedValue(redisError);
 
-      await service.set(CACHE_KEY, VALID_PAYLOAD, TTL);
+      await service.setWithExpiry(CACHE_KEY, VALID_PAYLOAD, TTL);
 
       expect(logger.warn).toHaveBeenCalledWith(
         { err: redisError, key: CACHE_KEY },
