@@ -25,6 +25,7 @@ import { SubscriptionRepository } from '@/modules/subscription/subscription.repo
 import { GithubClient } from '@/modules/github/github.client';
 import nodemailer from 'nodemailer';
 import { MailerService } from '@/modules/mailer/mailer.service';
+import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 
@@ -49,7 +50,7 @@ beforeAll(async () => {
   const subscriptionRepository = new SubscriptionRepository(db);
   const github = new GithubClient(cache);
   mailer = new MailerService(
-    nodemailer.createTransport({ jsonTransport: true }),
+    new NodemailerEmailTransport(nodemailer.createTransport({ jsonTransport: true })),
   );
 
   sendConfirmationSpy = vi

@@ -1,14 +1,14 @@
-import type { Transporter } from 'nodemailer';
 import { mailerConfig } from '@/shared/config';
 import { confirmationEmailHtml } from '@/modules/mailer/templates/confirmation.template';
 import { releaseNotificationHtml } from '@/modules/mailer/templates/release-notification.template';
 import type { IMailerService } from './interfaces/mailer.service.interface';
+import type { IEmailTransport } from './interfaces/email-transport.interface';
 
 export class MailerService implements IMailerService {
-  constructor(private readonly transporter: Transporter) {}
+  constructor(private readonly transport: IEmailTransport) {}
 
   async sendConfirmationEmail(to: string, confirmUrl: string): Promise<void> {
-    await this.transporter.sendMail({
+    await this.transport.sendMail({
       from: mailerConfig.from,
       to,
       subject: 'Confirm your subscription',
@@ -23,7 +23,7 @@ export class MailerService implements IMailerService {
     releaseUrl: string,
     unsubscribeUrl: string,
   ): Promise<void> {
-    await this.transporter.sendMail({
+    await this.transport.sendMail({
       from: mailerConfig.from,
       to,
       subject: `New release: ${repo} ${tag}`,

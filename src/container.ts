@@ -8,6 +8,7 @@ import { SubscriptionRepository } from '@/modules/subscription/subscription.repo
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { GithubClient } from '@/modules/github/github.client';
 import { MailerService } from '@/modules/mailer/mailer.service';
+import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import type { INotificationPublisher } from '@/modules/notification/interfaces/notification-publisher.interface';
@@ -26,7 +27,7 @@ export function createContainer(
       pass: mailerConfig.pass,
     },
   });
-  const mailer = new MailerService(transporter);
+  const mailer = new MailerService(new NodemailerEmailTransport(transporter));
 
   const github = new GithubClient(cache);
   const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
