@@ -28,7 +28,7 @@ The service tracks GitHub repositories and sends email notifications to subscrib
 | N2 | **Fault tolerance:** temporary unavailability of the messaging system or email provider must not interrupt the scanner                                                                                                                                                     |
 | N3 | **Observability:** Prometheus metrics for HTTP, GitHub API, scanner, and notifications; structured logs                                                                                                                                                                    |
 | N4 | **Graceful shutdown:** on SIGTERM the service finishes active requests and closes all connections                                                                                                                                                                          |
-| N5 | **Security:** optional API key (`X-API-Key` header) to protect `/api/*` endpoints; `/health` and `/metrics` remain public regardless                                                                                                                                       |
+| N5 | **Security:** all protected endpoints must verify client identity through a standardized authentication mechanism; public endpoints remain accessible without authentication                                                                                               |
 | N6 | **Consistency:** subscription is an atomic operation (find-or-create repo + create subscription in one transaction)                                                                                                                                                        |
 
 ### Constraints
@@ -55,8 +55,8 @@ flowchart TD
         NS["NotificationService"]
     end
 
-    PG[("PostgreSQL")]
-    Redis[("Redis")]
+    DB[("Database")]
+    Cache[("Cache")]
     Queue[/"Notification Queue"/]
     GitHub(["GitHub"])
     Email(["Email Provider"])
@@ -66,10 +66,10 @@ flowchart TD
     Servers --> SS
     SS --> DBTx
     SS --> GHClient
-    DBTx --> PG
-    GHClient --> Redis
+    DBTx --> DB
+    GHClient --> Cache
     GHClient -->|API| GitHub
-    Scanner -->|read / write| PG
+    Scanner -->|read / write| DB
     Scanner --> GHClient
     Scanner -->|publish| Queue
     Queue -->|consume| NS
@@ -82,16 +82,10 @@ flowchart TD
 
 ### REST
 
-| Method | Path                        | Auth     | Description                 |
-|--------|-----------------------------|----------|-----------------------------|
-| `POST` | `/api/subscribe`            | Optional | Subscribe                   |
-| `GET`  | `/api/confirm/:token`       | Optional | Confirm subscription        |
-| `GET`  | `/api/unsubscribe/:token`   | Optional | Unsubscribe                 |
-| `GET`  | `/api/subscriptions?email=` | Optional | List subscriptions by email |
-| `GET`  | `/health`                   | No       | Health check                |
-| `GET`  | `/metrics`                  | No       | Prometheus metrics          |
+The API exposes two groups of routes:
 
-**Authentication:** `X-API-Key: <key>` header, applied to `/api/*` routes only when `API_KEY` is set in the environment. The key is optional to accommodate development environments and self-hosted deployments where access control is already enforced at the infrastructure level (e.g. reverse proxy, VPN). `/health` and `/metrics` are always public.
+- **Subscription management** — protected by authentication when configured.
+- **Infrastructure** (health check, metrics) — always public.
 
 **Response codes:**
 - `200` – success
@@ -103,7 +97,7 @@ flowchart TD
 
 ### gRPC
 
-Mirrors all REST subscription operations via protobuf RPC. See `proto/subscription.proto` for the full service definition. Both transports delegate to the same service.
+Mirrors all REST subscription operations via protobuf RPC. See the `proto/` directory for full service definitions. Both transports delegate to the same service.
 
 ---
 
