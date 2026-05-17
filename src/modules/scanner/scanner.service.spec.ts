@@ -357,10 +357,9 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(failingRepo), makeEntry(passingRepo)],
         );
-        github.getLatestRelease.mockImplementation((_owner, repo) => {
-          if (repo === 'failing')
-            return Promise.reject(new RateLimitError('rate limited'));
-          return Promise.resolve(MOCK_RELEASE);
+        github.getLatestRelease.mockImplementation(async (_owner, repo) => {
+          if (repo === 'failing') throw new RateLimitError('rate limited');
+          return MOCK_RELEASE;
         });
 
         await service.scan();
@@ -385,10 +384,9 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(failingRepo), makeEntry(passingRepo)],
         );
-        github.getLatestRelease.mockImplementation((_owner, repo) => {
-          if (repo === 'failing')
-            return Promise.reject(new Error('network error'));
-          return Promise.resolve(MOCK_RELEASE);
+        github.getLatestRelease.mockImplementation(async (_owner, repo) => {
+          if (repo === 'failing') throw new Error('network error');
+          return MOCK_RELEASE;
         });
 
         await service.scan();

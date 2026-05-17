@@ -222,21 +222,16 @@ describe('SubscriptionService', () => {
       it('should execute steps in the correct order: GitHub - transaction - email', async () => {
         const callOrder: string[] = [];
 
-        github.getRepository.mockImplementation(() => {
+        github.getRepository.mockImplementation(async () => {
           callOrder.push('getRepository');
-          return Promise.resolve({
-            id: 1,
-            fullName: 'acc/testName',
-            htmlUrl: '',
-          });
+          return { id: 1, fullName: 'acc/testName', htmlUrl: '' };
         });
         uow.run.mockImplementation(async (fn) => {
           callOrder.push('uow.run');
           return fn(txCtx);
         });
-        mailer.sendConfirmationEmail.mockImplementation(() => {
+        mailer.sendConfirmationEmail.mockImplementation(async () => {
           callOrder.push('sendConfirmationEmail');
-          return Promise.resolve();
         });
 
         await service.subscribe(VALID_INPUT);
