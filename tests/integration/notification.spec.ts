@@ -10,13 +10,15 @@ import {
 } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import { MailerService } from '@/modules/mailer/mailer.service';
-import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
+import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import { purgeNotificationQueue } from './helpers/queue.helper';
+import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
 
 const DLQ_NAME = 'release.notifications.dead';
 
@@ -24,6 +26,7 @@ describe('NotificationService', () => {
   let queueManager: QueueManager;
   let notificationQueue: NotificationQueue;
   let mailer: IMailerService;
+  let transporter: Transporter;
   let sendReleaseNotificationSpy: MockInstance;
 
   beforeAll(async () => {
@@ -33,9 +36,8 @@ describe('NotificationService', () => {
     notificationQueue = new NotificationQueue(queueManager);
     await notificationQueue.setup();
 
-    mailer = new MailerService(
-      nodemailer.createTransport({ jsonTransport: true }),
-    );
+    transporter = nodemailer.createTransport({ jsonTransport: true });
+    mailer = new MailerService(new NodemailerEmailTransport(transporter));
 
     sendReleaseNotificationSpy = vi
       .spyOn(mailer, 'sendReleaseNotification')

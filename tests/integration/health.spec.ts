@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mock } from 'vitest-mock-extended';
-import type { ISubscriptionService } from '@/modules/subscription/subscription.service.interface';
+import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
 import { buildTestApp, type TestApp } from './helpers/app.helper';
 
 let app: TestApp;

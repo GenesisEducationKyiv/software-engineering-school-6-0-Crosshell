@@ -15,7 +15,7 @@ import errorHandlerPlugin from '@/shared/plugins/error-handler.plugin';
 import healthPlugin from '@/shared/plugins/health.plugin';
 import apiKeyPlugin from '@/shared/plugins/api-key.plugin';
 import subscriptionRoutes from '@/modules/subscription/subscription.routes';
-import type { ISubscriptionService } from '@/modules/subscription/subscription.service.interface';
+import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
 import { UnauthorizedError } from '@/shared/errors/app.errors';
 
 export type TestApp = FastifyInstance<
