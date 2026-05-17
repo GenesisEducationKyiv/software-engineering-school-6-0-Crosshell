@@ -20,6 +20,7 @@ import {
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
+import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
 import { GithubClient } from '@/modules/github/github.client';
 import nodemailer from 'nodemailer';
@@ -44,7 +45,7 @@ beforeAll(async () => {
   redisClient = new Redis(process.env['REDIS_URL']!);
 
   const cache = new CacheService(redisClient);
-  const uow = new UnitOfWork(db);
+  const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
   const subscriptionRepository = new SubscriptionRepository(db);
   const github = new GithubClient(cache);
   mailer = new MailerService(

@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { db } from '@/infrastructure/database';
 import { mailerConfig } from '@/shared/config';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
+import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
@@ -28,7 +29,7 @@ export function createContainer(
   const mailer = new MailerService(transporter);
 
   const github = new GithubClient(cache);
-  const uow = new UnitOfWork(db);
+  const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
 
   const repositoryRepository = new RepositoryRepository(db);
   const subscriptionRepository = new SubscriptionRepository(db);

@@ -12,6 +12,7 @@ import {
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
+import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
 import { GithubClient } from '@/modules/github/github.client';
 import { CacheService } from '@/infrastructure/cache/cache.service';
@@ -291,7 +292,10 @@ describe('ScannerService.scan()', () => {
 
 describe('RepositoryRepository', () => {
   it('findOrCreate returns the same row on subsequent calls', async () => {
-    const uow = new UnitOfWork(drizzle(pool, { schema }));
+    const uow = new UnitOfWork(
+      drizzle(pool, { schema }),
+      new UnitOfWorkContextBuilder(),
+    );
 
     const first = await uow.run(({ repositories }) =>
       repositories.findOrCreate('golang', 'go'),
