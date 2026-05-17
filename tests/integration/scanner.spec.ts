@@ -21,7 +21,6 @@ import { CacheService } from '@/infrastructure/cache/cache.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
-
 import { truncateAllTables } from './helpers/db.helper';
 import {
   purgeNotificationQueue,

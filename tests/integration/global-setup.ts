@@ -4,7 +4,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { resolve } from 'node:path';
 
 const TEST_DATABASE_URL =
-  'postgresql://notifier:notifier@localhost:5433/notifier_test';
+  'postgresql://notifier:notifier@localhost:5433/notifier_integration';
 
 export async function setup(): Promise<void> {
   const pool = new Pool({ connectionString: TEST_DATABASE_URL });

@@ -359,7 +359,7 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and [`.github/workflo
 │       └── plugins/              # Fastify plugins (auth, errors, health, metrics)
 ├── drizzle/                      # Auto-generated Drizzle migrations
 ├── docker-compose.yml            # Full stack (app + infra)
-├── docker-compose.test.yml       # Integration test infra only
+├── docker-compose.integration.yml # Integration test infra only
 └── .github/workflows/
     ├── ci.yml                    # Typecheck, lint, build
     └── test.yml                  # Unit + integration tests

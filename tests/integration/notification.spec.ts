@@ -10,14 +10,12 @@ import {
 } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import nodemailer from 'nodemailer';
-
 import { MailerService } from '@/modules/mailer/mailer.service';
 import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
-
 import { purgeNotificationQueue } from './helpers/queue.helper';
 
 const DLQ_NAME = 'release.notifications.dead';

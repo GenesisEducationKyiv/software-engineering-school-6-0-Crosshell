@@ -405,7 +405,7 @@ The service runs as a single Docker container; infrastructure services run as se
 ### Integration Tests
 
 ```bash
-npm run test:integration  # docker-compose.test.yml: PG:5433, Redis:6380, RabbitMQ:5673
+npm run test:integration  # docker-compose.integration.yml: PG:5433, Redis:6380, RabbitMQ:5673
 ```
 
 Separate ports prevent conflicts with the local dev environment during test runs.

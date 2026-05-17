@@ -13,7 +13,6 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import Redis from 'ioredis';
 import { and, eq } from 'drizzle-orm';
-
 import * as schema from '@/infrastructure/database/schema';
 import {
   repositoriesTable,
@@ -32,7 +31,6 @@ import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import type { ISubscriptionService } from '@/modules/subscription/subscription.service.interface';
 import { CacheService } from '@/infrastructure/cache/cache.service';
-
 import { buildTestApp, type TestApp } from './helpers/app.helper';
 import { truncateAllTables } from './helpers/db.helper';
 import { mswServer } from './setup';
