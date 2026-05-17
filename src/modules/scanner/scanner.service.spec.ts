@@ -39,8 +39,6 @@ const MOCK_REPOSITORY: Repository = {
   owner: 'acc',
   repo: 'testName',
   lastSeenTag: 'v1.0.0',
-  createdAt: new Date(),
-  updatedAt: new Date(),
 };
 
 const MOCK_SUBSCRIBER: Subscriber = {

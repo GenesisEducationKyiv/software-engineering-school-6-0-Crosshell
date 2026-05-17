@@ -37,8 +37,6 @@ const MOCK_REPOSITORY: Repository = {
   owner: 'acc',
   repo: 'testName',
   lastSeenTag: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
 };
 
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -48,8 +46,6 @@ const MOCK_SUBSCRIPTION: Subscription = {
   confirmed: false,
   confirmToken: 'confirm-token-uuid-1',
   unsubscribeToken: 'unsub-token-uuid-2',
-  createdAt: new Date(),
-  updatedAt: new Date(),
 };
 
 describe('SubscriptionService', () => {

@@ -5,6 +5,4 @@ export type Subscription = {
   confirmed: boolean;
   confirmToken: string;
   unsubscribeToken: string;
-  createdAt: Date;
-  updatedAt: Date;
 };
