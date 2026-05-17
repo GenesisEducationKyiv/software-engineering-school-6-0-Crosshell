@@ -9,11 +9,7 @@ import {
   type MockInstance,
 } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { Pool } from 'pg';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import Redis from 'ioredis';
 import { and, eq } from 'drizzle-orm';
-import * as schema from '@/infrastructure/database/schema';
 import {
   repositoriesTable,
   subscriptionsTable,
@@ -21,52 +17,34 @@ import {
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
-import { GithubHttpClient } from '@/modules/github/github-http-client';
-import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
-import { GithubAdapter } from '@/modules/github/github.adapter';
-import nodemailer from 'nodemailer';
-import { MailerService } from '@/modules/mailer/mailer.service';
-import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
-import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
-import type { ISubscriptionService } from '@/modules/subscription/subscription.service.interface';
-import { CacheService } from '@/infrastructure/cache/cache.service';
+import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
 import { buildTestApp, type TestApp } from './helpers/app.helper';
-import { truncateAllTables } from './helpers/db.helper';
+import { useDb } from './helpers/db.helper';
+import { useRedis } from './helpers/redis.helper';
+import { createGithubClient } from './helpers/github.helper';
+import { createTestMailer } from './helpers/mailer.helper';
 import { mswServer } from './setup';
 
+const { getDb } = useDb();
+const { getRedis } = useRedis();
+
 let app: TestApp;
-let pool: Pool;
-let redisClient: Redis;
-let mailer: IMailerService;
-let sendConfirmationSpy: MockInstance;
 let subscriptionService: ISubscriptionService;
+let sendConfirmationSpy: MockInstance;
 
 beforeAll(async () => {
-  pool = new Pool({ connectionString: process.env['DATABASE_URL']! });
-  const db = drizzle(pool, { schema });
-
-  redisClient = new Redis(process.env['REDIS_URL']!);
-
-  const cache = new CacheService(redisClient);
-  const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
-  const subscriptionRepository = new SubscriptionRepository(db);
-  const github = new GithubAdapter(
-    new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
-  );
-  mailer = new MailerService(
-    new NodemailerEmailTransport(
-      nodemailer.createTransport({ jsonTransport: true }),
-    ),
-  );
+  const db = getDb();
+  const github = createGithubClient(getRedis());
+  const mailer = createTestMailer();
 
   sendConfirmationSpy = vi
     .spyOn(mailer, 'sendConfirmationEmail')
     .mockImplementation(async () => {});
 
   subscriptionService = new SubscriptionService(
-    uow,
-    subscriptionRepository,
+    new UnitOfWork(db, new UnitOfWorkContextBuilder()),
+    new SubscriptionRepository(db),
     github,
     mailer,
   );
@@ -76,20 +54,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app.close();
-  await redisClient.quit();
-  await pool.end();
 });
 
-beforeEach(async () => {
-  const db = drizzle(pool, { schema });
-  await truncateAllTables(db);
-  await redisClient.flushall();
+beforeEach(() => {
   sendConfirmationSpy.mockClear();
 });
-
-function getDb() {
-  return drizzle(pool, { schema });
-}
 
 describe('POST /api/subscribe', () => {
   it('returns 200 and persists repository + unconfirmed subscription, then sends confirmation email', async () => {

@@ -3,59 +3,35 @@ import {
   it,
   expect,
   beforeAll,
-  afterAll,
   beforeEach,
   vi,
   type MockInstance,
 } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
-import { MailerService } from '@/modules/mailer/mailer.service';
 import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
-import { NotificationQueue } from '@/modules/notification/notification.queue';
 import { NotificationService } from '@/modules/notification/notification.service';
-import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
-import { purgeNotificationQueue } from './helpers/queue.helper';
-import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
+import { useQueue } from './helpers/queue.helper';
+import { createTestMailer } from './helpers/mailer.helper';
 
 const DLQ_NAME = 'release.notifications.dead';
 
 describe('NotificationService', () => {
-  let queueManager: QueueManager;
-  let notificationQueue: NotificationQueue;
+  const { getNotificationQueue } = useQueue();
+
   let mailer: IMailerService;
-  let transporter: Transporter;
   let sendReleaseNotificationSpy: MockInstance;
 
-  beforeAll(async () => {
-    queueManager = new QueueManager();
-    await queueManager.connect();
-
-    notificationQueue = new NotificationQueue(queueManager);
-    await notificationQueue.setup();
-
-    transporter = nodemailer.createTransport({ jsonTransport: true });
-    mailer = new MailerService(new NodemailerEmailTransport(transporter));
-
+  beforeAll(() => {
+    mailer = createTestMailer();
     sendReleaseNotificationSpy = vi
       .spyOn(mailer, 'sendReleaseNotification')
       .mockResolvedValue(undefined);
 
-    const notificationService = new NotificationService(
-      mailer,
-      notificationQueue,
-    );
-    notificationService.start();
+    new NotificationService(mailer, getNotificationQueue()).start();
   });
 
-  afterAll(async () => {
-    await queueManager.close();
-  });
-
-  beforeEach(async () => {
-    await purgeNotificationQueue(queueManager.getChannel());
+  beforeEach(() => {
     sendReleaseNotificationSpy.mockResolvedValue(undefined);
   });
 
@@ -71,7 +47,7 @@ describe('NotificationService', () => {
       ],
     };
 
-    notificationQueue.publish(payload);
+    getNotificationQueue().publish(payload);
 
     await vi.waitFor(
       () => {
@@ -91,7 +67,7 @@ describe('NotificationService', () => {
       subscribers: [{ email: 'user@example.com', unsubscribeToken: token }],
     };
 
-    notificationQueue.publish(payload);
+    getNotificationQueue().publish(payload);
 
     await vi.waitFor(
       () => {
@@ -133,7 +109,7 @@ describe('NotificationService', () => {
       ],
     };
 
-    notificationQueue.publish(payload);
+    getNotificationQueue().publish(payload);
 
     await vi.waitFor(
       () => {
@@ -153,31 +129,17 @@ describe('NotificationService', () => {
 });
 
 describe('NotificationQueue DLQ', () => {
-  let queueManager: QueueManager;
-  let notificationQueue: NotificationQueue;
-
-  beforeAll(async () => {
-    queueManager = new QueueManager();
-    await queueManager.connect();
-
-    notificationQueue = new NotificationQueue(queueManager);
-    await notificationQueue.setup();
-  });
-
-  afterAll(async () => {
-    await queueManager.close();
-  });
+  const { getQueueManager, getNotificationQueue } = useQueue();
 
   beforeEach(async () => {
-    await purgeNotificationQueue(queueManager.getChannel());
-    await queueManager.getChannel().purgeQueue(DLQ_NAME);
+    await getQueueManager().getChannel().purgeQueue(DLQ_NAME);
   });
 
   it('routes a message to the DLQ after 3 failed handler attempts', async () => {
     const handler = vi.fn().mockRejectedValue(new Error('handler error'));
-    notificationQueue.consume(handler);
+    getNotificationQueue().consume(handler);
 
-    notificationQueue.publish({
+    getNotificationQueue().publish({
       repositoryOwner: 'test',
       repositoryRepo: 'repo',
       newTag: 'v1.0.0',
@@ -189,7 +151,7 @@ describe('NotificationQueue DLQ', () => {
 
     await vi.waitFor(
       async () => {
-        const msg = await queueManager
+        const msg = await getQueueManager()
           .getChannel()
           .get(DLQ_NAME, { noAck: true });
         expect(msg).not.toBeFalsy();
