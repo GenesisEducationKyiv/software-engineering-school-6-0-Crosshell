@@ -54,10 +54,21 @@ export class NotificationQueue
       if (!msg) return;
 
       void (async () => {
+        let payload: ReleaseNotificationPayload;
         try {
-          const payload = releaseNotificationPayloadSchema.parse(
+          payload = releaseNotificationPayloadSchema.parse(
             JSON.parse(msg.content.toString()),
           );
+        } catch (err) {
+          logger.error(
+            { err },
+            '[Queue] Invalid message payload. Sending to DLQ',
+          );
+          channel.nack(msg, false, false);
+          return;
+        }
+
+        try {
           await handler(payload);
           channel.ack(msg);
         } catch (err) {

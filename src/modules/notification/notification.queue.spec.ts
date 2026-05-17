@@ -148,10 +148,14 @@ describe('NotificationQueue', () => {
 
   describe('consume', () => {
     let capturedMsgHandler: (msg: ConsumeMessage | null) => Promise<void>;
-    let handler: ReturnType<typeof vi.fn<(payload: ReleaseNotificationPayload) => Promise<void>>>;
+    let handler: ReturnType<
+      typeof vi.fn<(payload: ReleaseNotificationPayload) => Promise<void>>
+    >;
 
     beforeEach(() => {
-      handler = vi.fn<(payload: ReleaseNotificationPayload) => Promise<void>>().mockResolvedValue(undefined);
+      handler = vi
+        .fn<(payload: ReleaseNotificationPayload) => Promise<void>>()
+        .mockResolvedValue(undefined);
 
       channel.consume.mockImplementation((_queue, msgHandler) => {
         capturedMsgHandler = msgHandler as (
@@ -300,7 +304,7 @@ describe('NotificationQueue', () => {
         expect(handler).not.toHaveBeenCalled();
       });
 
-      it('should apply the retry logic (re-queue on first failure)', async () => {
+      it('should nack the message immediately without retrying', async () => {
         const badMessage = {
           ...makeMessage({}, 0),
           content: Buffer.from('{broken'),
@@ -308,10 +312,21 @@ describe('NotificationQueue', () => {
 
         await capturedMsgHandler(badMessage);
 
-        expect(channel.sendToQueue).toHaveBeenCalledWith(
-          QUEUE_NAME,
-          badMessage.content,
-          { persistent: true, headers: { 'x-retry-count': 1 } },
+        expect(channel.nack).toHaveBeenCalledWith(badMessage, false, false);
+        expect(channel.sendToQueue).not.toHaveBeenCalled();
+      });
+
+      it('should log an error before sending to DLQ', async () => {
+        const badMessage = {
+          ...makeMessage({}),
+          content: Buffer.from('{broken'),
+        } as ConsumeMessage;
+
+        await capturedMsgHandler(badMessage);
+
+        expect(logger.error).toHaveBeenCalledWith(
+          { err: expect.any(Error) },
+          '[Queue] Invalid message payload. Sending to DLQ',
         );
       });
     });
@@ -326,16 +341,25 @@ describe('NotificationQueue', () => {
         expect(handler).not.toHaveBeenCalled();
       });
 
-      it('should apply the retry logic', async () => {
+      it('should nack the message immediately without retrying', async () => {
         const invalidPayload = { repositoryOwner: 'acc' };
         const message = makeMessage(invalidPayload, 0);
 
         await capturedMsgHandler(message);
 
-        expect(channel.sendToQueue).toHaveBeenCalledWith(
-          QUEUE_NAME,
-          message.content,
-          { persistent: true, headers: { 'x-retry-count': 1 } },
+        expect(channel.nack).toHaveBeenCalledWith(message, false, false);
+        expect(channel.sendToQueue).not.toHaveBeenCalled();
+      });
+
+      it('should log an error before sending to DLQ', async () => {
+        const invalidPayload = { repositoryOwner: 'acc' };
+        const message = makeMessage(invalidPayload);
+
+        await capturedMsgHandler(message);
+
+        expect(logger.error).toHaveBeenCalledWith(
+          { err: expect.any(Error) },
+          '[Queue] Invalid message payload. Sending to DLQ',
         );
       });
     });
