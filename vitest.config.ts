@@ -12,6 +12,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ['tests/setup.ts'],
     clearMocks: true,
-    exclude: [...configDefaults.exclude, 'tests/integration/**'],
+    exclude: [
+      ...configDefaults.exclude,
+      'tests/integration/**',
+      'tests/e2e/**',
+    ],
   },
 });

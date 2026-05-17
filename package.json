@@ -17,8 +17,13 @@
     "test:run": "vitest run",
     "test:integration:up": "docker compose -f docker-compose.test.yml up -d --wait",
     "test:integration:down": "docker compose -f docker-compose.test.yml down",
-    "test:integration": "npm run test:integration:up && vitest run --config vitest.integration.config.ts; npm run test:integration:down",
-    "test:integration:run": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "npm run test:integration:up && vitest run --config vitest.integration.config.ts; EXIT=$?; npm run test:integration:down; exit $EXIT",
+    "test:integration:run": "vitest run --config vitest.integration.config.ts",
+    "test:e2e:up": "docker compose -f docker-compose.e2e.yml up -d --wait",
+    "test:e2e:down": "docker compose -f docker-compose.e2e.yml down",
+    "test:e2e": "npm run test:e2e:up && playwright test; EXIT=$?; npm run test:e2e:down; exit $EXIT",
+    "test:all": "npm run test:run && npm run test:integration && npm run test:e2e",
+    "test:e2e:run": "playwright test"
   },
   "keywords": [],
   "author": "Vladyslav Berdychevskyi",
@@ -44,6 +49,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.60.0",
     "@types/amqplib": "^0.10.8",
     "@types/node": "^25.5.2",
     "@types/node-cron": "^3.0.11",
