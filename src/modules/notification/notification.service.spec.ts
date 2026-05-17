@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { NotificationService } from './notification.service';
-import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
-import type { INotificationConsumer } from '@/modules/notification/notification.consumer.interface';
+import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
+import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 

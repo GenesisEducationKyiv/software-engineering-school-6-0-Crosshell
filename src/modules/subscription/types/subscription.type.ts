@@ -1,4 +1,4 @@
-export interface Subscription {
+export type Subscription = {
   id: string;
   email: string;
   repositoryId: string;
@@ -7,4 +7,4 @@ export interface Subscription {
   unsubscribeToken: string;
   createdAt: Date;
   updatedAt: Date;
-}
+};

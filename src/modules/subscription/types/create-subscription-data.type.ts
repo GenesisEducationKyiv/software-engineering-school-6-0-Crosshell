@@ -1,4 +1,4 @@
-export interface CreateSubscriptionData {
+export type CreateSubscriptionData = {
   email: string;
   repositoryId: string;
-}
+};

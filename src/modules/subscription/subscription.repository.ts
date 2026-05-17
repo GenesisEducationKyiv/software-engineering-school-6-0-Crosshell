@@ -8,7 +8,7 @@ import {
 } from '@/infrastructure/database/schema';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
 import type { CreateSubscriptionData } from '@/modules/subscription/types/create-subscription-data.type';
-import type { ISubscriptionRepository } from './subscription.repository.interface';
+import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
 
 export class SubscriptionRepository implements ISubscriptionRepository {
   constructor(private readonly db: DbClient) {}

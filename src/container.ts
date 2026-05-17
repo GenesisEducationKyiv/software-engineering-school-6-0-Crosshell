@@ -9,9 +9,9 @@ import { GithubClient } from '@/modules/github/github.client';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationService } from '@/modules/notification/notification.service';
-import type { INotificationPublisher } from '@/modules/notification/notification-publisher.interface';
-import type { INotificationConsumer } from '@/modules/notification/notification.consumer.interface';
-import type { ICacheService } from '@/infrastructure/cache/cache.service.interface';
+import type { INotificationPublisher } from '@/modules/notification/interfaces/notification-publisher.interface';
+import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
+import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 
 export function createContainer(
   notificationQueue: INotificationPublisher & INotificationConsumer,

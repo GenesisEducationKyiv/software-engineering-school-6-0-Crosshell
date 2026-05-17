@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock, mockDeep } from 'vitest-mock-extended';
 import { SubscriptionService } from './subscription.service';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
-import type { ISubscriptionRepository } from './subscription.repository.interface';
-import type { IGithubClient } from '@/modules/github/github.client.interface';
-import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
+import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
+import type { IGithubClient } from '@/modules/github/interfaces/github.client.interface';
+import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
 import type {
   IUnitOfWork,
   UnitOfWorkContext,

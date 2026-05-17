@@ -5,7 +5,7 @@ import {
   getSubscriptionsQuerySchema,
   subscriptionWithRepoSchema,
 } from '@/modules/subscription/subscription.schemas';
-import type { ISubscriptionService } from '@/modules/subscription/subscription.service.interface';
+import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
 import type { AppServer } from '@/server';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 

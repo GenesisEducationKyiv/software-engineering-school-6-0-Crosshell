@@ -1,4 +1,4 @@
-import type { RepositoryWithSubscribers } from './types/repository-with-subscribers.type';
+import type { RepositoryWithSubscribers } from '../types/repository-with-subscribers.type';
 import type { Repository } from '@/modules/repository/types/repository.type';
 
 export interface IRepositoryRepository {

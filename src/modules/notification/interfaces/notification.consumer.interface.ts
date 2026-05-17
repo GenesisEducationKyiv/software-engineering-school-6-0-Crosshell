@@ -1,4 +1,4 @@
-import type { ReleaseNotificationPayload } from './notification.schemas';
+import type { ReleaseNotificationPayload } from '../notification.schemas';
 
 export interface INotificationConsumer {
   consume(

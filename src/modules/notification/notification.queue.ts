@@ -3,8 +3,8 @@ import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { logger } from '@/shared/logger';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import { releaseNotificationPayloadSchema } from '@/modules/notification/notification.schemas';
-import type { INotificationPublisher } from './notification-publisher.interface';
-import type { INotificationConsumer } from './notification.consumer.interface';
+import type { INotificationPublisher } from './interfaces/notification-publisher.interface';
+import type { INotificationConsumer } from './interfaces/notification.consumer.interface';
 
 const QUEUE_NAME = 'release.notifications';
 const DLX_NAME = 'release.notifications.dlx';

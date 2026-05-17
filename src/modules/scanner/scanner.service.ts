@@ -1,12 +1,12 @@
 import cron from 'node-cron';
-import type { IGithubClient } from '@/modules/github/github.client.interface';
+import type { IGithubClient } from '@/modules/github/interfaces/github.client.interface';
 import { RateLimitError } from '@/shared/errors/app.errors';
 import { logger } from '@/shared/logger';
 import { scannerConfig } from '@/shared/config';
-import type { IRepositoryRepository } from '@/modules/repository/repository.repository.interface';
+import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
 import type { TrackedRepository } from './types/tracked-repository.type';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
-import type { INotificationPublisher } from '../notification/notification-publisher.interface';
+import type { INotificationPublisher } from '../notification/interfaces/notification-publisher.interface';
 import {
   scannerRunsTotal,
   scannerNewReleasesTotal,

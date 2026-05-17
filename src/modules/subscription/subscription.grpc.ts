@@ -1,5 +1,5 @@
 import type * as grpc from '@grpc/grpc-js';
-import type { ISubscriptionService } from './subscription.service.interface';
+import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 import { loadServiceDefinition } from '@/infrastructure/grpc/grpc-server';
 import { toGrpcError } from '@/infrastructure/grpc/grpc-error.mapper';
 import type {

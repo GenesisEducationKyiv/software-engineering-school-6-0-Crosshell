@@ -1,13 +1,13 @@
-import type { ISubscriptionRepository } from '@/modules/subscription/subscription.repository.interface';
+import type { ISubscriptionRepository } from '@/modules/subscription/interfaces/subscription.repository.interface';
 import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
-import type { IGithubClient } from '@/modules/github/github.client.interface';
-import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
+import type { IGithubClient } from '@/modules/github/interfaces/github.client.interface';
+import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { buildConfirmUrl } from '@/modules/subscription/subscription.urls';
-import type { ISubscriptionService } from './subscription.service.interface';
+import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 
 export class SubscriptionService implements ISubscriptionService {
   constructor(

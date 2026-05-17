@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { http, HttpResponse } from 'msw';
 import { GithubClient } from './github.client';
-import type { ICacheService } from '@/infrastructure/cache/cache.service.interface';
+import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import type { GitHubRelease, GitHubRepository } from './github.schemas';
 

@@ -1,6 +1,6 @@
-import type { IMailerService } from '@/modules/mailer/mailer.service.interface';
+import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
 import { logger } from '@/shared/logger';
-import type { INotificationConsumer } from '@/modules/notification/notification.consumer.interface';
+import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
 import { buildUnsubscribeUrl } from '@/modules/notification/notification.urls';
 import { notificationsSentTotal } from '@/infrastructure/metrics/metrics.registry';
 

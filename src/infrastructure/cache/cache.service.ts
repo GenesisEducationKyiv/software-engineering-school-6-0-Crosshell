@@ -1,7 +1,7 @@
 import type { Redis } from 'ioredis';
 import type { ZodType } from 'zod';
 import { logger } from '@/shared/logger';
-import type { ICacheService } from './cache.service.interface';
+import type { ICacheService } from './interfaces/cache.service.interface';
 
 export class CacheService implements ICacheService {
   constructor(private readonly client: Redis) {}

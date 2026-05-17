@@ -9,9 +9,9 @@ import {
   gitHubReleaseSchema,
 } from '@/modules/github/github.schemas';
 import { githubConfig } from '@/shared/config';
-import type { ICacheService } from '@/infrastructure/cache/cache.service.interface';
+import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import { githubApiRequestsTotal } from '@/infrastructure/metrics/metrics.registry';
-import type { IGithubClient } from './github.client.interface';
+import type { IGithubClient } from './interfaces/github.client.interface';
 
 export class GithubClient implements IGithubClient {
   private readonly baseUrl: string;
