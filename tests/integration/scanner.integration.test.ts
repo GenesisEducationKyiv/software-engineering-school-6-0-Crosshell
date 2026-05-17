@@ -14,7 +14,8 @@ import {
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
-import { GithubClient } from '@/modules/github/github.client';
+import { GithubHttpClient } from '@/modules/github/github-http-client';
+import { GithubAdapter } from '@/modules/github/github.adapter';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
@@ -48,7 +49,7 @@ beforeAll(async () => {
 
   const cache = new CacheService(redisClient);
   const repositoryRepository = new RepositoryRepository(db);
-  const github = new GithubClient(cache);
+  const github = new GithubAdapter(new GithubHttpClient(cache));
 
   scannerService = new ScannerService(
     repositoryRepository,

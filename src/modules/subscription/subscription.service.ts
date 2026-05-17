@@ -1,7 +1,7 @@
 import type { ISubscriptionRepository } from '@/modules/subscription/interfaces/subscription.repository.interface';
 import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
-import type { IGithubClient } from '@/modules/github/interfaces/github.client.interface';
+import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
 import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
@@ -13,15 +13,17 @@ export class SubscriptionService implements ISubscriptionService {
   constructor(
     private readonly uow: IUnitOfWork,
     private readonly subscriptionRepository: ISubscriptionRepository,
-    private readonly github: IGithubClient,
+    private readonly repositorySource: IRepositorySource,
     private readonly mailer: IMailerService,
   ) {}
 
   async subscribe(input: SubscribeInput): Promise<void> {
     const [rawOwner, rawRepo] = input.repo.split('/');
 
-    const githubRepo = await this.github.getRepository(rawOwner, rawRepo);
-    const [owner, repo] = githubRepo.fullName.split('/');
+    const { owner, repo } = await this.repositorySource.getRepository(
+      rawOwner,
+      rawRepo,
+    );
 
     const sub = await this.uow.run(async ({ repositories, subscriptions }) => {
       const repository = await repositories.findOrCreate(owner, repo);

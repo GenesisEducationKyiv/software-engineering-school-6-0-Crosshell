@@ -1,19 +1,13 @@
 import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
-import type {
-  GitHubRepository,
-  GitHubRelease,
-} from '@/modules/github/github.schemas';
-import {
-  gitHubRepositorySchema,
-  gitHubReleaseSchema,
-} from '@/modules/github/github.schemas';
+import type { GitHubRelease, GitHubRepository } from './github.schemas';
+import { gitHubRepositorySchema, gitHubReleaseSchema } from './github.schemas';
 import { githubConfig } from '@/shared/config';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import { githubApiRequestsTotal } from '@/infrastructure/metrics/metrics.registry';
-import type { IGithubClient } from './interfaces/github.client.interface';
+import type { IGithubHttpClient } from './interfaces/github-http-client.interface';
 
-export class GithubClient implements IGithubClient {
+export class GithubHttpClient implements IGithubHttpClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
@@ -28,15 +22,15 @@ export class GithubClient implements IGithubClient {
     };
   }
 
-  async getRepository(owner: string, repo: string): Promise<GitHubRepository> {
-    const key = GithubClient.cacheKeyRepo(owner, repo);
+  async fetchRepository(
+    owner: string,
+    repo: string,
+  ): Promise<GitHubRepository> {
+    const key = GithubHttpClient.cacheKeyRepo(owner, repo);
 
     const cached = await this.cache.get(key, gitHubRepositorySchema);
     if (cached) {
-      githubApiRequestsTotal.inc({
-        operation: 'getRepository',
-        cache: 'hit',
-      });
+      githubApiRequestsTotal.inc({ operation: 'getRepository', cache: 'hit' });
       return cached;
     }
 
@@ -65,7 +59,7 @@ export class GithubClient implements IGithubClient {
     return gitHubRepositorySchema.parse(raw);
   }
 
-  async getLatestRelease(
+  async fetchLatestRelease(
     owner: string,
     repo: string,
   ): Promise<GitHubRelease | null> {
@@ -86,7 +80,7 @@ export class GithubClient implements IGithubClient {
 
     githubApiRequestsTotal.inc({
       operation: 'getLatestRelease',
-      cache: 'miss',
+      cache: 'none',
     });
 
     const raw: unknown = await res.json();

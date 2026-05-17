@@ -1,4 +1,4 @@
-import type { IGithubClient } from '@/modules/github/interfaces/github.client.interface';
+import type { IReleaseFeed } from '@/modules/scanner/interfaces/release-feed.interface';
 import { RateLimitError } from '@/shared/errors/app.errors';
 import { logger } from '@/shared/logger';
 import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
@@ -14,7 +14,7 @@ import {
 export class ScannerService {
   constructor(
     private readonly repositoryRepository: IRepositoryRepository,
-    private readonly github: IGithubClient,
+    private readonly releaseFeed: IReleaseFeed,
     private readonly notificationPublisher: INotificationPublisher,
     private readonly scheduler: IScheduler,
   ) {}
@@ -51,7 +51,7 @@ export class ScannerService {
     subscribers: Subscriber[],
   ): Promise<void> {
     try {
-      const release = await this.github.getLatestRelease(
+      const release = await this.releaseFeed.getLatestRelease(
         repository.owner,
         repository.repo,
       );
@@ -65,7 +65,7 @@ export class ScannerService {
         repositoryOwner: repository.owner,
         repositoryRepo: repository.repo,
         newTag: release.tagName,
-        releaseUrl: release.htmlUrl,
+        releaseUrl: release.releaseUrl,
         subscribers,
       });
 

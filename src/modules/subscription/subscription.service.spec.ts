@@ -3,7 +3,7 @@ import { mock, mockDeep } from 'vitest-mock-extended';
 import { SubscriptionService } from './subscription.service';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
-import type { IGithubClient } from '@/modules/github/interfaces/github.client.interface';
+import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
 import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
 import type {
   IUnitOfWork,
@@ -52,7 +52,7 @@ describe('SubscriptionService', () => {
   let service: SubscriptionService;
   let uow: ReturnType<typeof mock<IUnitOfWork>>;
   let subscriptionRepository: ReturnType<typeof mock<ISubscriptionRepository>>;
-  let github: ReturnType<typeof mock<IGithubClient>>;
+  let repositorySource: ReturnType<typeof mock<IRepositorySource>>;
   let mailer: ReturnType<typeof mock<IMailerService>>;
   let txCtx: ReturnType<typeof mockDeep<UnitOfWorkContext>>;
 
@@ -73,11 +73,10 @@ describe('SubscriptionService', () => {
     subscriptionRepository.deleteById.mockResolvedValue(undefined);
     subscriptionRepository.findConfirmedByEmail.mockResolvedValue([]);
 
-    github = mock<IGithubClient>();
-    github.getRepository.mockResolvedValue({
-      id: 1,
-      fullName: 'acc/testName',
-      htmlUrl: '',
+    repositorySource = mock<IRepositorySource>();
+    repositorySource.getRepository.mockResolvedValue({
+      owner: 'acc',
+      repo: 'testName',
     });
 
     mailer = mock<IMailerService>();
@@ -86,7 +85,7 @@ describe('SubscriptionService', () => {
     service = new SubscriptionService(
       uow,
       subscriptionRepository,
-      github,
+      repositorySource,
       mailer,
     );
   });
@@ -94,7 +93,7 @@ describe('SubscriptionService', () => {
   describe('subscribe', () => {
     describe('GitHub validation', () => {
       it('should propagate NotFoundError when the GitHub repository does not exist', async () => {
-        github.getRepository.mockRejectedValue(
+        repositorySource.getRepository.mockRejectedValue(
           new NotFoundError('Repository acc/testName not found on GitHub'),
         );
 
@@ -104,7 +103,9 @@ describe('SubscriptionService', () => {
       });
 
       it('should not open a transaction when the GitHub repository does not exist', async () => {
-        github.getRepository.mockRejectedValue(new NotFoundError('not found'));
+        repositorySource.getRepository.mockRejectedValue(
+          new NotFoundError('not found'),
+        );
 
         await expect(service.subscribe(VALID_INPUT)).rejects.toThrow();
 
@@ -114,7 +115,10 @@ describe('SubscriptionService', () => {
       it('should call the GitHub API with the correct owner and repo', async () => {
         await service.subscribe(VALID_INPUT);
 
-        expect(github.getRepository).toHaveBeenCalledWith('acc', 'testName');
+        expect(repositorySource.getRepository).toHaveBeenCalledWith(
+          'acc',
+          'testName',
+        );
       });
     });
 
@@ -150,11 +154,10 @@ describe('SubscriptionService', () => {
         );
       });
 
-      it('should use canonical owner/repo from GitHub fullName regardless of input casing', async () => {
-        github.getRepository.mockResolvedValue({
-          id: 1,
-          fullName: 'acc/testName',
-          htmlUrl: '',
+      it('should use canonical owner/repo from GitHub regardless of input casing', async () => {
+        repositorySource.getRepository.mockResolvedValue({
+          owner: 'acc',
+          repo: 'testName',
         });
 
         await service.subscribe({
@@ -218,9 +221,9 @@ describe('SubscriptionService', () => {
       it('should execute steps in the correct order: GitHub - transaction - email', async () => {
         const callOrder: string[] = [];
 
-        github.getRepository.mockImplementation(async () => {
+        repositorySource.getRepository.mockImplementation(async () => {
           callOrder.push('getRepository');
-          return { id: 1, fullName: 'acc/testName', htmlUrl: '' };
+          return { owner: 'acc', repo: 'testName' };
         });
         uow.run.mockImplementation(async (fn) => {
           callOrder.push('uow.run');

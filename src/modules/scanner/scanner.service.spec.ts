@@ -3,12 +3,12 @@ import { mock } from 'vitest-mock-extended';
 import { ScannerService } from './scanner.service';
 import { RateLimitError } from '@/shared/errors/app.errors';
 import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
-import type { IGithubClient } from '@/modules/github/interfaces/github.client.interface';
+import type { IReleaseFeed } from '@/modules/scanner/interfaces/release-feed.interface';
 import type { INotificationPublisher } from '../notification/interfaces/notification-publisher.interface';
 import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { Repository } from '@/modules/repository/types/repository.type';
-import type { GitHubRelease } from '@/modules/github/github.schemas';
+import type { VcsRelease } from '@/shared/types/vcs-release.type';
 import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
 
 vi.mock('@/shared/logger', () => ({
@@ -38,9 +38,9 @@ const MOCK_SUBSCRIBER: Subscriber = {
   unsubscribeToken: '00000000-0000-0000-0000-000000000001',
 };
 
-const MOCK_RELEASE: GitHubRelease = {
+const MOCK_RELEASE: VcsRelease = {
   tagName: 'v2.0.0',
-  htmlUrl: 'https://github.com/acc/testName/releases/tag/v2.0.0',
+  releaseUrl: 'https://github.com/acc/testName/releases/tag/v2.0.0',
 };
 
 function makeEntry(
@@ -53,7 +53,7 @@ function makeEntry(
 describe('ScannerService', () => {
   let service: ScannerService;
   let repositoryRepository: ReturnType<typeof mock<IRepositoryRepository>>;
-  let github: ReturnType<typeof mock<IGithubClient>>;
+  let releaseFeed: ReturnType<typeof mock<IReleaseFeed>>;
   let notificationPublisher: ReturnType<typeof mock<INotificationPublisher>>;
   let scheduler: ReturnType<typeof mock<IScheduler>>;
 
@@ -64,15 +64,15 @@ describe('ScannerService', () => {
     );
     repositoryRepository.updateLastSeenTag.mockResolvedValue(undefined);
 
-    github = mock<IGithubClient>();
-    github.getLatestRelease.mockResolvedValue(null);
+    releaseFeed = mock<IReleaseFeed>();
+    releaseFeed.getLatestRelease.mockResolvedValue(null);
 
     notificationPublisher = mock<INotificationPublisher>();
     scheduler = mock<IScheduler>();
 
     service = new ScannerService(
       repositoryRepository,
-      github,
+      releaseFeed,
       notificationPublisher,
       scheduler,
     );
@@ -157,8 +157,8 @@ describe('ScannerService', () => {
 
       await service.scan();
 
-      expect(github.getLatestRelease).toHaveBeenCalledWith('acc', 'repoA');
-      expect(github.getLatestRelease).toHaveBeenCalledWith('acc', 'repoB');
+      expect(releaseFeed.getLatestRelease).toHaveBeenCalledWith('acc', 'repoA');
+      expect(releaseFeed.getLatestRelease).toHaveBeenCalledWith('acc', 'repoB');
     });
 
     it('should resolve immediately when there are no tracked repositories', async () => {
@@ -167,7 +167,7 @@ describe('ScannerService', () => {
       );
 
       await expect(service.scan()).resolves.toBeUndefined();
-      expect(github.getLatestRelease).not.toHaveBeenCalled();
+      expect(releaseFeed.getLatestRelease).not.toHaveBeenCalled();
     });
 
     describe('when GitHub returns no release for a repository', () => {
@@ -175,7 +175,7 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockResolvedValue(null);
+        releaseFeed.getLatestRelease.mockResolvedValue(null);
 
         await service.scan();
 
@@ -186,7 +186,7 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockResolvedValue(null);
+        releaseFeed.getLatestRelease.mockResolvedValue(null);
 
         await service.scan();
 
@@ -196,14 +196,14 @@ describe('ScannerService', () => {
 
     describe('when the latest release tag matches the last-seen tag', () => {
       it('should not publish a notification', async () => {
-        const unchangedRelease: GitHubRelease = {
+        const unchangedRelease: VcsRelease = {
           tagName: MOCK_REPOSITORY.lastSeenTag!,
-          htmlUrl: 'https://github.com/acc/testName/releases/tag/v1.0.0',
+          releaseUrl: 'https://github.com/acc/testName/releases/tag/v1.0.0',
         };
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockResolvedValue(unchangedRelease);
+        releaseFeed.getLatestRelease.mockResolvedValue(unchangedRelease);
 
         await service.scan();
 
@@ -211,14 +211,14 @@ describe('ScannerService', () => {
       });
 
       it('should not update the last-seen tag', async () => {
-        const unchangedRelease: GitHubRelease = {
+        const unchangedRelease: VcsRelease = {
           tagName: MOCK_REPOSITORY.lastSeenTag!,
-          htmlUrl: 'https://github.com/acc/testName/releases/tag/v1.0.0',
+          releaseUrl: 'https://github.com/acc/testName/releases/tag/v1.0.0',
         };
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockResolvedValue(unchangedRelease);
+        releaseFeed.getLatestRelease.mockResolvedValue(unchangedRelease);
 
         await service.scan();
 
@@ -226,14 +226,14 @@ describe('ScannerService', () => {
       });
 
       it('should not increment the new releases counter', async () => {
-        const unchangedRelease: GitHubRelease = {
+        const unchangedRelease: VcsRelease = {
           tagName: MOCK_REPOSITORY.lastSeenTag!,
-          htmlUrl: 'https://github.com/acc/testName/releases/tag/v1.0.0',
+          releaseUrl: 'https://github.com/acc/testName/releases/tag/v1.0.0',
         };
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockResolvedValue(unchangedRelease);
+        releaseFeed.getLatestRelease.mockResolvedValue(unchangedRelease);
 
         await service.scan();
 
@@ -246,7 +246,7 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockResolvedValue(MOCK_RELEASE);
+        releaseFeed.getLatestRelease.mockResolvedValue(MOCK_RELEASE);
       });
 
       it('should increment the new releases counter', async () => {
@@ -262,7 +262,7 @@ describe('ScannerService', () => {
           repositoryOwner: MOCK_REPOSITORY.owner,
           repositoryRepo: MOCK_REPOSITORY.repo,
           newTag: MOCK_RELEASE.tagName,
-          releaseUrl: MOCK_RELEASE.htmlUrl,
+          releaseUrl: MOCK_RELEASE.releaseUrl,
           subscribers: [MOCK_SUBSCRIBER],
         });
       });
@@ -300,7 +300,7 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockRejectedValue(
+        releaseFeed.getLatestRelease.mockRejectedValue(
           new RateLimitError('retry after 60'),
         );
 
@@ -319,7 +319,7 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockRejectedValue(unexpectedError);
+        releaseFeed.getLatestRelease.mockRejectedValue(unexpectedError);
 
         await service.scan();
 
@@ -346,10 +346,12 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(failingRepo), makeEntry(passingRepo)],
         );
-        github.getLatestRelease.mockImplementation(async (_owner, repo) => {
-          if (repo === 'failing') throw new RateLimitError('rate limited');
-          return MOCK_RELEASE;
-        });
+        releaseFeed.getLatestRelease.mockImplementation(
+          async (_owner, repo) => {
+            if (repo === 'failing') throw new RateLimitError('rate limited');
+            return MOCK_RELEASE;
+          },
+        );
 
         await service.scan();
 
@@ -373,10 +375,12 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(failingRepo), makeEntry(passingRepo)],
         );
-        github.getLatestRelease.mockImplementation(async (_owner, repo) => {
-          if (repo === 'failing') throw new Error('network error');
-          return MOCK_RELEASE;
-        });
+        releaseFeed.getLatestRelease.mockImplementation(
+          async (_owner, repo) => {
+            if (repo === 'failing') throw new Error('network error');
+            return MOCK_RELEASE;
+          },
+        );
 
         await service.scan();
 
@@ -390,7 +394,7 @@ describe('ScannerService', () => {
         repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
           [makeEntry(MOCK_REPOSITORY)],
         );
-        github.getLatestRelease.mockRejectedValue(
+        releaseFeed.getLatestRelease.mockRejectedValue(
           new RateLimitError('rate limited'),
         );
 

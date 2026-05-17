@@ -22,7 +22,8 @@ import {
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
-import { GithubClient } from '@/modules/github/github.client';
+import { GithubHttpClient } from '@/modules/github/github-http-client';
+import { GithubAdapter } from '@/modules/github/github.adapter';
 import nodemailer from 'nodemailer';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
@@ -48,9 +49,11 @@ beforeAll(async () => {
   const cache = new CacheService(redisClient);
   const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
   const subscriptionRepository = new SubscriptionRepository(db);
-  const github = new GithubClient(cache);
+  const github = new GithubAdapter(new GithubHttpClient(cache));
   mailer = new MailerService(
-    new NodemailerEmailTransport(nodemailer.createTransport({ jsonTransport: true })),
+    new NodemailerEmailTransport(
+      nodemailer.createTransport({ jsonTransport: true }),
+    ),
   );
 
   sendConfirmationSpy = vi

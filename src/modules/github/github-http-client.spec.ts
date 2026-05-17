@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { http, HttpResponse } from 'msw';
-import { GithubClient } from './github.client';
+import { GithubHttpClient } from './github-http-client';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import type { GitHubRelease, GitHubRepository } from './github.schemas';
@@ -30,43 +30,43 @@ const RAW_REPO = {
   html_url: `https://github.com/${OWNER}/${REPO}`,
 };
 
-const PARSED_REPO: GitHubRepository = {
+const GITHUB_REPO: GitHubRepository = {
   id: 1,
   fullName: `${OWNER}/${REPO}`,
   htmlUrl: `https://github.com/${OWNER}/${REPO}`,
 };
 
-const PARSED_RELEASE: GitHubRelease = {
+const GITHUB_RELEASE: GitHubRelease = {
   tagName: 'v1.0.0',
   htmlUrl: 'https://github.com/owner/repo/releases/tag/v1.0.0',
 };
 
-describe('GithubClient', () => {
+describe('GithubHttpClient', () => {
   let cache: ReturnType<typeof mock<ICacheService>>;
-  let client: GithubClient;
+  let client: GithubHttpClient;
 
   beforeEach(() => {
     cache = mock<ICacheService>();
     cache.get.mockResolvedValue(null);
     cache.setWithExpiry.mockResolvedValue(undefined);
 
-    client = new GithubClient(cache);
+    client = new GithubHttpClient(cache);
   });
 
-  describe('getRepository', () => {
+  describe('fetchRepository', () => {
     describe('cache hit', () => {
       it('should return the cached value without making an HTTP request', async () => {
-        cache.get.mockResolvedValue(PARSED_REPO);
+        cache.get.mockResolvedValue(GITHUB_REPO);
 
-        const result = await client.getRepository(OWNER, REPO);
+        const result = await client.fetchRepository(OWNER, REPO);
 
-        expect(result).toEqual(PARSED_REPO);
+        expect(result).toEqual(GITHUB_REPO);
       });
 
       it('should increment the cache-hit counter', async () => {
-        cache.get.mockResolvedValue(PARSED_REPO);
+        cache.get.mockResolvedValue(GITHUB_REPO);
 
-        await client.getRepository(OWNER, REPO);
+        await client.fetchRepository(OWNER, REPO);
 
         expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
           operation: 'getRepository',
@@ -75,9 +75,9 @@ describe('GithubClient', () => {
       });
 
       it('should look up the cache with the correct key', async () => {
-        cache.get.mockResolvedValue(PARSED_REPO);
+        cache.get.mockResolvedValue(GITHUB_REPO);
 
-        await client.getRepository(OWNER, REPO);
+        await client.fetchRepository(OWNER, REPO);
 
         expect(cache.get).toHaveBeenCalledWith(
           `github:repo:${OWNER}:${REPO}`,
@@ -88,13 +88,13 @@ describe('GithubClient', () => {
 
     describe('cache miss successful fetch', () => {
       it('should return the parsed repository data', async () => {
-        const result = await client.getRepository(OWNER, REPO);
+        const result = await client.fetchRepository(OWNER, REPO);
 
-        expect(result).toEqual(PARSED_REPO);
+        expect(result).toEqual(GITHUB_REPO);
       });
 
       it('should store the raw response in the cache with the correct TTL', async () => {
-        await client.getRepository(OWNER, REPO);
+        await client.fetchRepository(OWNER, REPO);
 
         expect(cache.setWithExpiry).toHaveBeenCalledWith(
           `github:repo:${OWNER}:${REPO}`,
@@ -104,7 +104,7 @@ describe('GithubClient', () => {
       });
 
       it('should increment the cache-miss counter', async () => {
-        await client.getRepository(OWNER, REPO);
+        await client.fetchRepository(OWNER, REPO);
 
         expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
           operation: 'getRepository',
@@ -124,19 +124,19 @@ describe('GithubClient', () => {
       });
 
       it('should throw NotFoundError', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow(
           NotFoundError,
         );
       });
 
       it('should include the owner/repo in the error message', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow(
           `${OWNER}/${REPO}`,
         );
       });
 
       it('should not cache anything', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow();
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow();
         expect(cache.setWithExpiry).not.toHaveBeenCalled();
       });
     });
@@ -156,13 +156,13 @@ describe('GithubClient', () => {
       });
 
       it('should throw RateLimitError', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow(
           RateLimitError,
         );
       });
 
       it('should include the retry-after seconds in the error message', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow('60');
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow('60');
       });
     });
 
@@ -181,7 +181,7 @@ describe('GithubClient', () => {
       });
 
       it('should throw RateLimitError', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow(
           RateLimitError,
         );
       });
@@ -202,13 +202,15 @@ describe('GithubClient', () => {
       });
 
       it('should throw RateLimitError', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow(
           RateLimitError,
         );
       });
 
       it('should include the retry-after seconds in the error message', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow('120');
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow(
+          '120',
+        );
       });
     });
 
@@ -227,33 +229,33 @@ describe('GithubClient', () => {
       });
 
       it('should throw a generic Error', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow(
           'GitHub API error: 500',
         );
       });
 
       it('should not throw a NotFoundError or RateLimitError', async () => {
-        await expect(client.getRepository(OWNER, REPO)).rejects.not.toThrow(
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.not.toThrow(
           NotFoundError,
         );
       });
     });
   });
 
-  describe('getLatestRelease', () => {
+  describe('fetchLatestRelease', () => {
     describe('successful fetch', () => {
       it('should return the parsed release data', async () => {
-        const result = await client.getLatestRelease(OWNER, REPO);
+        const result = await client.fetchLatestRelease(OWNER, REPO);
 
-        expect(result).toEqual(PARSED_RELEASE);
+        expect(result).toEqual(GITHUB_RELEASE);
       });
 
       it('should increment the cache-miss counter', async () => {
-        await client.getLatestRelease(OWNER, REPO);
+        await client.fetchLatestRelease(OWNER, REPO);
 
         expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
           operation: 'getLatestRelease',
-          cache: 'miss',
+          cache: 'none',
         });
       });
     });
@@ -269,13 +271,13 @@ describe('GithubClient', () => {
       });
 
       it('should return null instead of throwing', async () => {
-        const result = await client.getLatestRelease(OWNER, REPO);
+        const result = await client.fetchLatestRelease(OWNER, REPO);
 
         expect(result).toBeNull();
       });
 
       it('should not cache anything on 404', async () => {
-        await client.getLatestRelease(OWNER, REPO);
+        await client.fetchLatestRelease(OWNER, REPO);
 
         expect(cache.setWithExpiry).not.toHaveBeenCalled();
       });
@@ -296,13 +298,13 @@ describe('GithubClient', () => {
       });
 
       it('should throw RateLimitError', async () => {
-        await expect(client.getLatestRelease(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchLatestRelease(OWNER, REPO)).rejects.toThrow(
           RateLimitError,
         );
       });
 
       it('should include the retry-after seconds in the error message', async () => {
-        await expect(client.getLatestRelease(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchLatestRelease(OWNER, REPO)).rejects.toThrow(
           '30',
         );
       });
@@ -323,7 +325,7 @@ describe('GithubClient', () => {
       });
 
       it('should throw a generic Error', async () => {
-        await expect(client.getLatestRelease(OWNER, REPO)).rejects.toThrow(
+        await expect(client.fetchLatestRelease(OWNER, REPO)).rejects.toThrow(
           'GitHub API error: 503',
         );
       });
