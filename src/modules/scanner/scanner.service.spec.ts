@@ -5,18 +5,11 @@ import { RateLimitError } from '@/shared/errors/app.errors';
 import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
 import type { IGithubClient } from '@/modules/github/interfaces/github.client.interface';
 import type { INotificationPublisher } from '../notification/interfaces/notification-publisher.interface';
+import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { Repository } from '@/modules/repository/types/repository.type';
 import type { GitHubRelease } from '@/modules/github/github.schemas';
 import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
-
-vi.mock('node-cron', () => ({
-  default: { schedule: vi.fn() },
-}));
-
-vi.mock('@/shared/config', () => ({
-  scannerConfig: { scannerCron: '*/10 * * * *' },
-}));
 
 vi.mock('@/shared/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -27,7 +20,6 @@ vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
   scannerNewReleasesTotal: { inc: vi.fn() },
 }));
 
-import cron from 'node-cron';
 import { logger } from '@/shared/logger';
 import {
   scannerRunsTotal,
@@ -63,6 +55,7 @@ describe('ScannerService', () => {
   let repositoryRepository: ReturnType<typeof mock<IRepositoryRepository>>;
   let github: ReturnType<typeof mock<IGithubClient>>;
   let notificationPublisher: ReturnType<typeof mock<INotificationPublisher>>;
+  let scheduler: ReturnType<typeof mock<IScheduler>>;
 
   beforeEach(() => {
     repositoryRepository = mock<IRepositoryRepository>();
@@ -75,11 +68,13 @@ describe('ScannerService', () => {
     github.getLatestRelease.mockResolvedValue(null);
 
     notificationPublisher = mock<INotificationPublisher>();
+    scheduler = mock<IScheduler>();
 
     service = new ScannerService(
       repositoryRepository,
       github,
       notificationPublisher,
+      scheduler,
     );
   });
 
@@ -87,22 +82,18 @@ describe('ScannerService', () => {
     let capturedCallback: () => Promise<void>;
 
     beforeEach(() => {
-      vi.mocked(cron.schedule).mockImplementation((_expr, cb) => {
-        capturedCallback = cb as () => Promise<void>;
-        return {} as ReturnType<typeof cron.schedule>;
+      scheduler.start.mockImplementation((cb) => {
+        capturedCallback = cb;
       });
     });
 
-    it('should register a cron job with the configured schedule expression', () => {
+    it('should delegate scheduling to the scheduler', () => {
       service.start();
 
-      expect(cron.schedule).toHaveBeenCalledWith(
-        '*/10 * * * *',
-        expect.any(Function),
-      );
+      expect(scheduler.start).toHaveBeenCalledWith(expect.any(Function));
     });
 
-    it('should invoke scan when the cron callback fires', async () => {
+    it('should invoke scan when the scheduler triggers', async () => {
       const scanSpy = vi.spyOn(service, 'scan').mockResolvedValue(undefined);
       service.start();
 
@@ -111,7 +102,7 @@ describe('ScannerService', () => {
       expect(scanSpy).toHaveBeenCalledOnce();
     });
 
-    it('should catch errors thrown by scan and not let the cron callback reject', async () => {
+    it('should catch errors thrown by scan and not let the callback reject', async () => {
       vi.spyOn(service, 'scan').mockRejectedValue(
         new Error('unexpected crash'),
       );

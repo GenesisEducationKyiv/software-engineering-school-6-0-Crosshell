@@ -54,6 +54,7 @@ beforeAll(async () => {
     repositoryRepository,
     github,
     notificationQueue,
+    { start: () => {} },
   );
 });
 

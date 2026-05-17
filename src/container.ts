@@ -10,6 +10,8 @@ import { GithubClient } from '@/modules/github/github.client';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
 import { ScannerService } from '@/modules/scanner/scanner.service';
+import { CronScheduler } from '@/infrastructure/scheduler/cron-scheduler';
+import { scannerConfig } from '@/shared/config';
 import { NotificationService } from '@/modules/notification/notification.service';
 import type { INotificationPublisher } from '@/modules/notification/interfaces/notification-publisher.interface';
 import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
@@ -52,6 +54,7 @@ export function createContainer(
     repositoryRepository,
     github,
     notificationQueue,
+    new CronScheduler(scannerConfig.scannerCron),
   );
 
   const notificationService = new NotificationService(
