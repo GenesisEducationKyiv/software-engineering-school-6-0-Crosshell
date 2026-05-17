@@ -157,11 +157,11 @@ describe('NotificationQueue', () => {
         .fn<(payload: ReleaseNotificationPayload) => Promise<void>>()
         .mockResolvedValue(undefined);
 
-      channel.consume.mockImplementation((_queue, msgHandler) => {
+      channel.consume.mockImplementation(async (_queue, msgHandler) => {
         capturedMsgHandler = msgHandler as (
           msg: ConsumeMessage | null,
         ) => Promise<void>;
-        return Promise.resolve({ consumerTag: 'test' });
+        return { consumerTag: 'test' };
       });
 
       queue.consume(handler);

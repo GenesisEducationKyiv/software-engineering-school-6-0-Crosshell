@@ -49,33 +49,34 @@ export class NotificationQueue
     handler: (payload: ReleaseNotificationPayload) => Promise<void>,
   ): void {
     const channel = this.queueManager.getChannel();
-
     void channel.consume(QUEUE_NAME, (msg) => {
       if (!msg) return;
-
-      void (async () => {
-        let payload: ReleaseNotificationPayload;
-        try {
-          payload = releaseNotificationPayloadSchema.parse(
-            JSON.parse(msg.content.toString()),
-          );
-        } catch (err) {
-          logger.error(
-            { err },
-            '[Queue] Invalid message payload. Sending to DLQ',
-          );
-          channel.nack(msg, false, false);
-          return;
-        }
-
-        try {
-          await handler(payload);
-          channel.ack(msg);
-        } catch (err) {
-          this.handleRetry(channel, msg, err);
-        }
-      })();
+      void this.processMessage(channel, msg, handler);
     });
+  }
+
+  private async processMessage(
+    channel: Channel,
+    msg: ConsumeMessage,
+    handler: (payload: ReleaseNotificationPayload) => Promise<void>,
+  ): Promise<void> {
+    let payload: ReleaseNotificationPayload;
+    try {
+      payload = releaseNotificationPayloadSchema.parse(
+        JSON.parse(msg.content.toString()),
+      );
+    } catch (err) {
+      logger.error({ err }, '[Queue] Invalid message payload. Sending to DLQ');
+      channel.nack(msg, false, false);
+      return;
+    }
+
+    try {
+      await handler(payload);
+      channel.ack(msg);
+    } catch (err) {
+      this.handleRetry(channel, msg, err);
+    }
   }
 
   private handleRetry(

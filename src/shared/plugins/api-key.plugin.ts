@@ -3,8 +3,8 @@ import type { FastifyPluginAsync } from 'fastify';
 import { appConfig } from '@/shared/config';
 import { UnauthorizedError } from '@/shared/errors/app.errors';
 
-const apiKeyPlugin: FastifyPluginAsync = fp((server): Promise<void> => {
-  if (!appConfig.apiKey) return Promise.resolve();
+const apiKeyPlugin: FastifyPluginAsync = fp(async (server): Promise<void> => {
+  if (!appConfig.apiKey) return;
 
   server.addHook('onRequest', (request, _reply, done) => {
     const path = request.url.split('?')[0];
@@ -21,8 +21,6 @@ const apiKeyPlugin: FastifyPluginAsync = fp((server): Promise<void> => {
 
     done();
   });
-
-  return Promise.resolve();
 });
 
 export default apiKeyPlugin;

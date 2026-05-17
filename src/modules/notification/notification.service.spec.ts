@@ -157,10 +157,8 @@ describe('NotificationService', () => {
       const smtpError = new Error('SMTP connection refused');
 
       beforeEach(() => {
-        mailer.sendReleaseNotification.mockImplementation((email) => {
-          if (email === SUBSCRIBER_ALICE.email)
-            return Promise.reject(smtpError);
-          return Promise.resolve();
+        mailer.sendReleaseNotification.mockImplementation(async (email) => {
+          if (email === SUBSCRIBER_ALICE.email) throw smtpError;
         });
       });
 

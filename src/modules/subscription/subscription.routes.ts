@@ -11,7 +11,7 @@ import { HttpStatus } from '@/shared/constants/http-status.constant';
 
 const subscriptionRoutes =
   (service: ISubscriptionService): FastifyPluginAsyncZod =>
-  (server: AppServer): Promise<void> => {
+  async (server: AppServer): Promise<void> => {
     server.post(
       '/subscribe',
       { schema: { body: subscribeSchema } },
@@ -60,8 +60,6 @@ const subscriptionRoutes =
         return reply.code(HttpStatus.OK).send(subscriptions);
       },
     );
-
-    return Promise.resolve();
   };
 
 export default subscriptionRoutes;
