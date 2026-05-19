@@ -5,6 +5,7 @@ const BASE = 'https://api.github.com';
 export const githubHandlers = [
   http.get(`${BASE}/repos/:owner/:repo`, ({ params }) => {
     const { owner, repo } = params as Record<string, string>;
+
     return HttpResponse.json({
       id: 1,
       full_name: `${owner}/${repo}`,

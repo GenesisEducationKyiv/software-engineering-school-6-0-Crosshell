@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import * as schema from '@/infrastructure/database/schema';
 import {
   repositoriesTable,
   subscriptionsTable,

@@ -94,7 +94,9 @@ describe('NotificationService', () => {
         _releaseUrl: string,
         _unsubscribeUrl: string,
       ) => {
-        if (to === 'bad@example.com') throw new Error('SMTP error');
+        if (to === 'bad@example.com') {
+          throw new Error('SMTP error');
+        }
       },
     );
 

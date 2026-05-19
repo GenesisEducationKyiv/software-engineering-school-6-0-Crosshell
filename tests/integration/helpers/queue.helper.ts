@@ -17,7 +17,11 @@ export async function consumeOneNotification(
   channel: Channel,
 ): Promise<ReleaseNotificationPayload | null> {
   const msg = await channel.get(QUEUE_NAME, { noAck: true });
-  if (!msg) return null;
+
+  if (!msg) {
+    return null;
+  }
+
   return releaseNotificationPayloadSchema.parse(
     JSON.parse(msg.content.toString()),
   );

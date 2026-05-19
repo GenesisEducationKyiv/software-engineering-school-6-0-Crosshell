@@ -46,9 +46,12 @@ export async function buildTestApp(
     const apiKey = options.apiKey;
     app.addHook('onRequest', (request, _reply, done) => {
       const path = request.url.split('?')[0];
-      if (!path?.startsWith('/api/')) return done();
-      if (request.headers['x-api-key'] !== apiKey)
+      if (!path?.startsWith('/api/')) {
+        return done();
+      }
+      if (request.headers['x-api-key'] !== apiKey) {
         return done(new UnauthorizedError());
+      }
       done();
     });
   } else {
@@ -58,5 +61,6 @@ export async function buildTestApp(
   app.register(subscriptionRoutes(subscriptionService), { prefix: '/api' });
 
   await app.ready();
+
   return app;
 }
