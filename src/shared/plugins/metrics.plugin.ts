@@ -11,7 +11,9 @@ export default async function metricsPlugin(
   app.addHook('onResponse', (request, reply, done) => {
     const route = request.routeOptions?.url ?? 'unknown';
 
-    if (route === '/metrics') return done();
+    if (route === '/metrics') {
+      return done();
+    }
 
     httpRequestsTotal.inc({
       method: request.method,
@@ -29,6 +31,7 @@ export default async function metricsPlugin(
 
   app.get('/metrics', async (_request, reply) => {
     reply.header('Content-Type', registry.contentType);
+
     return registry.metrics();
   });
 }

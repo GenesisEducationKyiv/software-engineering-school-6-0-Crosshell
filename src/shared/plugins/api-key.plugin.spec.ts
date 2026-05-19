@@ -18,6 +18,7 @@ function buildApp(): FastifyInstance {
   app.register(errorHandlerPlugin);
   app.register(apiKeyPlugin);
   app.get('/protected', () => ({ ok: true }));
+
   return app;
 }
 

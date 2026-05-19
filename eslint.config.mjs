@@ -30,6 +30,10 @@ export default tseslint.config(
         'error',
         { allowNumber: true },
       ],
+      'padding-line-between-statements': [
+        'error',
+        { blankLine: 'always', prev: '*', next: 'return' },
+      ],
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
       eqeqeq: 'error',
@@ -51,4 +55,5 @@ export default tseslint.config(
     },
   },
   eslintConfigPrettier,
+  { rules: { curly: ['error', 'all'] } },
 );

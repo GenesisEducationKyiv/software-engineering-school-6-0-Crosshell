@@ -50,7 +50,9 @@ export class NotificationQueue
   ): void {
     const channel = this.queueManager.getChannel();
     void channel.consume(QUEUE_NAME, (msg) => {
-      if (!msg) return;
+      if (!msg) {
+        return;
+      }
       void this.processMessage(channel, msg, handler);
     });
   }
@@ -68,6 +70,7 @@ export class NotificationQueue
     } catch (err) {
       logger.error({ err }, '[Queue] Invalid message payload. Sending to DLQ');
       channel.nack(msg, false, false);
+
       return;
     }
 
@@ -92,6 +95,7 @@ export class NotificationQueue
     if (retryCount >= MAX_RETRIES) {
       logger.error({ err }, '[Queue] Max retries reached. Sending to DLQ');
       channel.nack(msg, false, false);
+
       return;
     }
 

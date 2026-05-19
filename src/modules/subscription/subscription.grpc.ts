@@ -28,7 +28,9 @@ export function getSubscriptionServiceDefinition(): grpc.ServiceDefinition {
 }
 
 function verifyApiKey(metadata: grpc.Metadata): void {
-  if (!appConfig.apiKey) return;
+  if (!appConfig.apiKey) {
+    return;
+  }
 
   const keys = metadata.get('x-api-key');
   const key = keys.length > 0 ? keys[0].toString() : undefined;
@@ -56,6 +58,7 @@ export function createSubscriptionGrpcHandlers(
     verifyApiKey(call.metadata);
     const input = subscribeSchema.parse(call.request);
     await service.subscribe(input);
+
     return {};
   });
 
@@ -64,6 +67,7 @@ export function createSubscriptionGrpcHandlers(
       verifyApiKey(call.metadata);
       const { token } = tokenSchema.parse(call.request);
       await service.confirm(token);
+
       return {};
     },
   );
@@ -72,6 +76,7 @@ export function createSubscriptionGrpcHandlers(
     verifyApiKey(call.metadata);
     const { token } = tokenSchema.parse(call.request);
     await service.unsubscribe(token);
+
     return {};
   });
 
@@ -80,6 +85,7 @@ export function createSubscriptionGrpcHandlers(
       verifyApiKey(call.metadata);
       const { email } = getSubscriptionsQuerySchema.parse(call.request);
       const subscriptions = await service.getSubscriptionsByEmail(email);
+
       return { subscriptions };
     },
   );

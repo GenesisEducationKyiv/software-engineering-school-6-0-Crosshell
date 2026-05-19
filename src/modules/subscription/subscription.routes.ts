@@ -17,6 +17,7 @@ const subscriptionRoutes =
       { schema: { body: subscribeSchema } },
       async (request, reply) => {
         await service.subscribe(request.body);
+
         return reply.code(HttpStatus.OK).send({
           message: 'Subscription successful. Confirmation email sent',
         });
@@ -28,6 +29,7 @@ const subscriptionRoutes =
       { schema: { params: tokenSchema } },
       async (request, reply) => {
         await service.confirm(request.params.token);
+
         return reply
           .code(HttpStatus.OK)
           .send({ message: 'Subscription confirmed successfully' });
@@ -39,6 +41,7 @@ const subscriptionRoutes =
       { schema: { params: tokenSchema } },
       async (request, reply) => {
         await service.unsubscribe(request.params.token);
+
         return reply
           .code(HttpStatus.OK)
           .send({ message: 'Unsubscribed successfully' });
@@ -57,6 +60,7 @@ const subscriptionRoutes =
         const subscriptions = await service.getSubscriptionsByEmail(
           request.query.email,
         );
+
         return reply.code(HttpStatus.OK).send(subscriptions);
       },
     );

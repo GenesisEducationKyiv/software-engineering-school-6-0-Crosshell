@@ -161,6 +161,7 @@ describe('NotificationQueue', () => {
         capturedMsgHandler = msgHandler as (
           msg: ConsumeMessage | null,
         ) => Promise<void>;
+
         return { consumerTag: 'test' };
       });
 

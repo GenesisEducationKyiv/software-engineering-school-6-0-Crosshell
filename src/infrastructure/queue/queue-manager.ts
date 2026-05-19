@@ -21,7 +21,9 @@ export class QueueManager {
     });
 
     this.connection.on('close', () => {
-      if (this.closing) return;
+      if (this.closing) {
+        return;
+      }
       logger.warn(
         '[Queue] Connection closed unexpectedly. Scheduling reconnect',
       );
@@ -33,7 +35,9 @@ export class QueueManager {
     });
 
     this.channel.on('close', () => {
-      if (this.closing) return;
+      if (this.closing) {
+        return;
+      }
       logger.warn('[Queue] Channel closed unexpectedly');
       this.connection?.close().catch(() => {});
     });
@@ -47,6 +51,7 @@ export class QueueManager {
         '[Queue] Channel not initialised. Call connect() first or wait for reconnect',
       );
     }
+
     return this.channel;
   }
 
@@ -63,7 +68,9 @@ export class QueueManager {
   }
 
   private scheduleReconnect(attempt: number): void {
-    if (this.isReconnecting || this.closing) return;
+    if (this.isReconnecting || this.closing) {
+      return;
+    }
     this.isReconnecting = true;
 
     const delay =

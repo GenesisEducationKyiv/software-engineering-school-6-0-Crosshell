@@ -4,7 +4,9 @@ import { appConfig } from '@/shared/config';
 import { UnauthorizedError } from '@/shared/errors/app.errors';
 
 const apiKeyPlugin: FastifyPluginAsync = fp(async (server): Promise<void> => {
-  if (!appConfig.apiKey) return;
+  if (!appConfig.apiKey) {
+    return;
+  }
 
   server.addHook('onRequest', (request, _reply, done) => {
     const path = request.url.split('?')[0];

@@ -348,7 +348,10 @@ describe('ScannerService', () => {
         );
         releaseFeed.getLatestRelease.mockImplementation(
           async (_owner, repo) => {
-            if (repo === 'failing') throw new RateLimitError('rate limited');
+            if (repo === 'failing') {
+              throw new RateLimitError('rate limited');
+            }
+
             return MOCK_RELEASE;
           },
         );
@@ -377,7 +380,10 @@ describe('ScannerService', () => {
         );
         releaseFeed.getLatestRelease.mockImplementation(
           async (_owner, repo) => {
-            if (repo === 'failing') throw new Error('network error');
+            if (repo === 'failing') {
+              throw new Error('network error');
+            }
+
             return MOCK_RELEASE;
           },
         );

@@ -223,10 +223,12 @@ describe('SubscriptionService', () => {
 
         repositorySource.getRepository.mockImplementation(async () => {
           callOrder.push('getRepository');
+
           return { owner: 'acc', repo: 'testName' };
         });
         uow.run.mockImplementation(async (fn) => {
           callOrder.push('uow.run');
+
           return fn(txCtx);
         });
         mailer.sendConfirmationEmail.mockImplementation(async () => {

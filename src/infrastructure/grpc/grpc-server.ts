@@ -22,6 +22,7 @@ export function loadServiceDefinition(
 
   const pkg = grpcObject[packageName] as grpc.GrpcObject;
   const svc = pkg[serviceName] as grpc.ServiceClientConstructor;
+
   return svc.service;
 }
 
@@ -45,7 +46,9 @@ export class GrpcServer {
         `0.0.0.0:${port}`,
         grpc.ServerCredentials.createInsecure(),
         (err, boundPort) => {
-          if (err) return reject(err);
+          if (err) {
+            return reject(err);
+          }
           logger.info(`[gRPC] Server listening on port ${boundPort}`);
           resolve();
         },
@@ -56,7 +59,9 @@ export class GrpcServer {
   close(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server.tryShutdown((err) => {
-        if (err) return reject(err);
+        if (err) {
+          return reject(err);
+        }
         resolve();
       });
     });

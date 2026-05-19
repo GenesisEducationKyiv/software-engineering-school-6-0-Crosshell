@@ -34,6 +34,7 @@ function resolveStatus(error: AppError): number {
 
     if (status !== undefined) {
       STATUS_CACHE.set(<Constructor>ctor, status);
+
       return status;
     }
 
@@ -42,6 +43,7 @@ function resolveStatus(error: AppError): number {
 
   const defaultStatus = HttpStatus.INTERNAL_SERVER_ERROR;
   STATUS_CACHE.set(<Constructor>ctor, defaultStatus);
+
   return defaultStatus;
 }
 

@@ -10,9 +10,13 @@ export class GithubAdapter implements IRepositorySource, IReleaseFeed {
   async getRepository(owner: string, repo: string): Promise<VcsRepository> {
     const ghRepo = await this.httpClient.fetchRepository(owner, repo);
     const parts = ghRepo.fullName.split('/');
-    if (parts.length !== 2)
+
+    if (parts.length !== 2) {
       throw new Error(`Unexpected full_name format: ${ghRepo.fullName}`);
+    }
+
     const [repoOwner, repoName] = parts;
+
     return { owner: repoOwner, repo: repoName };
   }
 
@@ -21,7 +25,10 @@ export class GithubAdapter implements IRepositorySource, IReleaseFeed {
     repo: string,
   ): Promise<VcsRelease | null> {
     const ghRelease = await this.httpClient.fetchLatestRelease(owner, repo);
-    if (!ghRelease) return null;
+    if (!ghRelease) {
+      return null;
+    }
+
     return { tagName: ghRelease.tagName, releaseUrl: ghRelease.htmlUrl };
   }
 }
