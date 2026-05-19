@@ -56,8 +56,12 @@ export class ScannerService {
         repository.repo,
       );
 
-      if (!release) return;
-      if (release.tagName === repository.lastSeenTag) return;
+      if (!release) {
+        return;
+      }
+      if (release.tagName === repository.lastSeenTag) {
+        return;
+      }
 
       scannerNewReleasesTotal.inc();
 

@@ -158,7 +158,9 @@ describe('NotificationService', () => {
 
       beforeEach(() => {
         mailer.sendReleaseNotification.mockImplementation(async (email) => {
-          if (email === SUBSCRIBER_ALICE.email) throw smtpError;
+          if (email === SUBSCRIBER_ALICE.email) {
+            throw smtpError;
+          }
         });
       });
 
