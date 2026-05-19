@@ -3,15 +3,13 @@ import { HttpStatus } from '@/shared/constants/http-status.constant';
 import type { GitHubRelease, GitHubRepository } from './github.schemas';
 import { gitHubRepositorySchema, gitHubReleaseSchema } from './github.schemas';
 import { githubConfig } from '@/shared/config';
-import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
-import { githubApiRequestsTotal } from '@/infrastructure/metrics/metrics.registry';
 import type { IGithubHttpClient } from './interfaces/github-http-client.interface';
 
 export class GithubHttpClient implements IGithubHttpClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
-  constructor(private readonly cache: ICacheService) {
+  constructor() {
     this.baseUrl = githubConfig.baseUrl;
     this.headers = {
       Accept: 'application/vnd.github+json',
@@ -26,14 +24,6 @@ export class GithubHttpClient implements IGithubHttpClient {
     owner: string,
     repo: string,
   ): Promise<GitHubRepository> {
-    const key = GithubHttpClient.cacheKeyRepo(owner, repo);
-
-    const cached = await this.cache.get(key, gitHubRepositorySchema);
-    if (cached) {
-      githubApiRequestsTotal.inc({ operation: 'getRepository', cache: 'hit' });
-      return cached;
-    }
-
     const res = await fetch(`${this.baseUrl}/repos/${owner}/${repo}`, {
       headers: this.headers,
     });
@@ -44,20 +34,15 @@ export class GithubHttpClient implements IGithubHttpClient {
       );
     }
 
-    if (this.isRateLimited(res)) {
-      const retryAfter = this.parseRetryAfter(res);
-      throw new RateLimitError(`Please try again after ${retryAfter} seconds`);
+    this.throwIfRateLimited(res);
+
+    if (!res.ok) {
+      throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
     }
 
-    if (!res.ok)
-      throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
-
-    githubApiRequestsTotal.inc({ operation: 'getRepository', cache: 'miss' });
-
     const raw: unknown = await res.json();
-    const parsed = gitHubRepositorySchema.parse(raw);
-    await this.cache.setWithExpiry(key, parsed, githubConfig.cacheTtlSeconds);
-    return parsed;
+
+    return gitHubRepositorySchema.parse(raw);
   }
 
   async fetchLatestRelease(
@@ -69,44 +54,52 @@ export class GithubHttpClient implements IGithubHttpClient {
       { headers: this.headers },
     );
 
-    if (res.status === HttpStatus.NOT_FOUND) return null;
-
-    if (this.isRateLimited(res)) {
-      const retryAfter = this.parseRetryAfter(res);
-      throw new RateLimitError(`Please try again after ${retryAfter} seconds`);
+    if (res.status === HttpStatus.NOT_FOUND) {
+      return null;
     }
 
-    if (!res.ok)
-      throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
+    this.throwIfRateLimited(res);
 
-    githubApiRequestsTotal.inc({
-      operation: 'getLatestRelease',
-      cache: 'none',
-    });
+    if (!res.ok) {
+      throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
+    }
 
     const raw: unknown = await res.json();
+
     return gitHubReleaseSchema.parse(raw);
   }
 
-  private static cacheKeyRepo(owner: string, repo: string): string {
-    return `github:repo:${owner}:${repo}`;
+  private throwIfRateLimited(res: Response): void {
+    if (!this.isRateLimited(res)) {
+      return;
+    }
+
+    const retryAfter = this.parseRetryAfter(res);
+    throw new RateLimitError(`Please try again after ${retryAfter} seconds`);
   }
 
   private isRateLimited(res: Response): boolean {
-    if (res.status === HttpStatus.TOO_MANY_REQUESTS) return true;
+    if (res.status === HttpStatus.TOO_MANY_REQUESTS) {
+      return true;
+    }
+
     if (res.status === HttpStatus.FORBIDDEN) {
       return (
         res.headers.get('x-ratelimit-remaining') === '0' ||
         res.headers.get('retry-after') !== null
       );
     }
+
     return false;
   }
 
   private parseRetryAfter(res: Response): number | null {
     const value = res.headers.get('Retry-After');
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     const parsed = parseInt(value, 10);
+
     return isNaN(parsed) ? null : parsed;
   }
 }

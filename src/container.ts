@@ -7,6 +7,7 @@ import { RepositoryRepository } from '@/modules/repository/repository.repository
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { GithubHttpClient } from '@/modules/github/github-http-client';
+import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
 import { GithubAdapter } from '@/modules/github/github.adapter';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
@@ -38,7 +39,10 @@ export function createContainer(
   });
   const mailer = new MailerService(new NodemailerEmailTransport(transporter));
 
-  const github = new GithubAdapter(new GithubHttpClient(cache));
+  const github = new GithubAdapter(
+    new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
+  );
+
   const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
 
   const repositoryRepository = new RepositoryRepository(db);

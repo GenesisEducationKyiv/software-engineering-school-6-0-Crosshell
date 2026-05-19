@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mock } from 'vitest-mock-extended';
 import { http, HttpResponse } from 'msw';
 import { GithubHttpClient } from './github-http-client';
-import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import type { GitHubRelease, GitHubRepository } from './github.schemas';
+import { server } from '../../../tests/mocks/server';
 
 vi.mock('@/shared/config', () => ({
   githubConfig: {
@@ -13,13 +12,6 @@ vi.mock('@/shared/config', () => ({
     cacheTtlSeconds: 600,
   },
 }));
-
-vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
-  githubApiRequestsTotal: { inc: vi.fn() },
-}));
-
-import { githubApiRequestsTotal } from '@/infrastructure/metrics/metrics.registry';
-import { server } from '../../../tests/mocks/server';
 
 const OWNER = 'acc';
 const REPO = 'testName';
@@ -36,74 +28,18 @@ const GITHUB_RELEASE: GitHubRelease = {
 };
 
 describe('GithubHttpClient', () => {
-  let cache: ReturnType<typeof mock<ICacheService>>;
   let client: GithubHttpClient;
 
   beforeEach(() => {
-    cache = mock<ICacheService>();
-    cache.get.mockResolvedValue(null);
-    cache.setWithExpiry.mockResolvedValue(undefined);
-
-    client = new GithubHttpClient(cache);
+    client = new GithubHttpClient();
   });
 
   describe('fetchRepository', () => {
-    describe('cache hit', () => {
-      it('should return the cached value without making an HTTP request', async () => {
-        cache.get.mockResolvedValue(GITHUB_REPO);
-
-        const result = await client.fetchRepository(OWNER, REPO);
-
-        expect(result).toEqual(GITHUB_REPO);
-      });
-
-      it('should increment the cache-hit counter', async () => {
-        cache.get.mockResolvedValue(GITHUB_REPO);
-
-        await client.fetchRepository(OWNER, REPO);
-
-        expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
-          operation: 'getRepository',
-          cache: 'hit',
-        });
-      });
-
-      it('should look up the cache with the correct key', async () => {
-        cache.get.mockResolvedValue(GITHUB_REPO);
-
-        await client.fetchRepository(OWNER, REPO);
-
-        expect(cache.get).toHaveBeenCalledWith(
-          `github:repo:${OWNER}:${REPO}`,
-          expect.anything(),
-        );
-      });
-    });
-
-    describe('cache miss successful fetch', () => {
+    describe('successful fetch', () => {
       it('should return the parsed repository data', async () => {
         const result = await client.fetchRepository(OWNER, REPO);
 
         expect(result).toEqual(GITHUB_REPO);
-      });
-
-      it('should store the parsed response in the cache with the correct TTL', async () => {
-        await client.fetchRepository(OWNER, REPO);
-
-        expect(cache.setWithExpiry).toHaveBeenCalledWith(
-          `github:repo:${OWNER}:${REPO}`,
-          GITHUB_REPO,
-          600,
-        );
-      });
-
-      it('should increment the cache-miss counter', async () => {
-        await client.fetchRepository(OWNER, REPO);
-
-        expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
-          operation: 'getRepository',
-          cache: 'miss',
-        });
       });
     });
 
@@ -127,11 +63,6 @@ describe('GithubHttpClient', () => {
         await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow(
           `${OWNER}/${REPO}`,
         );
-      });
-
-      it('should not cache anything', async () => {
-        await expect(client.fetchRepository(OWNER, REPO)).rejects.toThrow();
-        expect(cache.setWithExpiry).not.toHaveBeenCalled();
       });
     });
 
@@ -243,15 +174,6 @@ describe('GithubHttpClient', () => {
 
         expect(result).toEqual(GITHUB_RELEASE);
       });
-
-      it('should increment the cache-miss counter', async () => {
-        await client.fetchLatestRelease(OWNER, REPO);
-
-        expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
-          operation: 'getLatestRelease',
-          cache: 'none',
-        });
-      });
     });
 
     describe('404 no release published yet', () => {
@@ -268,12 +190,6 @@ describe('GithubHttpClient', () => {
         const result = await client.fetchLatestRelease(OWNER, REPO);
 
         expect(result).toBeNull();
-      });
-
-      it('should not cache anything on 404', async () => {
-        await client.fetchLatestRelease(OWNER, REPO);
-
-        expect(cache.setWithExpiry).not.toHaveBeenCalled();
       });
     });
 

@@ -15,6 +15,7 @@ import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
 import { GithubHttpClient } from '@/modules/github/github-http-client';
+import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
 import { GithubAdapter } from '@/modules/github/github.adapter';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
@@ -49,7 +50,9 @@ beforeAll(async () => {
 
   const cache = new CacheService(redisClient);
   const repositoryRepository = new RepositoryRepository(db);
-  const github = new GithubAdapter(new GithubHttpClient(cache));
+  const github = new GithubAdapter(
+    new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
+  );
 
   scannerService = new ScannerService(
     repositoryRepository,
