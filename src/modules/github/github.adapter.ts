@@ -1,8 +1,8 @@
 import type { IGithubHttpClient } from './interfaces/github-http-client.interface';
 import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
 import type { IReleaseFeed } from '@/modules/scanner/interfaces/release-feed.interface';
-import type { VcsRepository } from '@/shared/types/vcs-repository.type';
-import type { VcsRelease } from '@/shared/types/vcs-release.type';
+import type { VcsRepository } from '@/modules/subscription/types/vcs-repository.type';
+import type { VcsRelease } from '@/modules/scanner/types/vcs-release.type';
 
 export class GithubAdapter implements IRepositorySource, IReleaseFeed {
   constructor(private readonly httpClient: IGithubHttpClient) {}

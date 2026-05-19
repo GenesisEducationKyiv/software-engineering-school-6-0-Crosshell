@@ -8,7 +8,7 @@ import type { INotificationPublisher } from '../notification/interfaces/notifica
 import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { Repository } from '@/modules/repository/types/repository.type';
-import type { VcsRelease } from '@/shared/types/vcs-release.type';
+import type { VcsRelease } from '@/modules/scanner/types/vcs-release.type';
 import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
 
 vi.mock('@/shared/logger', () => ({
