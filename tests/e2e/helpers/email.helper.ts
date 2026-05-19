@@ -29,15 +29,19 @@ export async function waitForEmail(
   timeout = 15_000,
 ): Promise<string> {
   const deadline = Date.now() + timeout;
+
   while (Date.now() < deadline) {
     const res = await request.get(`${MAILHOG_URL}/api/v2/messages`);
     const data = (await res.json()) as MailhogV2Response;
+
     for (const item of data.items ?? []) {
       const recipient = `${item.To[0]?.Mailbox}@${item.To[0]?.Domain}`;
+
       if (recipient === to) {
         return decodeQP(item.Content.Body);
       }
     }
+
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error(`Email to ${to} not received within ${timeout}ms`);

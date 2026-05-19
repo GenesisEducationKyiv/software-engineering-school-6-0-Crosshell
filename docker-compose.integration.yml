@@ -37,10 +37,11 @@ services:
       - "5673:5672"
       - "15673:15672"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 5s
-      timeout: 3s
+      timeout: 10s
       retries: 10
+      start_period: 10s
     networks:
       - notifier-integration-network
 

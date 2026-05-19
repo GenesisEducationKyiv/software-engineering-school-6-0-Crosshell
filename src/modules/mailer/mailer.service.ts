@@ -7,7 +7,11 @@ import type { IEmailTransport } from './interfaces/email-transport.interface';
 export class MailerService implements IMailerService {
   constructor(private readonly transport: IEmailTransport) {}
 
-  async sendConfirmationEmail(to: string, confirmUrl: string, unsubscribeUrl: string,): Promise<void> {
+  async sendConfirmationEmail(
+    to: string,
+    confirmUrl: string,
+    unsubscribeUrl: string,
+  ): Promise<void> {
     await this.transport.sendMail({
       from: mailerConfig.from,
       to,
