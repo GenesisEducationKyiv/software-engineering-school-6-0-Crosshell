@@ -6,22 +6,16 @@ import { SubscriptionRepository } from '@/modules/subscription/subscription.repo
 import type { DbClient } from './index';
 
 describe('UnitOfWorkContextBuilder', () => {
-  it('should build a context with a RepositoryRepository instance', () => {
+  it.each([
+    ['repositories', RepositoryRepository],
+    ['subscriptions', SubscriptionRepository],
+  ] as const)('should build a context with a %s instance', (key, Repo) => {
     const tx = mock<DbClient>();
     const builder = new UnitOfWorkContextBuilder();
 
     const ctx = builder.build(tx);
 
-    expect(ctx.repositories).toBeInstanceOf(RepositoryRepository);
-  });
-
-  it('should build a context with a SubscriptionRepository instance', () => {
-    const tx = mock<DbClient>();
-    const builder = new UnitOfWorkContextBuilder();
-
-    const ctx = builder.build(tx);
-
-    expect(ctx.subscriptions).toBeInstanceOf(SubscriptionRepository);
+    expect(ctx[key]).toBeInstanceOf(Repo);
   });
 
   it('should pass the transaction to each repository', () => {

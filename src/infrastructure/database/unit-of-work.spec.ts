@@ -49,9 +49,10 @@ describe('UnitOfWork', () => {
   });
 
   it('should return the value resolved by the callback', async () => {
-    const result = await uow.run(() => Promise.resolve(42));
+    const returnValue = 42;
+    const result = await uow.run(() => Promise.resolve(returnValue));
 
-    expect(result).toBe(42);
+    expect(result).toBe(returnValue);
   });
 
   it('should propagate errors thrown inside the callback', async () => {
