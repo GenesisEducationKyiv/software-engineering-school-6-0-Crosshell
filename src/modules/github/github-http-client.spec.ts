@@ -163,6 +163,9 @@ describe('GithubHttpClient', () => {
         await expect(client.fetchRepository(OWNER, REPO)).rejects.not.toThrow(
           NotFoundError,
         );
+        await expect(client.fetchRepository(OWNER, REPO)).rejects.not.toThrow(
+          RateLimitError,
+        );
       });
     });
   });
