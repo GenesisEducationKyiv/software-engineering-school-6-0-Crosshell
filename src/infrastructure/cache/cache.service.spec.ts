@@ -4,11 +4,11 @@ import { z } from 'zod';
 import type { Redis } from 'ioredis';
 import { CacheService } from './cache.service';
 
-vi.mock('@/shared/logger', () => ({
-  logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
-}));
-
 import { logger } from '@/shared/logger';
+
+vi.spyOn(logger, 'info').mockImplementation(() => {});
+vi.spyOn(logger, 'warn').mockImplementation(() => {});
+vi.spyOn(logger, 'error').mockImplementation(() => {});
 
 const schema = z.object({ id: z.number(), name: z.string() });
 type Payload = z.infer<typeof schema>;

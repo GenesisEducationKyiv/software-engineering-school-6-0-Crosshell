@@ -9,11 +9,9 @@ vi.mock('@/shared/config', () => ({
   githubConfig: { cacheTtlSeconds: 600 },
 }));
 
-vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
-  githubApiRequestsTotal: { inc: vi.fn() },
-}));
-
 import { githubApiRequestsTotal } from '@/infrastructure/metrics/metrics.registry';
+
+vi.spyOn(githubApiRequestsTotal, 'inc').mockImplementation(() => undefined);
 
 const OWNER = 'acc';
 const REPO = 'testName';

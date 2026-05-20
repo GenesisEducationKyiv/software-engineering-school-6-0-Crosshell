@@ -12,17 +12,14 @@ vi.mock('@/modules/notification/notification.urls', () => ({
   ),
 }));
 
-vi.mock('@/shared/logger', () => ({
-  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
-}));
-
-vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
-  notificationsSentTotal: { inc: vi.fn() },
-}));
-
 import { buildUnsubscribeUrl } from '@/modules/notification/notification.urls';
 import { logger } from '@/shared/logger';
 import { notificationsSentTotal } from '@/infrastructure/metrics/metrics.registry';
+
+vi.spyOn(logger, 'info').mockImplementation(() => {});
+vi.spyOn(logger, 'warn').mockImplementation(() => {});
+vi.spyOn(logger, 'error').mockImplementation(() => {});
+vi.spyOn(notificationsSentTotal, 'inc').mockImplementation(() => undefined);
 
 const SUBSCRIBER_ALICE: Subscriber = {
   email: 'alice@example.com',

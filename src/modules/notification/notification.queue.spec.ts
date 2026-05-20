@@ -5,11 +5,11 @@ import { NotificationQueue } from './notification.queue';
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ReleaseNotificationPayload } from './notification.schemas';
 
-vi.mock('@/shared/logger', () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
-
 import { logger } from '@/shared/logger';
+
+vi.spyOn(logger, 'info').mockImplementation(() => {});
+vi.spyOn(logger, 'warn').mockImplementation(() => {});
+vi.spyOn(logger, 'error').mockImplementation(() => {});
 
 const QUEUE_NAME = 'release.notifications';
 const DLX_NAME = 'release.notifications.dlx';

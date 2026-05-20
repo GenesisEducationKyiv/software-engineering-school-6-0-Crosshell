@@ -10,21 +10,18 @@ import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { Repository } from '@/modules/repository/types/repository.type';
 import type { VcsRelease } from '@/modules/scanner/types/vcs-release.type';
 import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
-
-vi.mock('@/shared/logger', () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
-
-vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
-  scannerRunsTotal: { inc: vi.fn() },
-  scannerNewReleasesTotal: { inc: vi.fn() },
-}));
-
 import { logger } from '@/shared/logger';
 import {
   scannerRunsTotal,
   scannerNewReleasesTotal,
 } from '@/infrastructure/metrics/metrics.registry';
+
+vi.spyOn(logger, 'info').mockImplementation(() => {});
+vi.spyOn(logger, 'warn').mockImplementation(() => {});
+vi.spyOn(logger, 'error').mockImplementation(() => {});
+
+vi.spyOn(scannerRunsTotal, 'inc').mockImplementation(() => undefined);
+vi.spyOn(scannerNewReleasesTotal, 'inc').mockImplementation(() => undefined);
 
 const MOCK_REPOSITORY: Repository = {
   id: 'repo-uuid-1',
