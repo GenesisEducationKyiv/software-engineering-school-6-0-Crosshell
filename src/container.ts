@@ -8,7 +8,8 @@ import { SubscriptionRepository } from '@/modules/subscription/subscription.repo
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { GithubHttpClient } from '@/modules/github/github-http-client';
 import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
-import { GithubAdapter } from '@/modules/github/github.adapter';
+import { GithubRepositorySourceAdapter } from '@/modules/subscription/infrastructure/github-repository-source.adapter';
+import { GithubReleaseFeedAdapter } from '@/modules/scanner/infrastructure/github-release-feed.adapter';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
 import { ScannerService } from '@/modules/scanner/scanner.service';
@@ -39,8 +40,9 @@ export function createContainer(
   });
   const mailer = new MailerService(new NodemailerEmailTransport(transporter));
 
-  const github = new GithubAdapter(
-    new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
+  const githubHttpClient = new CachingGithubHttpClientDecorator(
+    new GithubHttpClient(),
+    cache,
   );
 
   const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
@@ -51,13 +53,13 @@ export function createContainer(
   const subscriptionService = new SubscriptionService(
     uow,
     subscriptionRepository,
-    github,
+    new GithubRepositorySourceAdapter(githubHttpClient),
     mailer,
   );
 
   const scannerService = new ScannerService(
     repositoryRepository,
-    github,
+    new GithubReleaseFeedAdapter(githubHttpClient),
     notificationQueue,
     new CronScheduler(scannerConfig.scannerCron),
   );

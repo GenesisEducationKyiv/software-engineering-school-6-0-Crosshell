@@ -18,7 +18,8 @@ const REPO = 'testName';
 
 const GITHUB_REPO: GitHubRepository = {
   id: 1,
-  fullName: `${OWNER}/${REPO}`,
+  owner: OWNER,
+  repo: REPO,
   htmlUrl: `https://github.com/${OWNER}/${REPO}`,
 };
 

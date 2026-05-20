@@ -16,7 +16,7 @@ import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
 import { GithubHttpClient } from '@/modules/github/github-http-client';
 import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
-import { GithubAdapter } from '@/modules/github/github.adapter';
+import { GithubReleaseFeedAdapter } from '@/modules/scanner/infrastructure/github-release-feed.adapter';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
@@ -50,13 +50,11 @@ beforeAll(async () => {
 
   const cache = new CacheService(redisClient);
   const repositoryRepository = new RepositoryRepository(db);
-  const github = new GithubAdapter(
-    new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
-  );
-
   scannerService = new ScannerService(
     repositoryRepository,
-    github,
+    new GithubReleaseFeedAdapter(
+      new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
+    ),
     notificationQueue,
     { start: () => {} },
   );
