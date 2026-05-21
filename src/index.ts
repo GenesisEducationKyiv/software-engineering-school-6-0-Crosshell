@@ -62,7 +62,7 @@ const start = async () => {
       console.log(server.printRoutes({ commonPrefix: false }));
     }
   } catch (error) {
-    logger.error(error);
+    logger.error({ err: error }, 'Startup failed');
     process.exit(1);
   }
 };
