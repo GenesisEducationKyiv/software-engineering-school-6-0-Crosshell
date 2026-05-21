@@ -21,7 +21,9 @@ import { CacheService } from '@/infrastructure/cache/cache.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
-
+import { logger } from '@/shared/logger';
+import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
+import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { truncateAllTables } from './helpers/db.helper';
 import {
   purgeNotificationQueue,
@@ -44,19 +46,25 @@ beforeAll(async () => {
   queueManager = new QueueManager();
   await queueManager.connect();
 
-  notificationQueue = new NotificationQueue(queueManager);
+  notificationQueue = new NotificationQueue(queueManager, logger);
 
   await notificationQueue.setup();
 
-  const cache = new CacheService(redisClient);
+  const cache = new CacheService(redisClient, logger);
   const repositoryRepository = new RepositoryRepository(db);
   scannerService = new ScannerService(
     repositoryRepository,
     new GithubReleaseFeedAdapter(
-      new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
+      new CachingGithubHttpClientDecorator(
+        new GithubHttpClient(),
+        cache,
+        new GithubMetrics(),
+      ),
     ),
     notificationQueue,
     { start: () => {} },
+    logger,
+    new ScannerMetrics(),
   );
 });
 

@@ -24,16 +24,16 @@ const start = async () => {
 
     const redisClient = createRedisClient();
     await redisClient.connect();
-    const cache = new CacheService(redisClient);
+    const cache = new CacheService(redisClient, logger);
 
     const queueManager = new QueueManager();
     await queueManager.connect();
 
-    const notificationQueue = new NotificationQueue(queueManager);
+    const notificationQueue = new NotificationQueue(queueManager, logger);
     await notificationQueue.setup();
 
     const { subscriptionService, scannerService, notificationService } =
-      createContainer(notificationQueue, cache);
+      createContainer(notificationQueue, cache, logger);
 
     const grpcServer = new GrpcServer();
     grpcServer.addService(

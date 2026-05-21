@@ -19,6 +19,10 @@ import { NotificationService } from '@/modules/notification/notification.service
 import type { INotificationPublisher } from '@/modules/notification/interfaces/notification-publisher.interface';
 import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
+import type { ILogger } from '@/shared/logger/logger.interface';
+import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
+import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
+import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 
 export interface AppContainer {
   subscriptionService: SubscriptionService;
@@ -29,6 +33,7 @@ export interface AppContainer {
 export function createContainer(
   notificationQueue: INotificationPublisher & INotificationConsumer,
   cache: ICacheService,
+  logger: ILogger,
 ): AppContainer {
   const transporter = nodemailer.createTransport({
     host: mailerConfig.host,
@@ -43,6 +48,7 @@ export function createContainer(
   const githubHttpClient = new CachingGithubHttpClientDecorator(
     new GithubHttpClient(),
     cache,
+    new GithubMetrics(),
   );
 
   const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
@@ -62,11 +68,15 @@ export function createContainer(
     new GithubReleaseFeedAdapter(githubHttpClient),
     notificationQueue,
     new CronScheduler(scannerConfig.scannerCron),
+    logger,
+    new ScannerMetrics(),
   );
 
   const notificationService = new NotificationService(
     mailer,
     notificationQueue,
+    logger,
+    new NotificationMetrics(),
   );
 
   return { subscriptionService, scannerService, notificationService };

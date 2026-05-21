@@ -30,7 +30,8 @@ import { MailerService } from '@/modules/mailer/mailer.service';
 import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { CacheService } from '@/infrastructure/cache/cache.service';
-
+import { logger } from '@/shared/logger';
+import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { buildTestApp, type TestApp } from './helpers/app.helper';
 import { truncateAllTables } from './helpers/db.helper';
 import { mswServer } from './setup';
@@ -47,7 +48,7 @@ beforeAll(async () => {
 
   redisClient = new Redis(process.env['REDIS_URL']!);
 
-  const cache = new CacheService(redisClient);
+  const cache = new CacheService(redisClient, logger);
   const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
   const subscriptionRepository = new SubscriptionRepository(db);
   mailer = new MailerService(
@@ -64,7 +65,11 @@ beforeAll(async () => {
     uow,
     subscriptionRepository,
     new GithubRepositorySourceAdapter(
-      new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
+      new CachingGithubHttpClientDecorator(
+        new GithubHttpClient(),
+        cache,
+        new GithubMetrics(),
+      ),
     ),
     mailer,
   );
