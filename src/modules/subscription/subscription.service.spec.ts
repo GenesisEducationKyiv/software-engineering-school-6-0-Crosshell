@@ -23,15 +23,10 @@ vi.mock('@/modules/subscription/subscription.urls', () => ({
   ),
 }));
 
-vi.mock('@/infrastructure/database/helpers/pg-errors.helper', () => ({
-  isUniqueConstraintError: vi.fn(() => false),
-}));
-
 import {
   buildConfirmUrl,
   buildUnsubscribeUrl,
 } from '@/modules/subscription/subscription.urls';
-import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',
@@ -63,8 +58,6 @@ describe('SubscriptionService', () => {
   let txCtx: ReturnType<typeof mockDeep<UnitOfWorkContext>>;
 
   beforeEach(() => {
-    vi.mocked(isUniqueConstraintError).mockReturnValue(false);
-
     txCtx = mockDeep<UnitOfWorkContext>();
     txCtx.repositories.findOrCreate.mockResolvedValue(MOCK_REPOSITORY);
     txCtx.subscriptions.createSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
@@ -135,7 +128,6 @@ describe('SubscriptionService', () => {
           code: '23505',
           message: 'duplicate key',
         });
-        vi.mocked(isUniqueConstraintError).mockReturnValue(true);
 
         await expect(service.subscribe(VALID_INPUT)).rejects.toThrow(
           new ConflictError('Email is already subscribed to this repository'),
@@ -145,7 +137,6 @@ describe('SubscriptionService', () => {
       it('should rethrow unknown errors that occur inside the transaction', async () => {
         const unknownError = new Error('unexpected DB failure');
         txCtx.subscriptions.createSubscription.mockRejectedValue(unknownError);
-        vi.mocked(isUniqueConstraintError).mockReturnValue(false);
 
         await expect(service.subscribe(VALID_INPUT)).rejects.toThrow(
           unknownError,
