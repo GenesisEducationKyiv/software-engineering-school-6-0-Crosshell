@@ -6,6 +6,7 @@ import {
 } from '@/modules/notification/notification.schemas';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
+import { logger } from '@/shared/logger';
 
 const QUEUE_NAME = 'release.notifications';
 
@@ -35,9 +36,9 @@ export function useQueue(): {
   let notificationQueue: NotificationQueue;
 
   beforeAll(async () => {
-    queueManager = new QueueManager();
+    queueManager = new QueueManager({ url: process.env['RABBITMQ_URL']! });
     await queueManager.connect();
-    notificationQueue = new NotificationQueue(queueManager);
+    notificationQueue = new NotificationQueue(queueManager, logger);
     await notificationQueue.setup();
   });
 

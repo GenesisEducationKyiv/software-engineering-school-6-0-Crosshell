@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { db } from '@/infrastructure/database';
-import { mailerConfig } from '@/shared/config';
+import { mailerConfig, githubConfig, appConfig } from '@/shared/config';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
@@ -8,7 +8,8 @@ import { SubscriptionRepository } from '@/modules/subscription/subscription.repo
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { GithubHttpClient } from '@/modules/github/github-http-client';
 import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
-import { GithubAdapter } from '@/modules/github/github.adapter';
+import { GithubRepositorySourceAdapter } from '@/modules/subscription/infrastructure/github-repository-source.adapter';
+import { GithubReleaseFeedAdapter } from '@/modules/scanner/infrastructure/github-release-feed.adapter';
 import { MailerService } from '@/modules/mailer/mailer.service';
 import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
 import { ScannerService } from '@/modules/scanner/scanner.service';
@@ -18,6 +19,10 @@ import { NotificationService } from '@/modules/notification/notification.service
 import type { INotificationPublisher } from '@/modules/notification/interfaces/notification-publisher.interface';
 import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
+import type { ILogger } from '@/shared/logger/logger.interface';
+import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
+import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
+import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 
 export interface AppContainer {
   subscriptionService: SubscriptionService;
@@ -28,6 +33,7 @@ export interface AppContainer {
 export function createContainer(
   notificationQueue: INotificationPublisher & INotificationConsumer,
   cache: ICacheService,
+  logger: ILogger,
 ): AppContainer {
   const transporter = nodemailer.createTransport({
     host: mailerConfig.host,
@@ -37,10 +43,18 @@ export function createContainer(
       pass: mailerConfig.pass,
     },
   });
-  const mailer = new MailerService(new NodemailerEmailTransport(transporter));
+  const mailer = new MailerService(new NodemailerEmailTransport(transporter), {
+    from: mailerConfig.from,
+  });
 
-  const github = new GithubAdapter(
-    new CachingGithubHttpClientDecorator(new GithubHttpClient(), cache),
+  const githubHttpClient = new CachingGithubHttpClientDecorator(
+    new GithubHttpClient({
+      baseUrl: githubConfig.baseUrl,
+      token: githubConfig.token,
+    }),
+    cache,
+    new GithubMetrics(),
+    { cacheTtlSeconds: githubConfig.cacheTtlSeconds },
   );
 
   const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
@@ -51,20 +65,26 @@ export function createContainer(
   const subscriptionService = new SubscriptionService(
     uow,
     subscriptionRepository,
-    github,
+    new GithubRepositorySourceAdapter(githubHttpClient),
     mailer,
+    { appUrl: appConfig.appUrl },
   );
 
   const scannerService = new ScannerService(
     repositoryRepository,
-    github,
+    new GithubReleaseFeedAdapter(githubHttpClient),
     notificationQueue,
     new CronScheduler(scannerConfig.scannerCron),
+    logger,
+    new ScannerMetrics(),
   );
 
   const notificationService = new NotificationService(
     mailer,
     notificationQueue,
+    logger,
+    new NotificationMetrics(),
+    { appUrl: appConfig.appUrl },
   );
 
   return { subscriptionService, scannerService, notificationService };

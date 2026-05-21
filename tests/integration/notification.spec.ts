@@ -11,6 +11,8 @@ import { randomUUID } from 'node:crypto';
 import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
 import { NotificationService } from '@/modules/notification/notification.service';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
+import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
+import { logger } from '@/shared/logger';
 import { useQueue } from './helpers/queue.helper';
 import { createTestMailer } from './helpers/mailer.helper';
 
@@ -28,7 +30,13 @@ describe('NotificationService', () => {
       .spyOn(mailer, 'sendReleaseNotification')
       .mockResolvedValue(undefined);
 
-    new NotificationService(mailer, getNotificationQueue()).start();
+    new NotificationService(
+      mailer,
+      getNotificationQueue(),
+      logger,
+      new NotificationMetrics(),
+      { appUrl: 'http://localhost:3000' },
+    ).start();
   });
 
   beforeEach(() => {

@@ -1,11 +1,17 @@
-import { mailerConfig } from '@/shared/config';
 import { confirmationEmailHtml } from '@/modules/mailer/templates/confirmation.template';
 import { releaseNotificationHtml } from '@/modules/mailer/templates/release-notification.template';
 import type { IMailerService } from './interfaces/mailer.service.interface';
 import type { IEmailTransport } from './interfaces/email-transport.interface';
 
+export interface MailerServiceConfig {
+  from: string;
+}
+
 export class MailerService implements IMailerService {
-  constructor(private readonly transport: IEmailTransport) {}
+  constructor(
+    private readonly transport: IEmailTransport,
+    private readonly config: MailerServiceConfig,
+  ) {}
 
   async sendConfirmationEmail(
     to: string,
@@ -13,7 +19,7 @@ export class MailerService implements IMailerService {
     unsubscribeUrl: string,
   ): Promise<void> {
     await this.transport.sendMail({
-      from: mailerConfig.from,
+      from: this.config.from,
       to,
       subject: 'Confirm your subscription',
       html: confirmationEmailHtml(confirmUrl, unsubscribeUrl),
@@ -28,7 +34,7 @@ export class MailerService implements IMailerService {
     unsubscribeUrl: string,
   ): Promise<void> {
     await this.transport.sendMail({
-      from: mailerConfig.from,
+      from: this.config.from,
       to,
       subject: `New release: ${repo} ${tag}`,
       html: releaseNotificationHtml(repo, tag, releaseUrl, unsubscribeUrl),

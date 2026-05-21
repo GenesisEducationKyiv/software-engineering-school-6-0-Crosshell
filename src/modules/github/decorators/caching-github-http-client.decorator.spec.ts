@@ -1,26 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { CachingGithubHttpClientDecorator } from './caching-github-http-client.decorator';
 import type { IGithubHttpClient } from '../interfaces/github-http-client.interface';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import type { GitHubRelease, GitHubRepository } from '../github.schemas';
+import type { IGithubMetrics } from '../interfaces/github-metrics.interface';
 
-vi.mock('@/shared/config', () => ({
-  githubConfig: { cacheTtlSeconds: 600 },
-}));
-
-vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
-  githubApiRequestsTotal: { inc: vi.fn() },
-}));
-
-import { githubApiRequestsTotal } from '@/infrastructure/metrics/metrics.registry';
+const CACHE_TTL_SECONDS = 600;
 
 const OWNER = 'acc';
 const REPO = 'testName';
 
 const GITHUB_REPO: GitHubRepository = {
   id: 1,
-  fullName: `${OWNER}/${REPO}`,
+  owner: OWNER,
+  repo: REPO,
   htmlUrl: `https://github.com/${OWNER}/${REPO}`,
 };
 
@@ -34,17 +28,22 @@ const CACHE_KEY = `github:repo:${OWNER}:${REPO}`;
 describe('CachingGithubHttpClientDecorator', () => {
   let inner: ReturnType<typeof mock<IGithubHttpClient>>;
   let cache: ReturnType<typeof mock<ICacheService>>;
+  let metrics: ReturnType<typeof mock<IGithubMetrics>>;
   let decorator: CachingGithubHttpClientDecorator;
 
   beforeEach(() => {
     inner = mock<IGithubHttpClient>();
     cache = mock<ICacheService>();
+    metrics = mock<IGithubMetrics>();
+
     cache.get.mockResolvedValue(null);
     cache.setWithExpiry.mockResolvedValue(undefined);
     inner.fetchRepository.mockResolvedValue(GITHUB_REPO);
     inner.fetchLatestRelease.mockResolvedValue(GITHUB_RELEASE);
 
-    decorator = new CachingGithubHttpClientDecorator(inner, cache);
+    decorator = new CachingGithubHttpClientDecorator(inner, cache, metrics, {
+      cacheTtlSeconds: CACHE_TTL_SECONDS,
+    });
   });
 
   describe('fetchRepository', () => {
@@ -69,10 +68,10 @@ describe('CachingGithubHttpClientDecorator', () => {
       it('should increment the cache-hit counter', async () => {
         await decorator.fetchRepository(OWNER, REPO);
 
-        expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
-          operation: 'getRepository',
-          cache: 'hit',
-        });
+        expect(metrics.incApiRequest).toHaveBeenCalledWith(
+          'getRepository',
+          'hit',
+        );
       });
     });
 
@@ -102,10 +101,10 @@ describe('CachingGithubHttpClientDecorator', () => {
       it('should increment the cache-miss counter', async () => {
         await decorator.fetchRepository(OWNER, REPO);
 
-        expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
-          operation: 'getRepository',
-          cache: 'miss',
-        });
+        expect(metrics.incApiRequest).toHaveBeenCalledWith(
+          'getRepository',
+          'miss',
+        );
       });
 
       it('should not write to the cache when the inner client throws', async () => {
@@ -133,10 +132,10 @@ describe('CachingGithubHttpClientDecorator', () => {
     it('should increment the no-cache counter', async () => {
       await decorator.fetchLatestRelease(OWNER, REPO);
 
-      expect(githubApiRequestsTotal.inc).toHaveBeenCalledWith({
-        operation: 'getLatestRelease',
-        cache: 'none',
-      });
+      expect(metrics.incApiRequest).toHaveBeenCalledWith(
+        'getLatestRelease',
+        'none',
+      );
     });
   });
 });

@@ -12,12 +12,17 @@ import {
   buildUnsubscribeUrl,
 } from '@/modules/subscription/subscription.urls';
 
+export interface SubscriptionServiceConfig {
+  appUrl: string;
+}
+
 export class SubscriptionService implements ISubscriptionService {
   constructor(
     private readonly uow: IUnitOfWork,
     private readonly subscriptionRepository: ISubscriptionRepository,
     private readonly repositorySource: IRepositorySource,
     private readonly mailer: IMailerService,
+    private readonly config: SubscriptionServiceConfig,
   ) {}
 
   async subscribe(input: SubscribeInput): Promise<void> {
@@ -45,8 +50,11 @@ export class SubscriptionService implements ISubscriptionService {
       }
     });
 
-    const confirmUrl = buildConfirmUrl(sub.confirmToken);
-    const unsubscribeUrl = buildUnsubscribeUrl(sub.unsubscribeToken);
+    const confirmUrl = buildConfirmUrl(sub.confirmToken, this.config.appUrl);
+    const unsubscribeUrl = buildUnsubscribeUrl(
+      sub.unsubscribeToken,
+      this.config.appUrl,
+    );
     await this.mailer.sendConfirmationEmail(
       input.email,
       confirmUrl,

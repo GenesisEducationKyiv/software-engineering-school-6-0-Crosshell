@@ -4,12 +4,7 @@ import type { Channel, ConsumeMessage } from 'amqplib';
 import { NotificationQueue } from './notification.queue';
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ReleaseNotificationPayload } from './notification.schemas';
-
-vi.mock('@/shared/logger', () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
-
-import { logger } from '@/shared/logger';
+import type { ILogger } from '@/shared/logger/logger.interface';
 
 const QUEUE_NAME = 'release.notifications';
 const DLX_NAME = 'release.notifications.dlx';
@@ -61,6 +56,7 @@ function makeMessage(content: unknown, retryCount?: number): ConsumeMessage {
 describe('NotificationQueue', () => {
   let queueManager: ReturnType<typeof mock<QueueManager>>;
   let channel: ReturnType<typeof mock<Channel>>;
+  let logger: ReturnType<typeof mock<ILogger>>;
   let queue: NotificationQueue;
 
   beforeEach(() => {
@@ -70,7 +66,9 @@ describe('NotificationQueue', () => {
     queueManager = mock<QueueManager>();
     queueManager.getChannel.mockReturnValue(channel);
 
-    queue = new NotificationQueue(queueManager);
+    logger = mock<ILogger>();
+
+    queue = new NotificationQueue(queueManager, logger);
   });
 
   describe('setup', () => {

@@ -1,28 +1,32 @@
 import fp from 'fastify-plugin';
-import type { FastifyPluginAsync } from 'fastify';
-import { appConfig } from '@/shared/config';
 import { UnauthorizedError } from '@/shared/errors/app.errors';
 
-const apiKeyPlugin: FastifyPluginAsync = fp(async (server): Promise<void> => {
-  if (!appConfig.apiKey) {
-    return;
-  }
+interface ApiKeyPluginOptions {
+  apiKey?: string;
+}
 
-  server.addHook('onRequest', (request, _reply, done) => {
-    const path = request.url.split('?')[0];
-
-    if (!path.startsWith('/api/')) {
-      return done();
+const apiKeyPlugin = fp<ApiKeyPluginOptions>(
+  async (server, opts): Promise<void> => {
+    if (!opts.apiKey) {
+      return;
     }
 
-    const key = request.headers['x-api-key'];
+    server.addHook('onRequest', (request, _reply, done) => {
+      const path = request.url.split('?')[0];
 
-    if (key !== appConfig.apiKey) {
-      return done(new UnauthorizedError());
-    }
+      if (!path.startsWith('/api/')) {
+        return done();
+      }
 
-    done();
-  });
-});
+      const key = request.headers['x-api-key'];
+
+      if (key !== opts.apiKey) {
+        return done(new UnauthorizedError());
+      }
+
+      done();
+    });
+  },
+);
 
 export default apiKeyPlugin;

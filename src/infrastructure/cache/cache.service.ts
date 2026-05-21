@@ -1,10 +1,13 @@
 import type { Redis } from 'ioredis';
 import type { ZodType } from 'zod';
-import { logger } from '@/shared/logger';
+import type { ILogger } from '@/shared/logger/logger.interface';
 import type { ICacheService } from './interfaces/cache.service.interface';
 
 export class CacheService implements ICacheService {
-  constructor(private readonly client: Redis) {}
+  constructor(
+    private readonly client: Redis,
+    private readonly logger: ILogger,
+  ) {}
 
   async get<T>(key: string, schema: ZodType<T>): Promise<T | null> {
     try {
@@ -14,7 +17,7 @@ export class CacheService implements ICacheService {
       }
       const parsed = schema.safeParse(JSON.parse(raw));
       if (!parsed.success) {
-        logger.warn(
+        this.logger.warn(
           { key, issues: parsed.error.issues },
           '[Cache] Stale or invalid data, cache miss',
         );
@@ -24,7 +27,7 @@ export class CacheService implements ICacheService {
 
       return parsed.data;
     } catch (err) {
-      logger.warn({ err, key }, '[Cache] Get failed');
+      this.logger.warn({ err, key }, '[Cache] Get failed');
 
       return null;
     }
@@ -38,7 +41,7 @@ export class CacheService implements ICacheService {
     try {
       await this.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
     } catch (err) {
-      logger.warn({ err, key }, '[Cache] Set failed');
+      this.logger.warn({ err, key }, '[Cache] Set failed');
     }
   }
 

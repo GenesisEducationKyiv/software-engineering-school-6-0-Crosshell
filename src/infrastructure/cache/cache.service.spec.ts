@@ -1,14 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { z } from 'zod';
 import type { Redis } from 'ioredis';
 import { CacheService } from './cache.service';
-
-vi.mock('@/shared/logger', () => ({
-  logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
-}));
-
-import { logger } from '@/shared/logger';
+import type { ILogger } from '@/shared/logger/logger.interface';
 
 const schema = z.object({ id: z.number(), name: z.string() });
 type Payload = z.infer<typeof schema>;
@@ -19,11 +14,13 @@ const TTL = 300;
 
 describe('CacheService', () => {
   let client: ReturnType<typeof mock<Redis>>;
+  let logger: ReturnType<typeof mock<ILogger>>;
   let service: CacheService;
 
   beforeEach(() => {
     client = mock<Redis>();
-    service = new CacheService(client);
+    logger = mock<ILogger>();
+    service = new CacheService(client, logger);
   });
 
   describe('get', () => {

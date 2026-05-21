@@ -10,21 +10,8 @@ import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { Repository } from '@/modules/repository/types/repository.type';
 import type { VcsRelease } from '@/modules/scanner/types/vcs-release.type';
 import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
-
-vi.mock('@/shared/logger', () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
-
-vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
-  scannerRunsTotal: { inc: vi.fn() },
-  scannerNewReleasesTotal: { inc: vi.fn() },
-}));
-
-import { logger } from '@/shared/logger';
-import {
-  scannerRunsTotal,
-  scannerNewReleasesTotal,
-} from '@/infrastructure/metrics/metrics.registry';
+import type { ILogger } from '@/shared/logger/logger.interface';
+import type { IScannerMetrics } from '@/modules/scanner/interfaces/scanner-metrics.interface';
 
 const MOCK_REPOSITORY: Repository = {
   id: 'repo-uuid-1',
@@ -56,6 +43,8 @@ describe('ScannerService', () => {
   let releaseFeed: ReturnType<typeof mock<IReleaseFeed>>;
   let notificationPublisher: ReturnType<typeof mock<INotificationPublisher>>;
   let scheduler: ReturnType<typeof mock<IScheduler>>;
+  let logger: ReturnType<typeof mock<ILogger>>;
+  let metrics: ReturnType<typeof mock<IScannerMetrics>>;
 
   beforeEach(() => {
     repositoryRepository = mock<IRepositoryRepository>();
@@ -69,12 +58,16 @@ describe('ScannerService', () => {
 
     notificationPublisher = mock<INotificationPublisher>();
     scheduler = mock<IScheduler>();
+    logger = mock<ILogger>();
+    metrics = mock<IScannerMetrics>();
 
     service = new ScannerService(
       repositoryRepository,
       releaseFeed,
       notificationPublisher,
       scheduler,
+      logger,
+      metrics,
     );
   });
 
@@ -129,7 +122,7 @@ describe('ScannerService', () => {
     it('should increment the scanner runs counter on every invocation', async () => {
       await service.scan();
 
-      expect(scannerRunsTotal.inc).toHaveBeenCalledOnce();
+      expect(metrics.incRuns).toHaveBeenCalledOnce();
     });
 
     it('should fetch all repositories with active subscriptions', async () => {
@@ -237,7 +230,7 @@ describe('ScannerService', () => {
 
         await service.scan();
 
-        expect(scannerNewReleasesTotal.inc).not.toHaveBeenCalled();
+        expect(metrics.incNewReleases).not.toHaveBeenCalled();
       });
     });
 
@@ -252,7 +245,7 @@ describe('ScannerService', () => {
       it('should increment the new releases counter', async () => {
         await service.scan();
 
-        expect(scannerNewReleasesTotal.inc).toHaveBeenCalledOnce();
+        expect(metrics.incNewReleases).toHaveBeenCalledOnce();
       });
 
       it('should publish a notification with the correct payload', async () => {

@@ -3,14 +3,19 @@ import { z } from 'zod';
 export const gitHubRepositorySchema = z
   .object({
     id: z.number(),
-    full_name: z.string(),
+    full_name: z.string().regex(/^[^/]+\/[^/]+$/),
     html_url: z.string(),
   })
-  .transform((data) => ({
-    id: data.id,
-    fullName: data.full_name,
-    htmlUrl: data.html_url,
-  }));
+  .transform((data) => {
+    const separatorIndex = data.full_name.indexOf('/');
+
+    return {
+      id: data.id,
+      owner: data.full_name.slice(0, separatorIndex),
+      repo: data.full_name.slice(separatorIndex + 1),
+      htmlUrl: data.html_url,
+    };
+  });
 
 export const gitHubReleaseSchema = z
   .object({

@@ -5,6 +5,8 @@ import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.
 import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
+import type { ILogger } from '@/shared/logger/logger.interface';
+import type { INotificationMetrics } from '@/modules/notification/interfaces/notification-metrics.interface';
 
 vi.mock('@/modules/subscription/subscription.urls', () => ({
   buildUnsubscribeUrl: vi.fn(
@@ -12,17 +14,7 @@ vi.mock('@/modules/subscription/subscription.urls', () => ({
   ),
 }));
 
-vi.mock('@/shared/logger', () => ({
-  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
-}));
-
-vi.mock('@/infrastructure/metrics/metrics.registry', () => ({
-  notificationsSentTotal: { inc: vi.fn() },
-}));
-
 import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
-import { logger } from '@/shared/logger';
-import { notificationsSentTotal } from '@/infrastructure/metrics/metrics.registry';
 
 const SUBSCRIBER_ALICE: Subscriber = {
   email: 'alice@example.com',
@@ -46,6 +38,8 @@ describe('NotificationService', () => {
   let service: NotificationService;
   let mailer: ReturnType<typeof mock<IMailerService>>;
   let notificationConsumer: ReturnType<typeof mock<INotificationConsumer>>;
+  let logger: ReturnType<typeof mock<ILogger>>;
+  let metrics: ReturnType<typeof mock<INotificationMetrics>>;
   let capturedHandler: (payload: ReleaseNotificationPayload) => Promise<void>;
 
   beforeEach(() => {
@@ -57,7 +51,16 @@ describe('NotificationService', () => {
       capturedHandler = handler;
     });
 
-    service = new NotificationService(mailer, notificationConsumer);
+    logger = mock<ILogger>();
+    metrics = mock<INotificationMetrics>();
+
+    service = new NotificationService(
+      mailer,
+      notificationConsumer,
+      logger,
+      metrics,
+      { appUrl: 'http://localhost:3000' },
+    );
   });
 
   describe('start', () => {
@@ -108,9 +111,11 @@ describe('NotificationService', () => {
 
         expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
           SUBSCRIBER_ALICE.unsubscribeToken,
+          'http://localhost:3000',
         );
         expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
           SUBSCRIBER_BOB.unsubscribeToken,
+          'http://localhost:3000',
         );
       });
 
@@ -132,18 +137,14 @@ describe('NotificationService', () => {
       it('should increment the success counter for each subscriber', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
-        expect(notificationsSentTotal.inc).toHaveBeenCalledTimes(2);
-        expect(notificationsSentTotal.inc).toHaveBeenCalledWith({
-          status: 'success',
-        });
+        expect(metrics.incSent).toHaveBeenCalledTimes(2);
+        expect(metrics.incSent).toHaveBeenCalledWith('success');
       });
 
       it('should not increment the failure counter', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
-        expect(notificationsSentTotal.inc).not.toHaveBeenCalledWith({
-          status: 'failure',
-        });
+        expect(metrics.incSent).not.toHaveBeenCalledWith('failure');
       });
 
       it('should not log any error', async () => {
@@ -179,17 +180,13 @@ describe('NotificationService', () => {
       it('should increment the failure counter for the failed subscriber', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
-        expect(notificationsSentTotal.inc).toHaveBeenCalledWith({
-          status: 'failure',
-        });
+        expect(metrics.incSent).toHaveBeenCalledWith('failure');
       });
 
       it('should increment the success counter for the successful subscriber', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
-        expect(notificationsSentTotal.inc).toHaveBeenCalledWith({
-          status: 'success',
-        });
+        expect(metrics.incSent).toHaveBeenCalledWith('success');
       });
 
       it('should log an error with the failed email, repo, and error details', async () => {
@@ -216,13 +213,9 @@ describe('NotificationService', () => {
       it('should increment the failure counter for every subscriber', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
-        expect(notificationsSentTotal.inc).toHaveBeenCalledTimes(2);
-        expect(notificationsSentTotal.inc).toHaveBeenCalledWith({
-          status: 'failure',
-        });
-        expect(notificationsSentTotal.inc).not.toHaveBeenCalledWith({
-          status: 'success',
-        });
+        expect(metrics.incSent).toHaveBeenCalledTimes(2);
+        expect(metrics.incSent).toHaveBeenCalledWith('failure');
+        expect(metrics.incSent).not.toHaveBeenCalledWith('success');
       });
 
       it('should log an error for each failed subscriber', async () => {

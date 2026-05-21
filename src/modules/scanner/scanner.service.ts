@@ -1,15 +1,12 @@
 import type { IReleaseFeed } from '@/modules/scanner/interfaces/release-feed.interface';
 import { RateLimitError } from '@/shared/errors/app.errors';
-import { logger } from '@/shared/logger';
+import type { ILogger } from '@/shared/logger/logger.interface';
 import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
 import type { TrackedRepository } from './types/tracked-repository.type';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
 import type { INotificationPublisher } from '../notification/interfaces/notification-publisher.interface';
 import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
-import {
-  scannerRunsTotal,
-  scannerNewReleasesTotal,
-} from '@/infrastructure/metrics/metrics.registry';
+import type { IScannerMetrics } from '@/modules/scanner/interfaces/scanner-metrics.interface';
 
 export class ScannerService {
   constructor(
@@ -17,6 +14,8 @@ export class ScannerService {
     private readonly releaseFeed: IReleaseFeed,
     private readonly notificationPublisher: INotificationPublisher,
     private readonly scheduler: IScheduler,
+    private readonly logger: ILogger,
+    private readonly metrics: IScannerMetrics,
   ) {}
 
   start(): void {
@@ -24,15 +23,15 @@ export class ScannerService {
       try {
         await this.scan();
       } catch (err) {
-        logger.error({ err }, '[Scanner] Unhandled error during scan');
+        this.logger.error({ err }, '[Scanner] Unhandled error during scan');
       }
     });
-    logger.info('[Scanner] Started');
+    this.logger.info('[Scanner] Started');
   }
 
   async scan(): Promise<void> {
-    scannerRunsTotal.inc();
-    logger.info('[Scanner] Running release scan...');
+    this.metrics.incRuns();
+    this.logger.info('[Scanner] Running release scan...');
 
     const entries =
       await this.repositoryRepository.getRepositoriesWithActiveSubscriptions();
@@ -43,7 +42,7 @@ export class ScannerService {
       ),
     );
 
-    logger.info('[Scanner] Scan complete');
+    this.logger.info('[Scanner] Scan complete');
   }
 
   private async scanRepository(
@@ -63,7 +62,7 @@ export class ScannerService {
         return;
       }
 
-      scannerNewReleasesTotal.inc();
+      this.metrics.incNewReleases();
 
       this.notificationPublisher.publish({
         repositoryOwner: repository.owner,
@@ -78,16 +77,16 @@ export class ScannerService {
         release.tagName,
       );
 
-      logger.info(
+      this.logger.info(
         `[Scanner] New release ${release.tagName} for ${repository.owner}/${repository.repo}`,
       );
     } catch (err) {
       if (err instanceof RateLimitError) {
-        logger.warn(
+        this.logger.warn(
           `[Scanner] Rate limit hit for ${repository.owner}/${repository.repo}`,
         );
       } else {
-        logger.error(
+        this.logger.error(
           { err },
           `[Scanner] Error checking ${repository.owner}/${repository.repo}`,
         );

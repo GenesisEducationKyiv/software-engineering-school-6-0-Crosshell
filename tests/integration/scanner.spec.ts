@@ -7,11 +7,17 @@ import {
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
+import { GithubHttpClient } from '@/modules/github/github-http-client';
+import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
+import { GithubReleaseFeedAdapter } from '@/modules/scanner/infrastructure/github-release-feed.adapter';
+import { CacheService } from '@/infrastructure/cache/cache.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
+import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
+import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
+import { logger } from '@/shared/logger';
 import { useDb, seedRepoWithConfirmedSubscriber } from './helpers/db.helper';
 import { useRedis } from './helpers/redis.helper';
 import { useQueue, consumeOneNotification } from './helpers/queue.helper';
-import { createGithubClient } from './helpers/github.helper';
 import { mswServer } from './setup';
 
 const { getDb } = useDb();
@@ -23,9 +29,18 @@ let scannerService: ScannerService;
 beforeAll(() => {
   scannerService = new ScannerService(
     new RepositoryRepository(getDb()),
-    createGithubClient(getRedis()),
+    new GithubReleaseFeedAdapter(
+      new CachingGithubHttpClientDecorator(
+        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
+        new CacheService(getRedis(), logger),
+        new GithubMetrics(),
+        { cacheTtlSeconds: 600 },
+      ),
+    ),
     getNotificationQueue(),
     { start: () => {} },
+    logger,
+    new ScannerMetrics(),
   );
 });
 

@@ -1,13 +1,20 @@
 import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
-import { logger } from '@/shared/logger';
+import type { ILogger } from '@/shared/logger/logger.interface';
 import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
 import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
-import { notificationsSentTotal } from '@/infrastructure/metrics/metrics.registry';
+import type { INotificationMetrics } from '@/modules/notification/interfaces/notification-metrics.interface';
+
+export interface NotificationServiceConfig {
+  appUrl: string;
+}
 
 export class NotificationService {
   constructor(
     private readonly mailer: IMailerService,
     private readonly notificationConsumer: INotificationConsumer,
+    private readonly logger: ILogger,
+    private readonly metrics: INotificationMetrics,
+    private readonly config: NotificationServiceConfig,
   ) {}
 
   start(): void {
@@ -28,24 +35,25 @@ export class NotificationService {
             repo,
             newTag,
             releaseUrl,
-            buildUnsubscribeUrl(unsubscribeToken),
+            buildUnsubscribeUrl(unsubscribeToken, this.config.appUrl),
           ),
         ),
       );
 
       results.forEach((result, i) => {
         if (result.status === 'fulfilled') {
-          notificationsSentTotal.inc({ status: 'success' });
+          this.metrics.incSent('success');
         } else {
-          notificationsSentTotal.inc({ status: 'failure' });
-          logger.error(
-            { err: result.reason, email: subscribers[i].email, repo },
+          this.metrics.incSent('failure');
+          const err: unknown = result.reason;
+          this.logger.error(
+            { err, email: subscribers[i].email, repo },
             '[Notifier] Failed to send release email',
           );
         }
       });
     });
 
-    logger.info('[Notifier] Listening for release notifications');
+    this.logger.info('[Notifier] Listening for release notifications');
   }
 }

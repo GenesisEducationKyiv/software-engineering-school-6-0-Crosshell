@@ -1,9 +1,12 @@
 import type { Channel, ChannelModel } from 'amqplib';
 import amqplib from 'amqplib';
 import { logger } from '@/shared/logger';
-import { queueConfig } from '@/shared/config';
 
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000, 30_000];
+
+export interface QueueManagerConfig {
+  url: string;
+}
 
 export class QueueManager {
   private connection: ChannelModel | null = null;
@@ -12,8 +15,10 @@ export class QueueManager {
   private closing: boolean = false;
   private isReconnecting: boolean = false;
 
+  constructor(private readonly config: QueueManagerConfig) {}
+
   async connect(): Promise<void> {
-    this.connection = await amqplib.connect(queueConfig.url);
+    this.connection = await amqplib.connect(this.config.url);
     this.channel = await this.connection.createChannel();
 
     this.connection.on('error', (err: Error) => {

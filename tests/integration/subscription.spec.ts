@@ -17,12 +17,17 @@ import {
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
+import { GithubHttpClient } from '@/modules/github/github-http-client';
+import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
+import { GithubRepositorySourceAdapter } from '@/modules/subscription/infrastructure/github-repository-source.adapter';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
+import { CacheService } from '@/infrastructure/cache/cache.service';
+import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
+import { logger } from '@/shared/logger';
 import { buildTestApp, type TestApp } from './helpers/app.helper';
 import { useDb } from './helpers/db.helper';
 import { useRedis } from './helpers/redis.helper';
-import { createGithubClient } from './helpers/github.helper';
 import { createTestMailer } from './helpers/mailer.helper';
 import { mswServer } from './setup';
 
@@ -35,7 +40,7 @@ let sendConfirmationSpy: MockInstance;
 
 beforeAll(async () => {
   const db = getDb();
-  const github = createGithubClient(getRedis());
+  const cache = new CacheService(getRedis(), logger);
   const mailer = createTestMailer();
 
   sendConfirmationSpy = vi
@@ -45,8 +50,16 @@ beforeAll(async () => {
   subscriptionService = new SubscriptionService(
     new UnitOfWork(db, new UnitOfWorkContextBuilder()),
     new SubscriptionRepository(db),
-    github,
+    new GithubRepositorySourceAdapter(
+      new CachingGithubHttpClientDecorator(
+        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
+        cache,
+        new GithubMetrics(),
+        { cacheTtlSeconds: 600 },
+      ),
+    ),
     mailer,
+    { appUrl: 'http://localhost:3000' },
   );
 
   app = await buildTestApp(subscriptionService);

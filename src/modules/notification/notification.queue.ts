@@ -1,6 +1,6 @@
 import type { Channel, ConsumeMessage } from 'amqplib';
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
-import { logger } from '@/shared/logger';
+import type { ILogger } from '@/shared/logger/logger.interface';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import { releaseNotificationPayloadSchema } from '@/modules/notification/notification.schemas';
 import type { INotificationPublisher } from './interfaces/notification-publisher.interface';
@@ -14,7 +14,10 @@ const MAX_RETRIES = 3;
 export class NotificationQueue
   implements INotificationPublisher, INotificationConsumer
 {
-  constructor(private readonly queueManager: QueueManager) {}
+  constructor(
+    private readonly queueManager: QueueManager,
+    private readonly logger: ILogger,
+  ) {}
 
   async setup(): Promise<void> {
     const ch = this.queueManager.getChannel();
@@ -38,7 +41,7 @@ export class NotificationQueue
         persistent: true,
       });
     if (!ok) {
-      logger.warn(
+      this.logger.warn(
         { repo: `${payload.repositoryOwner}/${payload.repositoryRepo}` },
         '[Queue] sendToQueue returned false. Channel write buffer is full',
       );
@@ -68,7 +71,10 @@ export class NotificationQueue
         JSON.parse(msg.content.toString()),
       );
     } catch (err) {
-      logger.error({ err }, '[Queue] Invalid message payload. Sending to DLQ');
+      this.logger.error(
+        { err },
+        '[Queue] Invalid message payload. Sending to DLQ',
+      );
       channel.nack(msg, false, false);
 
       return;
@@ -90,10 +96,10 @@ export class NotificationQueue
     const retryCount =
       (msg.properties.headers?.['x-retry-count'] as number | undefined) ?? 0;
 
-    logger.error({ err, retryCount }, '[Queue] Failed to process message');
+    this.logger.error({ err, retryCount }, '[Queue] Failed to process message');
 
     if (retryCount >= MAX_RETRIES) {
-      logger.error({ err }, '[Queue] Max retries reached. Sending to DLQ');
+      this.logger.error({ err }, '[Queue] Max retries reached. Sending to DLQ');
       channel.nack(msg, false, false);
 
       return;
@@ -104,7 +110,7 @@ export class NotificationQueue
       headers: { 'x-retry-count': retryCount + 1 },
     });
     if (!ok) {
-      logger.warn(
+      this.logger.warn(
         '[Queue] sendToQueue returned false during retry. Channel write buffer is full',
       );
     }

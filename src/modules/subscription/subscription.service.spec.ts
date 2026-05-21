@@ -93,6 +93,7 @@ describe('SubscriptionService', () => {
       subscriptionRepository,
       repositorySource,
       mailer,
+      { appUrl: 'http://localhost:3000' },
     );
   });
 
@@ -193,6 +194,7 @@ describe('SubscriptionService', () => {
 
         expect(buildConfirmUrl).toHaveBeenCalledWith(
           MOCK_SUBSCRIPTION.confirmToken,
+          'http://localhost:3000',
         );
       });
 
@@ -201,6 +203,7 @@ describe('SubscriptionService', () => {
 
         expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
           MOCK_SUBSCRIPTION.unsubscribeToken,
+          'http://localhost:3000',
         );
       });
 
