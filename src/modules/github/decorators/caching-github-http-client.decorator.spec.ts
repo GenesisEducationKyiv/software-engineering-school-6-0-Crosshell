@@ -6,9 +6,7 @@ import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.serv
 import type { GitHubRelease, GitHubRepository } from '../github.schemas';
 import type { IGithubMetrics } from '../interfaces/github-metrics.interface';
 
-vi.mock('@/shared/config', () => ({
-  githubConfig: { cacheTtlSeconds: 600 },
-}));
+const CACHE_TTL_SECONDS = 600;
 
 const OWNER = 'acc';
 const REPO = 'testName';
@@ -43,7 +41,9 @@ describe('CachingGithubHttpClientDecorator', () => {
     inner.fetchRepository.mockResolvedValue(GITHUB_REPO);
     inner.fetchLatestRelease.mockResolvedValue(GITHUB_RELEASE);
 
-    decorator = new CachingGithubHttpClientDecorator(inner, cache, metrics);
+    decorator = new CachingGithubHttpClientDecorator(inner, cache, metrics, {
+      cacheTtlSeconds: CACHE_TTL_SECONDS,
+    });
   });
 
   describe('fetchRepository', () => {

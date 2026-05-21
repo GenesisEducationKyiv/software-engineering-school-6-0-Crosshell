@@ -55,6 +55,7 @@ beforeAll(async () => {
     new NodemailerEmailTransport(
       nodemailer.createTransport({ jsonTransport: true }),
     ),
+    { from: 'noreply@example.com' },
   );
 
   sendConfirmationSpy = vi
@@ -66,12 +67,14 @@ beforeAll(async () => {
     subscriptionRepository,
     new GithubRepositorySourceAdapter(
       new CachingGithubHttpClientDecorator(
-        new GithubHttpClient(),
+        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
         cache,
         new GithubMetrics(),
+        { cacheTtlSeconds: 600 },
       ),
     ),
     mailer,
+    { appUrl: 'http://localhost:3000' },
   );
 
   app = await buildTestApp(subscriptionService);

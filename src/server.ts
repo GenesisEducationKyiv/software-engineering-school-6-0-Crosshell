@@ -35,7 +35,7 @@ server.register(fastifyStatic, {
 
 server.register(errorHandlerPlugin);
 server.register(healthPlugin);
-server.register(apiKeyPlugin);
+server.register(apiKeyPlugin, { apiKey: appConfig.apiKey });
 server.register(metricsPlugin);
 
 export { server };

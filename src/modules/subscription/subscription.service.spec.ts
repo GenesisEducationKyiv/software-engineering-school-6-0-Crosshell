@@ -87,6 +87,7 @@ describe('SubscriptionService', () => {
       subscriptionRepository,
       repositorySource,
       mailer,
+      { appUrl: 'http://localhost:3000' },
     );
   });
 
@@ -187,6 +188,7 @@ describe('SubscriptionService', () => {
 
         expect(buildConfirmUrl).toHaveBeenCalledWith(
           MOCK_SUBSCRIPTION.confirmToken,
+          'http://localhost:3000',
         );
       });
 

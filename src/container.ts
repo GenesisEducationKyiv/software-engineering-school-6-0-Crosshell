@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { db } from '@/infrastructure/database';
-import { mailerConfig } from '@/shared/config';
+import { mailerConfig, githubConfig, appConfig } from '@/shared/config';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
@@ -43,12 +43,18 @@ export function createContainer(
       pass: mailerConfig.pass,
     },
   });
-  const mailer = new MailerService(new NodemailerEmailTransport(transporter));
+  const mailer = new MailerService(new NodemailerEmailTransport(transporter), {
+    from: mailerConfig.from,
+  });
 
   const githubHttpClient = new CachingGithubHttpClientDecorator(
-    new GithubHttpClient(),
+    new GithubHttpClient({
+      baseUrl: githubConfig.baseUrl,
+      token: githubConfig.token,
+    }),
     cache,
     new GithubMetrics(),
+    { cacheTtlSeconds: githubConfig.cacheTtlSeconds },
   );
 
   const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
@@ -61,6 +67,7 @@ export function createContainer(
     subscriptionRepository,
     new GithubRepositorySourceAdapter(githubHttpClient),
     mailer,
+    { appUrl: appConfig.appUrl },
   );
 
   const scannerService = new ScannerService(
@@ -77,6 +84,7 @@ export function createContainer(
     notificationQueue,
     logger,
     new NotificationMetrics(),
+    { appUrl: appConfig.appUrl },
   );
 
   return { subscriptionService, scannerService, notificationService };

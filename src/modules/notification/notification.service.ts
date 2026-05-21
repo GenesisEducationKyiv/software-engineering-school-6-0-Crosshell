@@ -4,12 +4,17 @@ import type { INotificationConsumer } from '@/modules/notification/interfaces/no
 import { buildUnsubscribeUrl } from '@/modules/notification/notification.urls';
 import type { INotificationMetrics } from '@/modules/notification/interfaces/notification-metrics.interface';
 
+export interface NotificationServiceConfig {
+  appUrl: string;
+}
+
 export class NotificationService {
   constructor(
     private readonly mailer: IMailerService,
     private readonly notificationConsumer: INotificationConsumer,
     private readonly logger: ILogger,
     private readonly metrics: INotificationMetrics,
+    private readonly config: NotificationServiceConfig,
   ) {}
 
   start(): void {
@@ -30,7 +35,7 @@ export class NotificationService {
             repo,
             newTag,
             releaseUrl,
-            buildUnsubscribeUrl(unsubscribeToken),
+            buildUnsubscribeUrl(unsubscribeToken, this.config.appUrl),
           ),
         ),
       );

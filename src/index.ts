@@ -14,7 +14,12 @@ import { GrpcServer } from '@/infrastructure/grpc/grpc-server';
 import { logger } from '@/shared/logger';
 import { createContainer } from '@/container';
 import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
-import { appConfig, grpcConfig } from '@/shared/config';
+import {
+  appConfig,
+  grpcConfig,
+  queueConfig,
+  redisConfig,
+} from '@/shared/config';
 import { createRedisClient } from '@/infrastructure/cache/redis-client';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 
@@ -22,11 +27,11 @@ const start = async () => {
   try {
     await migrate(db, { migrationsFolder: './drizzle/migrations' });
 
-    const redisClient = createRedisClient();
+    const redisClient = createRedisClient(redisConfig.url);
     await redisClient.connect();
     const cache = new CacheService(redisClient, logger);
 
-    const queueManager = new QueueManager();
+    const queueManager = new QueueManager({ url: queueConfig.url });
     await queueManager.connect();
 
     const notificationQueue = new NotificationQueue(queueManager, logger);
@@ -38,7 +43,7 @@ const start = async () => {
     const grpcServer = new GrpcServer();
     grpcServer.addService(
       getSubscriptionServiceDefinition(),
-      createSubscriptionGrpcHandlers(subscriptionService),
+      createSubscriptionGrpcHandlers(subscriptionService, appConfig.apiKey),
     );
 
     registerGracefulShutdown({ server, grpcServer, queueManager, pool, cache });

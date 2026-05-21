@@ -43,7 +43,7 @@ beforeAll(async () => {
 
   redisClient = new Redis(process.env['REDIS_URL']!);
 
-  queueManager = new QueueManager();
+  queueManager = new QueueManager({ url: process.env['RABBITMQ_URL']! });
   await queueManager.connect();
 
   notificationQueue = new NotificationQueue(queueManager, logger);
@@ -56,9 +56,10 @@ beforeAll(async () => {
     repositoryRepository,
     new GithubReleaseFeedAdapter(
       new CachingGithubHttpClientDecorator(
-        new GithubHttpClient(),
+        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
         cache,
         new GithubMetrics(),
+        { cacheTtlSeconds: 600 },
       ),
     ),
     notificationQueue,

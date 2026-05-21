@@ -2,14 +2,18 @@ import type { IGithubHttpClient } from '../interfaces/github-http-client.interfa
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import type { GitHubRelease, GitHubRepository } from '../github.schemas';
 import { gitHubRepositorySchema } from '../github.schemas';
-import { githubConfig } from '@/shared/config';
 import type { IGithubMetrics } from '../interfaces/github-metrics.interface';
+
+export interface CachingGithubHttpClientConfig {
+  cacheTtlSeconds: number;
+}
 
 export class CachingGithubHttpClientDecorator implements IGithubHttpClient {
   constructor(
     private readonly inner: IGithubHttpClient,
     private readonly cache: ICacheService,
     private readonly metrics: IGithubMetrics,
+    private readonly config: CachingGithubHttpClientConfig,
   ) {}
 
   async fetchRepository(
@@ -27,7 +31,7 @@ export class CachingGithubHttpClientDecorator implements IGithubHttpClient {
 
     const result = await this.inner.fetchRepository(owner, repo);
     this.metrics.incApiRequest('getRepository', 'miss');
-    await this.cache.setWithExpiry(key, result, githubConfig.cacheTtlSeconds);
+    await this.cache.setWithExpiry(key, result, this.config.cacheTtlSeconds);
 
     return result;
   }

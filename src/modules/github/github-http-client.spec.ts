@@ -1,17 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { GithubHttpClient } from './github-http-client';
 import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import type { GitHubRelease, GitHubRepository } from './github.schemas';
 import { server } from '../../../tests/mocks/server';
 
-vi.mock('@/shared/config', () => ({
-  githubConfig: {
-    baseUrl: 'https://api.github.com',
-    token: undefined,
-    cacheTtlSeconds: 600,
-  },
-}));
+const GITHUB_CONFIG = { baseUrl: 'https://api.github.com', token: undefined };
 
 const OWNER = 'acc';
 const REPO = 'testName';
@@ -32,7 +26,7 @@ describe('GithubHttpClient', () => {
   let client: GithubHttpClient;
 
   beforeEach(() => {
-    client = new GithubHttpClient();
+    client = new GithubHttpClient(GITHUB_CONFIG);
   });
 
   describe('fetchRepository', () => {

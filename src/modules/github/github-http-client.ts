@@ -2,21 +2,23 @@ import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 import type { GitHubRelease, GitHubRepository } from './github.schemas';
 import { gitHubRepositorySchema, gitHubReleaseSchema } from './github.schemas';
-import { githubConfig } from '@/shared/config';
 import type { IGithubHttpClient } from './interfaces/github-http-client.interface';
+
+export interface GithubHttpClientConfig {
+  baseUrl: string;
+  token?: string;
+}
 
 export class GithubHttpClient implements IGithubHttpClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
-  constructor() {
-    this.baseUrl = githubConfig.baseUrl;
+  constructor(config: GithubHttpClientConfig) {
+    this.baseUrl = config.baseUrl;
     this.headers = {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
-      ...(githubConfig.token
-        ? { Authorization: `Bearer ${githubConfig.token}` }
-        : {}),
+      ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}),
     };
   }
 

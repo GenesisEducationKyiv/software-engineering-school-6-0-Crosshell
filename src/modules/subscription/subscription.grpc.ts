@@ -12,7 +12,6 @@ import {
   tokenSchema,
   getSubscriptionsQuerySchema,
 } from './subscription.schemas';
-import { appConfig } from '@/shared/config';
 import { UnauthorizedError } from '@/shared/errors/app.errors';
 
 type SubscribeRequest = SubscribeInput;
@@ -27,15 +26,15 @@ export function getSubscriptionServiceDefinition(): grpc.ServiceDefinition {
   );
 }
 
-function verifyApiKey(metadata: grpc.Metadata): void {
-  if (!appConfig.apiKey) {
+function verifyApiKey(metadata: grpc.Metadata, apiKey?: string): void {
+  if (!apiKey) {
     return;
   }
 
   const keys = metadata.get('x-api-key');
   const key = keys.length > 0 ? keys[0].toString() : undefined;
 
-  if (key !== appConfig.apiKey) {
+  if (key !== apiKey) {
     throw new UnauthorizedError();
   }
 }
@@ -53,9 +52,10 @@ function unaryHandler<Req, Res extends object>(
 
 export function createSubscriptionGrpcHandlers(
   service: ISubscriptionService,
+  apiKey?: string,
 ): grpc.UntypedServiceImplementation {
   const subscribe = unaryHandler<SubscribeRequest, object>(async (call) => {
-    verifyApiKey(call.metadata);
+    verifyApiKey(call.metadata, apiKey);
     const input = subscribeSchema.parse(call.request);
     await service.subscribe(input);
 
@@ -64,7 +64,7 @@ export function createSubscriptionGrpcHandlers(
 
   const confirmSubscription = unaryHandler<TokenRequest, object>(
     async (call) => {
-      verifyApiKey(call.metadata);
+      verifyApiKey(call.metadata, apiKey);
       const { token } = tokenSchema.parse(call.request);
       await service.confirm(token);
 
@@ -73,7 +73,7 @@ export function createSubscriptionGrpcHandlers(
   );
 
   const unsubscribe = unaryHandler<TokenRequest, object>(async (call) => {
-    verifyApiKey(call.metadata);
+    verifyApiKey(call.metadata, apiKey);
     const { token } = tokenSchema.parse(call.request);
     await service.unsubscribe(token);
 
@@ -82,7 +82,7 @@ export function createSubscriptionGrpcHandlers(
 
   const getSubscriptions = unaryHandler<GetSubscriptionsRequest, object>(
     async (call) => {
-      verifyApiKey(call.metadata);
+      verifyApiKey(call.metadata, apiKey);
       const { email } = getSubscriptionsQuerySchema.parse(call.request);
       const subscriptions = await service.getSubscriptionsByEmail(email);
 

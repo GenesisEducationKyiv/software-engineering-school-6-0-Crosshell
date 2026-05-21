@@ -9,12 +9,17 @@ import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { buildConfirmUrl } from '@/modules/subscription/subscription.urls';
 import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 
+export interface SubscriptionServiceConfig {
+  appUrl: string;
+}
+
 export class SubscriptionService implements ISubscriptionService {
   constructor(
     private readonly uow: IUnitOfWork,
     private readonly subscriptionRepository: ISubscriptionRepository,
     private readonly repositorySource: IRepositorySource,
     private readonly mailer: IMailerService,
+    private readonly config: SubscriptionServiceConfig,
   ) {}
 
   async subscribe(input: SubscribeInput): Promise<void> {
@@ -42,7 +47,7 @@ export class SubscriptionService implements ISubscriptionService {
       }
     });
 
-    const confirmUrl = buildConfirmUrl(sub.confirmToken);
+    const confirmUrl = buildConfirmUrl(sub.confirmToken, this.config.appUrl);
     await this.mailer.sendConfirmationEmail(input.email, confirmUrl);
   }
 

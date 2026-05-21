@@ -59,6 +59,7 @@ describe('NotificationService', () => {
       notificationConsumer,
       logger,
       metrics,
+      { appUrl: 'http://localhost:3000' },
     );
   });
 
@@ -110,9 +111,11 @@ describe('NotificationService', () => {
 
         expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
           SUBSCRIBER_ALICE.unsubscribeToken,
+          'http://localhost:3000',
         );
         expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
           SUBSCRIBER_BOB.unsubscribeToken,
+          'http://localhost:3000',
         );
       });
 
