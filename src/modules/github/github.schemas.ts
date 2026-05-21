@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const gitHubRepositorySchema = z
   .object({
     id: z.number(),
-    full_name: z.string(),
+    full_name: z.string().regex(/^[^/]+\/[^/]+$/),
     html_url: z.string(),
   })
   .transform((data) => {
