@@ -1,4 +1,9 @@
-import { Registry, Counter, Histogram, collectDefaultMetrics } from 'prom-client';
+import {
+  Registry,
+  Counter,
+  Histogram,
+  collectDefaultMetrics,
+} from 'prom-client';
 
 export const registry = new Registry();
 
@@ -22,7 +27,14 @@ export const httpRequestDurationSeconds = new Histogram({
 export const githubApiRequestsTotal = new Counter({
   name: 'github_api_requests_total',
   help: 'Total number of GitHub API requests',
-  labelNames: ['operation', 'cache'] as const,
+  labelNames: ['operation'] as const,
+  registers: [registry],
+});
+
+export const githubCacheEventsTotal = new Counter({
+  name: 'github_cache_events_total',
+  help: 'Total number of GitHub cache hits and misses',
+  labelNames: ['operation', 'result'] as const,
   registers: [registry],
 });
 
