@@ -62,7 +62,7 @@ describe('CachingGithubHttpClientDecorator', () => {
       it('should look up the cache with the correct key', async () => {
         await decorator.fetchRepository(OWNER, REPO);
 
-        expect(cache.get).toHaveBeenCalledWith(CACHE_KEY, expect.anything());
+        expect(cache.get).toHaveBeenCalledWith(CACHE_KEY);
       });
 
       it('should increment the cache-hit counter', async () => {

@@ -1,7 +1,6 @@
 import type { IGithubHttpClient } from '../interfaces/github-http-client.interface';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import type { GitHubRelease, GitHubRepository } from '../github.schemas';
-import { gitHubRepositorySchema } from '../github.schemas';
 import type { IGithubCacheMetrics } from '../interfaces/github-metrics.interface';
 
 export interface CachingGithubHttpClientConfig {
@@ -22,7 +21,7 @@ export class CachingGithubHttpClientDecorator implements IGithubHttpClient {
   ): Promise<GitHubRepository> {
     const key = `github:repo:${owner}:${repo}`;
 
-    const cached = await this.cache.get(key, gitHubRepositorySchema);
+    const cached = await this.cache.get<GitHubRepository>(key);
     if (cached) {
       this.metrics.incCacheHit('fetchRepository');
 
