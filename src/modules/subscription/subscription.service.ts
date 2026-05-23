@@ -23,11 +23,8 @@ export class SubscriptionService implements ISubscriptionService {
   ) {}
 
   async subscribe(input: SubscribeInput): Promise<void> {
-    const [rawOwner, rawRepo] = input.repo.split('/');
-
     const { owner, repo } = await this.repositorySource.getRepository(
-      rawOwner,
-      rawRepo,
+      input.repo,
     );
 
     const sub = await this.uow.run(async ({ repositories, subscriptions }) => {

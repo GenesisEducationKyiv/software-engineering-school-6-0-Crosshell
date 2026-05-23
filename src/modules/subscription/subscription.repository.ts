@@ -83,7 +83,8 @@ export class SubscriptionRepository implements ISubscriptionRepository {
 
     return rows.map((row) => ({
       email: row.email,
-      repo: `${row.owner}/${row.repo}`,
+      owner: row.owner,
+      repo: row.repo,
       confirmed: row.confirmed ?? true,
       lastSeenTag: row.lastSeenTag,
     }));

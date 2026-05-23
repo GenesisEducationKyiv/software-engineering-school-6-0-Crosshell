@@ -24,10 +24,10 @@ describe('GithubRepositorySourceAdapter', () => {
     adapter = new GithubRepositorySourceAdapter(httpClient);
   });
 
-  it('should delegate to httpClient with the correct owner and repo', async () => {
+  it('should parse the full name and delegate to httpClient with the correct owner and repo', async () => {
     httpClient.fetchRepository.mockResolvedValue(GITHUB_REPO);
 
-    await adapter.getRepository(OWNER, REPO);
+    await adapter.getRepository(`${OWNER}/${REPO}`);
 
     expect(httpClient.fetchRepository).toHaveBeenCalledWith(OWNER, REPO);
   });
@@ -35,7 +35,7 @@ describe('GithubRepositorySourceAdapter', () => {
   it('should map owner and repo from the HTTP client response', async () => {
     httpClient.fetchRepository.mockResolvedValue(GITHUB_REPO);
 
-    const result = await adapter.getRepository(OWNER, REPO);
+    const result = await adapter.getRepository(`${OWNER}/${REPO}`);
 
     expect(result).toEqual({ owner: OWNER, repo: REPO });
   });
@@ -47,7 +47,7 @@ describe('GithubRepositorySourceAdapter', () => {
       repo: 'TestName',
     });
 
-    const result = await adapter.getRepository('ACC', 'TESTNAME');
+    const result = await adapter.getRepository('ACC/TESTNAME');
 
     expect(result).toEqual({ owner: 'Acc', repo: 'TestName' });
   });
@@ -57,7 +57,7 @@ describe('GithubRepositorySourceAdapter', () => {
       new NotFoundError('not found'),
     );
 
-    await expect(adapter.getRepository(OWNER, REPO)).rejects.toThrow(
+    await expect(adapter.getRepository(`${OWNER}/${REPO}`)).rejects.toThrow(
       NotFoundError,
     );
   });
