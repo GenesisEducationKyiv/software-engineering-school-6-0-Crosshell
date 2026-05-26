@@ -112,12 +112,11 @@ describe('SubscriptionService', () => {
         expect(uow.run).not.toHaveBeenCalled();
       });
 
-      it('should call the GitHub API with the correct owner and repo', async () => {
+      it('should call the GitHub API with the correct full repo name', async () => {
         await service.subscribe(VALID_INPUT);
 
         expect(repositorySource.getRepository).toHaveBeenCalledWith(
-          'acc',
-          'testName',
+          'acc/testName',
         );
       });
     });
@@ -163,6 +162,9 @@ describe('SubscriptionService', () => {
           repo: 'ACC/TestName',
         });
 
+        expect(repositorySource.getRepository).toHaveBeenCalledWith(
+          'ACC/TestName',
+        );
         expect(txCtx.repositories.findOrCreate).toHaveBeenCalledWith(
           'acc',
           'testName',
@@ -389,13 +391,15 @@ describe('SubscriptionService', () => {
       const subscriptions: SubscriptionWithRepo[] = [
         {
           email: 'user@example.com',
-          repo: 'acc/testName',
+          owner: 'acc',
+          repo: 'testName',
           confirmed: true,
           lastSeenTag: 'v1.0.0',
         },
         {
           email: 'user@example.com',
-          repo: 'facebook/react',
+          owner: 'facebook',
+          repo: 'react',
           confirmed: true,
           lastSeenTag: null,
         },

@@ -1,3 +1,8 @@
-export interface IGithubMetrics {
-  incApiRequest(operation: string, cache: 'hit' | 'miss' | 'none'): void;
+export interface IGithubApiMetrics {
+  incApiRequest(operation: string): void;
+}
+
+export interface IGithubCacheMetrics {
+  incCacheHit(operation: string): void;
+  incCacheMiss(operation: string): void;
 }

@@ -8,6 +8,7 @@ import { SubscriptionRepository } from '@/modules/subscription/subscription.repo
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { GithubHttpClient } from '@/modules/github/github-http-client';
 import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
+import { MetricsGithubHttpClientDecorator } from '@/modules/github/decorators/metrics-github-http-client.decorator';
 import { GithubRepositorySourceAdapter } from '@/modules/subscription/infrastructure/github-repository-source.adapter';
 import { GithubReleaseFeedAdapter } from '@/modules/scanner/infrastructure/github-release-feed.adapter';
 import { MailerService } from '@/modules/mailer/mailer.service';
@@ -47,13 +48,17 @@ export function createContainer(
     from: mailerConfig.from,
   });
 
+  const githubMetrics = new GithubMetrics();
   const githubHttpClient = new CachingGithubHttpClientDecorator(
-    new GithubHttpClient({
-      baseUrl: githubConfig.baseUrl,
-      token: githubConfig.token,
-    }),
+    new MetricsGithubHttpClientDecorator(
+      new GithubHttpClient({
+        baseUrl: githubConfig.baseUrl,
+        token: githubConfig.token,
+      }),
+      githubMetrics,
+    ),
     cache,
-    new GithubMetrics(),
+    githubMetrics,
     { cacheTtlSeconds: githubConfig.cacheTtlSeconds },
   );
 

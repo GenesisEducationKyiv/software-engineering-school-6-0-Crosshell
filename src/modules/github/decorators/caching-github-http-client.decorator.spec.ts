@@ -4,7 +4,7 @@ import { CachingGithubHttpClientDecorator } from './caching-github-http-client.d
 import type { IGithubHttpClient } from '../interfaces/github-http-client.interface';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import type { GitHubRelease, GitHubRepository } from '../github.schemas';
-import type { IGithubMetrics } from '../interfaces/github-metrics.interface';
+import type { IGithubCacheMetrics } from '../interfaces/github-metrics.interface';
 
 const CACHE_TTL_SECONDS = 600;
 
@@ -28,13 +28,13 @@ const CACHE_KEY = `github:repo:${OWNER}:${REPO}`;
 describe('CachingGithubHttpClientDecorator', () => {
   let inner: ReturnType<typeof mock<IGithubHttpClient>>;
   let cache: ReturnType<typeof mock<ICacheService>>;
-  let metrics: ReturnType<typeof mock<IGithubMetrics>>;
+  let metrics: ReturnType<typeof mock<IGithubCacheMetrics>>;
   let decorator: CachingGithubHttpClientDecorator;
 
   beforeEach(() => {
     inner = mock<IGithubHttpClient>();
     cache = mock<ICacheService>();
-    metrics = mock<IGithubMetrics>();
+    metrics = mock<IGithubCacheMetrics>();
 
     cache.get.mockResolvedValue(null);
     cache.setWithExpiry.mockResolvedValue(undefined);
@@ -62,16 +62,13 @@ describe('CachingGithubHttpClientDecorator', () => {
       it('should look up the cache with the correct key', async () => {
         await decorator.fetchRepository(OWNER, REPO);
 
-        expect(cache.get).toHaveBeenCalledWith(CACHE_KEY, expect.anything());
+        expect(cache.get).toHaveBeenCalledWith(CACHE_KEY);
       });
 
       it('should increment the cache-hit counter', async () => {
         await decorator.fetchRepository(OWNER, REPO);
 
-        expect(metrics.incApiRequest).toHaveBeenCalledWith(
-          'getRepository',
-          'hit',
-        );
+        expect(metrics.incCacheHit).toHaveBeenCalledWith('fetchRepository');
       });
     });
 
@@ -101,10 +98,7 @@ describe('CachingGithubHttpClientDecorator', () => {
       it('should increment the cache-miss counter', async () => {
         await decorator.fetchRepository(OWNER, REPO);
 
-        expect(metrics.incApiRequest).toHaveBeenCalledWith(
-          'getRepository',
-          'miss',
-        );
+        expect(metrics.incCacheMiss).toHaveBeenCalledWith('fetchRepository');
       });
 
       it('should not write to the cache when the inner client throws', async () => {
@@ -127,15 +121,6 @@ describe('CachingGithubHttpClientDecorator', () => {
       const result = await decorator.fetchLatestRelease(OWNER, REPO);
 
       expect(result).toEqual(GITHUB_RELEASE);
-    });
-
-    it('should increment the no-cache counter', async () => {
-      await decorator.fetchLatestRelease(OWNER, REPO);
-
-      expect(metrics.incApiRequest).toHaveBeenCalledWith(
-        'getLatestRelease',
-        'none',
-      );
     });
   });
 });

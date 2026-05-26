@@ -23,6 +23,7 @@ export const getSubscriptionsQuerySchema = z.object({
 
 export const subscriptionWithRepoSchema = z.object({
   email: z.string(),
+  owner: z.string(),
   repo: z.string(),
   confirmed: z.boolean(),
   lastSeenTag: z.string().nullable(),

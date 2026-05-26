@@ -1,8 +1,7 @@
 import type { IGithubHttpClient } from '../interfaces/github-http-client.interface';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
 import type { GitHubRelease, GitHubRepository } from '../github.schemas';
-import { gitHubRepositorySchema } from '../github.schemas';
-import type { IGithubMetrics } from '../interfaces/github-metrics.interface';
+import type { IGithubCacheMetrics } from '../interfaces/github-metrics.interface';
 
 export interface CachingGithubHttpClientConfig {
   cacheTtlSeconds: number;
@@ -12,7 +11,7 @@ export class CachingGithubHttpClientDecorator implements IGithubHttpClient {
   constructor(
     private readonly inner: IGithubHttpClient,
     private readonly cache: ICacheService,
-    private readonly metrics: IGithubMetrics,
+    private readonly metrics: IGithubCacheMetrics,
     private readonly config: CachingGithubHttpClientConfig,
   ) {}
 
@@ -22,15 +21,15 @@ export class CachingGithubHttpClientDecorator implements IGithubHttpClient {
   ): Promise<GitHubRepository> {
     const key = `github:repo:${owner}:${repo}`;
 
-    const cached = await this.cache.get(key, gitHubRepositorySchema);
+    const cached = await this.cache.get<GitHubRepository>(key);
     if (cached) {
-      this.metrics.incApiRequest('getRepository', 'hit');
+      this.metrics.incCacheHit('fetchRepository');
 
       return cached;
     }
 
     const result = await this.inner.fetchRepository(owner, repo);
-    this.metrics.incApiRequest('getRepository', 'miss');
+    this.metrics.incCacheMiss('fetchRepository');
     await this.cache.setWithExpiry(key, result, this.config.cacheTtlSeconds);
 
     return result;
@@ -40,8 +39,6 @@ export class CachingGithubHttpClientDecorator implements IGithubHttpClient {
     owner: string,
     repo: string,
   ): Promise<GitHubRelease | null> {
-    this.metrics.incApiRequest('getLatestRelease', 'none');
-
     return this.inner.fetchLatestRelease(owner, repo);
   }
 }
