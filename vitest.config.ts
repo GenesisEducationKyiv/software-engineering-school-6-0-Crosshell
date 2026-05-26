@@ -14,6 +14,7 @@ export default defineConfig({
     clearMocks: true,
     exclude: [
       ...configDefaults.exclude,
+      'dist/**',
       'tests/integration/**',
       'tests/e2e/**',
     ],
