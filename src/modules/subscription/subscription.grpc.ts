@@ -86,7 +86,14 @@ export function createSubscriptionGrpcHandlers(
       const { email } = getSubscriptionsQuerySchema.parse(call.request);
       const subscriptions = await service.getSubscriptionsByEmail(email);
 
-      return { subscriptions };
+      return {
+        subscriptions: subscriptions.map((s) => ({
+          email: s.email,
+          repo: `${s.owner}/${s.repo}`,
+          confirmed: s.confirmed,
+          lastSeenTag: s.lastSeenTag,
+        })),
+      };
     },
   );
 
