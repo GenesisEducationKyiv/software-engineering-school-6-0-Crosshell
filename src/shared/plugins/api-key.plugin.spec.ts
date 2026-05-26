@@ -9,7 +9,7 @@ function buildApp(apiKey?: string): FastifyInstance {
 
   app.register(errorHandlerPlugin);
   app.register(apiKeyPlugin, { apiKey });
-  app.get('/protected', () => ({ ok: true }));
+  app.get('/api/protected', () => ({ ok: true }));
 
   return app;
 }
@@ -27,7 +27,10 @@ describe('apiKeyPlugin', () => {
     });
 
     it('should allow requests without an x-api-key header', async () => {
-      const response = await app.inject({ method: 'GET', url: '/protected' });
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/protected',
+      });
 
       expect(response.statusCode).toBe(HttpStatus.OK);
     });
@@ -35,7 +38,7 @@ describe('apiKeyPlugin', () => {
     it('should allow requests that include any x-api-key header value', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/protected',
+        url: '/api/protected',
         headers: { 'x-api-key': 'whatever' },
       });
 
@@ -53,7 +56,7 @@ describe('apiKeyPlugin', () => {
     it('should allow requests with the correct x-api-key header', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/protected',
+        url: '/api/protected',
         headers: { 'x-api-key': CONFIGURED_KEY },
       });
 
