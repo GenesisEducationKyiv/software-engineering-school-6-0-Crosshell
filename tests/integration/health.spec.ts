@@ -1,12 +1,20 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mock } from 'vitest-mock-extended';
-import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
-import { buildTestApp, type TestApp } from './helpers/app.helper';
+import Fastify from 'fastify';
+import type { FastifyInstance } from 'fastify';
+import healthPlugin from '@/shared/plugins/health.plugin';
 
-let app: TestApp;
+async function buildApp(): Promise<FastifyInstance> {
+  const app = Fastify({ logger: false });
+  app.register(healthPlugin);
+  await app.ready();
+
+  return app;
+}
+
+let app: FastifyInstance;
 
 beforeAll(async () => {
-  app = await buildTestApp(mock<ISubscriptionService>());
+  app = await buildApp();
 });
 
 afterAll(async () => {

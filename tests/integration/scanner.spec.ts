@@ -24,10 +24,8 @@ const { getDb } = useDb();
 const { getRedis } = useRedis();
 const { getQueueManager, getNotificationQueue } = useQueue();
 
-let scannerService: ScannerService;
-
-beforeAll(() => {
-  scannerService = new ScannerService(
+function buildScannerService(): ScannerService {
+  return new ScannerService(
     new RepositoryRepository(getDb()),
     new GithubReleaseFeedAdapter(
       new CachingGithubHttpClientDecorator(
@@ -42,6 +40,12 @@ beforeAll(() => {
     logger,
     new ScannerMetrics(),
   );
+}
+
+let scannerService: ScannerService;
+
+beforeAll(() => {
+  scannerService = buildScannerService();
 });
 
 describe('ScannerService.scan()', () => {

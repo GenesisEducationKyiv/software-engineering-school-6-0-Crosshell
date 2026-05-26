@@ -13,8 +13,22 @@ import { NotificationService } from '@/modules/notification/notification.service
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
 import { logger } from '@/shared/logger';
+import type { NotificationQueue } from '@/modules/notification/notification.queue';
 import { useQueue } from './helpers/queue.helper';
 import { createTestMailer } from './helpers/mailer.helper';
+
+function buildNotificationService(
+  mailer: IMailerService,
+  queue: NotificationQueue,
+): NotificationService {
+  return new NotificationService(
+    mailer,
+    queue,
+    logger,
+    new NotificationMetrics(),
+    { appUrl: 'http://localhost:3000' },
+  );
+}
 
 const DLQ_NAME = 'release.notifications.dead';
 
@@ -30,13 +44,7 @@ describe('NotificationService', () => {
       .spyOn(mailer, 'sendReleaseNotification')
       .mockResolvedValue(undefined);
 
-    new NotificationService(
-      mailer,
-      getNotificationQueue(),
-      logger,
-      new NotificationMetrics(),
-      { appUrl: 'http://localhost:3000' },
-    ).start();
+    buildNotificationService(mailer, getNotificationQueue()).start();
   });
 
   beforeEach(() => {

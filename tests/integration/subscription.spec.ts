@@ -25,7 +25,17 @@ import type { ISubscriptionService } from '@/modules/subscription/interfaces/sub
 import { CacheService } from '@/infrastructure/cache/cache.service';
 import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { logger } from '@/shared/logger';
-import { buildTestApp, type TestApp } from './helpers/app.helper';
+import Fastify from 'fastify';
+import type { FastifyInstance } from 'fastify';
+import {
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import errorHandlerPlugin from '@/shared/plugins/error-handler.plugin';
+import healthPlugin from '@/shared/plugins/health.plugin';
+import apiKeyPlugin from '@/shared/plugins/api-key.plugin';
+import subscriptionRoutes from '@/modules/subscription/subscription.routes';
 import { useDb } from './helpers/db.helper';
 import { useRedis } from './helpers/redis.helper';
 import { createTestMailer } from './helpers/mailer.helper';
@@ -34,7 +44,23 @@ import { mswServer } from './setup';
 const { getDb } = useDb();
 const { getRedis } = useRedis();
 
-let app: TestApp;
+async function buildApp(
+  service: ISubscriptionService,
+  options: { apiKey?: string } = {},
+): Promise<FastifyInstance> {
+  const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+  app.register(errorHandlerPlugin);
+  app.register(healthPlugin);
+  app.register(apiKeyPlugin, { apiKey: options.apiKey });
+  app.register(subscriptionRoutes(service), { prefix: '/api' });
+  await app.ready();
+
+  return app;
+}
+
+let app: FastifyInstance;
 let subscriptionService: ISubscriptionService;
 let sendConfirmationSpy: MockInstance;
 
@@ -62,7 +88,7 @@ beforeAll(async () => {
     { appUrl: 'http://localhost:3000' },
   );
 
-  app = await buildTestApp(subscriptionService);
+  app = await buildApp(subscriptionService);
 });
 
 afterAll(async () => {
@@ -305,10 +331,10 @@ describe('GET /api/subscriptions', () => {
 });
 
 describe('API Key auth', () => {
-  let apiKeyApp: TestApp;
+  let apiKeyApp: FastifyInstance;
 
   beforeAll(async () => {
-    apiKeyApp = await buildTestApp(subscriptionService, { apiKey: 'test-key' });
+    apiKeyApp = await buildApp(subscriptionService, { apiKey: 'test-key' });
   });
 
   afterAll(async () => {

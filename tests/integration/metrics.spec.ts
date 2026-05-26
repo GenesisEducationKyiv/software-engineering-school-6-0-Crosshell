@@ -4,13 +4,19 @@ import type { FastifyInstance } from 'fastify';
 import metricsPlugin from '@/shared/plugins/metrics.plugin';
 import healthPlugin from '@/shared/plugins/health.plugin';
 
-let app: FastifyInstance;
-
-beforeAll(async () => {
-  app = Fastify({ logger: false });
+async function buildApp(): Promise<FastifyInstance> {
+  const app = Fastify({ logger: false });
   app.register(healthPlugin);
   app.register(metricsPlugin);
   await app.ready();
+
+  return app;
+}
+
+let app: FastifyInstance;
+
+beforeAll(async () => {
+  app = await buildApp();
 });
 
 afterAll(async () => {
