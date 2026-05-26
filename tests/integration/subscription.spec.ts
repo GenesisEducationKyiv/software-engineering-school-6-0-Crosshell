@@ -268,11 +268,14 @@ describe('GET /api/subscriptions', () => {
 
     expect(response.statusCode).toBe(200);
     const body =
-      response.json<{ email: string; repo: string; confirmed: boolean }[]>();
+      response.json<
+        { email: string; owner: string; repo: string; confirmed: boolean }[]
+      >();
     expect(body).toHaveLength(1);
     expect(body[0]?.confirmed).toBe(true);
     expect(body[0]?.email).toBe('alice@example.com');
-    expect(body[0]?.repo).toMatch(/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/);
+    expect(body[0]?.owner).toMatch(/^[a-zA-Z0-9._-]+$/);
+    expect(body[0]?.repo).toMatch(/^[a-zA-Z0-9._-]+$/);
   });
 
   it('returns an empty array when there are no confirmed subscriptions', async () => {
