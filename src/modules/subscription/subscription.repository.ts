@@ -1,46 +1,22 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import type { DbClient } from '@/infrastructure/database';
-import type {
-  Subscription} from '@/infrastructure/database/schema';
+import type { Subscription } from '@/modules/subscription/types/subscription.type';
 import {
   repositoriesTable,
-  subscriptionsTable
+  subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
 import type { CreateSubscriptionData } from '@/modules/subscription/types/create-subscription-data.type';
+import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
 
-export class SubscriptionRepository {
+export class SubscriptionRepository implements ISubscriptionRepository {
   constructor(private readonly db: DbClient) {}
-
-  async existsByEmailAndRepo(
-    email: string,
-    owner: string,
-    repo: string,
-  ): Promise<boolean> {
-    const [row] = await this.db
-      .select({ id: subscriptionsTable.id })
-      .from(subscriptionsTable)
-      .innerJoin(
-        repositoriesTable,
-        eq(subscriptionsTable.repositoryId, repositoriesTable.id),
-      )
-      .where(
-        and(
-          eq(subscriptionsTable.email, email),
-          eq(repositoriesTable.owner, owner),
-          eq(repositoriesTable.repo, repo),
-        ),
-      )
-      .limit(1);
-
-    return row !== undefined;
-  }
 
   async createSubscription(
     data: CreateSubscriptionData,
   ): Promise<Subscription> {
-    const [subscription] = await this.db
+    const [row] = await this.db
       .insert(subscriptionsTable)
       .values({
         email: data.email,
@@ -50,7 +26,7 @@ export class SubscriptionRepository {
       })
       .returning();
 
-    return subscription;
+    return row;
   }
 
   async findByConfirmToken(token: string): Promise<Subscription | null> {
@@ -107,7 +83,8 @@ export class SubscriptionRepository {
 
     return rows.map((row) => ({
       email: row.email,
-      repo: `${row.owner}/${row.repo}`,
+      owner: row.owner,
+      repo: row.repo,
       confirmed: row.confirmed ?? true,
       lastSeenTag: row.lastSeenTag,
     }));

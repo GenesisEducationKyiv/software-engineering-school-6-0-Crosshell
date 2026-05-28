@@ -1,16 +1,23 @@
+import type { Channel, ConsumeMessage } from 'amqplib';
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
-import { logger } from '@/shared/logger';
+import type { ILogger } from '@/shared/logger/logger.interface';
 import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
 import { releaseNotificationPayloadSchema } from '@/modules/notification/notification.schemas';
-import type { NotificationPublisher } from './notification-publisher.type';
+import type { INotificationPublisher } from './interfaces/notification-publisher.interface';
+import type { INotificationConsumer } from './interfaces/notification.consumer.interface';
 
 const QUEUE_NAME = 'release.notifications';
 const DLX_NAME = 'release.notifications.dlx';
 const DLQ_NAME = 'release.notifications.dead';
 const MAX_RETRIES = 3;
 
-export class NotificationQueue implements NotificationPublisher {
-  constructor(private readonly queueManager: QueueManager) {}
+export class NotificationQueue
+  implements INotificationPublisher, INotificationConsumer
+{
+  constructor(
+    private readonly queueManager: QueueManager,
+    private readonly logger: ILogger,
+  ) {}
 
   async setup(): Promise<void> {
     const ch = this.queueManager.getChannel();
@@ -34,7 +41,7 @@ export class NotificationQueue implements NotificationPublisher {
         persistent: true,
       });
     if (!ok) {
-      logger.warn(
+      this.logger.warn(
         { repo: `${payload.repositoryOwner}/${payload.repositoryRepo}` },
         '[Queue] sendToQueue returned false. Channel write buffer is full',
       );
@@ -45,42 +52,68 @@ export class NotificationQueue implements NotificationPublisher {
     handler: (payload: ReleaseNotificationPayload) => Promise<void>,
   ): void {
     const channel = this.queueManager.getChannel();
-
     void channel.consume(QUEUE_NAME, (msg) => {
-      if (!msg) return;
-
-      void (async () => {
-        try {
-          const payload = releaseNotificationPayloadSchema.parse(
-            JSON.parse(msg.content.toString()),
-          );
-          await handler(payload);
-          channel.ack(msg);
-        } catch (err) {
-          const retryCount =
-            (msg.properties.headers?.['x-retry-count'] as number | undefined) ??
-            0;
-
-          logger.error(
-            { err, retryCount },
-            '[Queue] Failed to process message',
-          );
-
-          if (retryCount < MAX_RETRIES) {
-            channel.sendToQueue(QUEUE_NAME, msg.content, {
-              persistent: true,
-              headers: { 'x-retry-count': retryCount + 1 },
-            });
-            channel.ack(msg);
-          } else {
-            logger.error(
-              { err },
-              '[Queue] Max retries reached. Sending to DLQ',
-            );
-            channel.nack(msg, false, false);
-          }
-        }
-      })();
+      if (!msg) {
+        return;
+      }
+      void this.processMessage(channel, msg, handler);
     });
+  }
+
+  private async processMessage(
+    channel: Channel,
+    msg: ConsumeMessage,
+    handler: (payload: ReleaseNotificationPayload) => Promise<void>,
+  ): Promise<void> {
+    let payload: ReleaseNotificationPayload;
+    try {
+      payload = releaseNotificationPayloadSchema.parse(
+        JSON.parse(msg.content.toString()),
+      );
+    } catch (err) {
+      this.logger.error(
+        { err },
+        '[Queue] Invalid message payload. Sending to DLQ',
+      );
+      channel.nack(msg, false, false);
+
+      return;
+    }
+
+    try {
+      await handler(payload);
+      channel.ack(msg);
+    } catch (err) {
+      this.handleRetry(channel, msg, err);
+    }
+  }
+
+  private handleRetry(
+    channel: Channel,
+    msg: ConsumeMessage,
+    err: unknown,
+  ): void {
+    const retryCount =
+      (msg.properties.headers?.['x-retry-count'] as number | undefined) ?? 0;
+
+    this.logger.error({ err, retryCount }, '[Queue] Failed to process message');
+
+    if (retryCount >= MAX_RETRIES) {
+      this.logger.error({ err }, '[Queue] Max retries reached. Sending to DLQ');
+      channel.nack(msg, false, false);
+
+      return;
+    }
+
+    const ok = channel.sendToQueue(QUEUE_NAME, msg.content, {
+      persistent: true,
+      headers: { 'x-retry-count': retryCount + 1 },
+    });
+    if (!ok) {
+      this.logger.warn(
+        '[Queue] sendToQueue returned false during retry. Channel write buffer is full',
+      );
+    }
+    channel.ack(msg);
   }
 }

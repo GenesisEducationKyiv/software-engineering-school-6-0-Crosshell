@@ -14,7 +14,12 @@ import { GrpcServer } from '@/infrastructure/grpc/grpc-server';
 import { logger } from '@/shared/logger';
 import { createContainer } from '@/container';
 import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
-import { appConfig, grpcConfig } from '@/shared/config';
+import {
+  appConfig,
+  grpcConfig,
+  queueConfig,
+  redisConfig,
+} from '@/shared/config';
 import { createRedisClient } from '@/infrastructure/cache/redis-client';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 
@@ -22,23 +27,23 @@ const start = async () => {
   try {
     await migrate(db, { migrationsFolder: './drizzle/migrations' });
 
-    const redisClient = createRedisClient();
+    const redisClient = createRedisClient(redisConfig.url);
     await redisClient.connect();
-    const cache = new CacheService(redisClient);
+    const cache = new CacheService(redisClient, logger);
 
-    const queueManager = new QueueManager();
+    const queueManager = new QueueManager({ url: queueConfig.url });
     await queueManager.connect();
 
-    const notificationQueue = new NotificationQueue(queueManager);
+    const notificationQueue = new NotificationQueue(queueManager, logger);
     await notificationQueue.setup();
 
     const { subscriptionService, scannerService, notificationService } =
-      createContainer(notificationQueue, cache);
+      createContainer(notificationQueue, cache, logger);
 
     const grpcServer = new GrpcServer();
     grpcServer.addService(
       getSubscriptionServiceDefinition(),
-      createSubscriptionGrpcHandlers(subscriptionService),
+      createSubscriptionGrpcHandlers(subscriptionService, appConfig.apiKey),
     );
 
     registerGracefulShutdown({ server, grpcServer, queueManager, pool, cache });
@@ -62,7 +67,7 @@ const start = async () => {
       console.log(server.printRoutes({ commonPrefix: false }));
     }
   } catch (error) {
-    logger.error(error);
+    logger.error({ err: error }, 'Startup failed');
     process.exit(1);
   }
 };

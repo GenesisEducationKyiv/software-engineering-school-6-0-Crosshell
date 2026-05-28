@@ -11,7 +11,10 @@ import {
 
 function parseAndGetError(schema: z.ZodTypeAny, input: unknown) {
   const result = schema.safeParse(input);
-  if (result.success) throw new Error('Expected parse to fail');
+  if (result.success) {
+    throw new Error('Expected parse to fail');
+  }
+
   return result.error;
 }
 

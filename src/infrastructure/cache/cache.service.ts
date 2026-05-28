@@ -1,34 +1,37 @@
 import type { Redis } from 'ioredis';
-import type { ZodType } from 'zod';
-import { logger } from '@/shared/logger';
+import type { ILogger } from '@/shared/logger/logger.interface';
+import type { ICacheService } from './interfaces/cache.service.interface';
 
-export class CacheService {
-  constructor(private readonly client: Redis) {}
+export class CacheService implements ICacheService {
+  constructor(
+    private readonly client: Redis,
+    private readonly logger: ILogger,
+  ) {}
 
-  async get<T>(key: string, schema: ZodType<T>): Promise<T | null> {
+  async get<T>(key: string): Promise<T | null> {
     try {
       const raw = await this.client.get(key);
-      if (!raw) return null;
-      const parsed = schema.safeParse(JSON.parse(raw));
-      if (!parsed.success) {
-        logger.warn(
-          { key, issues: parsed.error.issues },
-          '[Cache] Stale or invalid data, cache miss',
-        );
+      if (!raw) {
         return null;
       }
-      return parsed.data;
+
+      return JSON.parse(raw) as T;
     } catch (err) {
-      logger.warn({ err, key }, '[Cache] Get failed');
+      this.logger.warn({ err, key }, '[Cache] Get failed');
+
       return null;
     }
   }
 
-  async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+  async setWithExpiry(
+    key: string,
+    value: unknown,
+    ttlSeconds: number,
+  ): Promise<void> {
     try {
       await this.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
     } catch (err) {
-      logger.warn({ err, key }, '[Cache] Set failed');
+      this.logger.warn({ err, key }, '[Cache] Set failed');
     }
   }
 

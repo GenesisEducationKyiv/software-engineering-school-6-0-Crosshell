@@ -1,40 +1,37 @@
-import cron from 'node-cron';
-import type { GithubClient } from '@/modules/github/github.client';
+import type { IReleaseFeed } from '@/modules/scanner/interfaces/release-feed.interface';
 import { RateLimitError } from '@/shared/errors/app.errors';
-import { logger } from '@/shared/logger';
-import { scannerConfig } from '@/shared/config';
-import type { RepositoryRepository } from '@/modules/repository/repository.repository';
-import type { TrackedRepository } from '@/modules/repository/types/tracked-repository.type';
+import type { ILogger } from '@/shared/logger/logger.interface';
+import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
+import type { Repository } from '@/modules/repository/types/repository.type';
 import type { Subscriber } from '@/modules/notification/notification.schemas';
-import type { NotificationPublisher } from '@/modules/notification/notification-publisher.type';
-import {
-  scannerRunsTotal,
-  scannerNewReleasesTotal,
-} from '@/infrastructure/metrics/metrics.registry';
+import type { INotificationPublisher } from '../notification/interfaces/notification-publisher.interface';
+import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
+import type { IScannerMetrics } from '@/modules/scanner/interfaces/scanner-metrics.interface';
 
 export class ScannerService {
   constructor(
-    private readonly repositoryRepository: RepositoryRepository,
-    private readonly github: GithubClient,
-    private readonly notificationPublisher: NotificationPublisher,
+    private readonly repositoryRepository: IRepositoryRepository,
+    private readonly releaseFeed: IReleaseFeed,
+    private readonly notificationPublisher: INotificationPublisher,
+    private readonly scheduler: IScheduler,
+    private readonly logger: ILogger,
+    private readonly metrics: IScannerMetrics,
   ) {}
 
   start(): void {
-    cron.schedule(scannerConfig.scannerCron, async () => {
+    this.scheduler.start(async () => {
       try {
         await this.scan();
       } catch (err) {
-        logger.error({ err }, '[Scanner] Unhandled error during scan');
+        this.logger.error({ err }, '[Scanner] Unhandled error during scan');
       }
     });
-    logger.info(
-      `[Scanner] Started with schedule: ${scannerConfig.scannerCron}`,
-    );
+    this.logger.info('[Scanner] Started');
   }
 
   async scan(): Promise<void> {
-    scannerRunsTotal.inc();
-    logger.info('[Scanner] Running release scan...');
+    this.metrics.incRuns();
+    this.logger.info('[Scanner] Running release scan...');
 
     const entries =
       await this.repositoryRepository.getRepositoriesWithActiveSubscriptions();
@@ -45,29 +42,33 @@ export class ScannerService {
       ),
     );
 
-    logger.info('[Scanner] Scan complete');
+    this.logger.info('[Scanner] Scan complete');
   }
 
   private async scanRepository(
-    repository: TrackedRepository,
+    repository: Repository,
     subscribers: Subscriber[],
   ): Promise<void> {
     try {
-      const release = await this.github.getLatestRelease(
+      const release = await this.releaseFeed.getLatestRelease(
         repository.owner,
         repository.repo,
       );
 
-      if (!release) return;
-      if (release.tagName === repository.lastSeenTag) return;
+      if (!release) {
+        return;
+      }
+      if (release.tagName === repository.lastSeenTag) {
+        return;
+      }
 
-      scannerNewReleasesTotal.inc();
+      this.metrics.incNewReleases();
 
       this.notificationPublisher.publish({
         repositoryOwner: repository.owner,
         repositoryRepo: repository.repo,
         newTag: release.tagName,
-        releaseUrl: release.htmlUrl,
+        releaseUrl: release.releaseUrl,
         subscribers,
       });
 
@@ -76,16 +77,16 @@ export class ScannerService {
         release.tagName,
       );
 
-      logger.info(
+      this.logger.info(
         `[Scanner] New release ${release.tagName} for ${repository.owner}/${repository.repo}`,
       );
     } catch (err) {
       if (err instanceof RateLimitError) {
-        logger.warn(
+        this.logger.warn(
           `[Scanner] Rate limit hit for ${repository.owner}/${repository.repo}`,
         );
       } else {
-        logger.error(
+        this.logger.error(
           { err },
           `[Scanner] Error checking ${repository.owner}/${repository.repo}`,
         );

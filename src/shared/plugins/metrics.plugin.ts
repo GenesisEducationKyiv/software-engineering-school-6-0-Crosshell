@@ -5,11 +5,15 @@ import {
   httpRequestDurationSeconds,
 } from '@/infrastructure/metrics/metrics.registry';
 
-export default function metricsPlugin(app: FastifyInstance): Promise<void> {
+export default async function metricsPlugin(
+  app: FastifyInstance,
+): Promise<void> {
   app.addHook('onResponse', (request, reply, done) => {
     const route = request.routeOptions?.url ?? 'unknown';
 
-    if (route === '/metrics') return done();
+    if (route === '/metrics') {
+      return done();
+    }
 
     httpRequestsTotal.inc({
       method: request.method,
@@ -27,8 +31,7 @@ export default function metricsPlugin(app: FastifyInstance): Promise<void> {
 
   app.get('/metrics', async (_request, reply) => {
     reply.header('Content-Type', registry.contentType);
+
     return registry.metrics();
   });
-
-  return Promise.resolve();
 }

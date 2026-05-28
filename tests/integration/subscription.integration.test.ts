@@ -20,12 +20,18 @@ import {
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
+import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
-import { GithubClient } from '@/modules/github/github.client';
+import { GithubHttpClient } from '@/modules/github/github-http-client';
+import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
+import { GithubRepositorySourceAdapter } from '@/modules/subscription/infrastructure/github-repository-source.adapter';
+import nodemailer from 'nodemailer';
 import { MailerService } from '@/modules/mailer/mailer.service';
+import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
 import { SubscriptionService } from '@/modules/subscription/subscription.service';
 import { CacheService } from '@/infrastructure/cache/cache.service';
-
+import { logger } from '@/shared/logger';
+import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { buildTestApp, type TestApp } from './helpers/app.helper';
 import { truncateAllTables } from './helpers/db.helper';
 import { mswServer } from './setup';
@@ -42,11 +48,15 @@ beforeAll(async () => {
 
   redisClient = new Redis(process.env['REDIS_URL']!);
 
-  const cache = new CacheService(redisClient);
-  const uow = new UnitOfWork(db);
+  const cache = new CacheService(redisClient, logger);
+  const uow = new UnitOfWork(db, new UnitOfWorkContextBuilder());
   const subscriptionRepository = new SubscriptionRepository(db);
-  const github = new GithubClient(cache);
-  mailer = new MailerService();
+  mailer = new MailerService(
+    new NodemailerEmailTransport(
+      nodemailer.createTransport({ jsonTransport: true }),
+    ),
+    { from: 'noreply@example.com' },
+  );
 
   sendConfirmationSpy = vi
     .spyOn(mailer, 'sendConfirmationEmail')
@@ -55,8 +65,16 @@ beforeAll(async () => {
   const subscriptionService = new SubscriptionService(
     uow,
     subscriptionRepository,
-    github,
+    new GithubRepositorySourceAdapter(
+      new CachingGithubHttpClientDecorator(
+        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
+        cache,
+        new GithubMetrics(),
+        { cacheTtlSeconds: 600 },
+      ),
+    ),
     mailer,
+    { appUrl: 'http://localhost:3000' },
   );
 
   app = await buildTestApp(subscriptionService);

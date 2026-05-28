@@ -12,13 +12,18 @@ import {
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
+import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
 import { RepositoryRepository } from '@/modules/repository/repository.repository';
-import { GithubClient } from '@/modules/github/github.client';
+import { GithubHttpClient } from '@/modules/github/github-http-client';
+import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
+import { GithubReleaseFeedAdapter } from '@/modules/scanner/infrastructure/github-release-feed.adapter';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 import { ScannerService } from '@/modules/scanner/scanner.service';
 import { NotificationQueue } from '@/modules/notification/notification.queue';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
-
+import { logger } from '@/shared/logger';
+import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
+import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { truncateAllTables } from './helpers/db.helper';
 import {
   purgeNotificationQueue,
@@ -38,21 +43,29 @@ beforeAll(async () => {
 
   redisClient = new Redis(process.env['REDIS_URL']!);
 
-  queueManager = new QueueManager();
+  queueManager = new QueueManager({ url: process.env['RABBITMQ_URL']! });
   await queueManager.connect();
 
-  notificationQueue = new NotificationQueue(queueManager);
+  notificationQueue = new NotificationQueue(queueManager, logger);
 
   await notificationQueue.setup();
 
-  const cache = new CacheService(redisClient);
+  const cache = new CacheService(redisClient, logger);
   const repositoryRepository = new RepositoryRepository(db);
-  const github = new GithubClient(cache);
-
   scannerService = new ScannerService(
     repositoryRepository,
-    github,
+    new GithubReleaseFeedAdapter(
+      new CachingGithubHttpClientDecorator(
+        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
+        cache,
+        new GithubMetrics(),
+        { cacheTtlSeconds: 600 },
+      ),
+    ),
     notificationQueue,
+    { start: () => {} },
+    logger,
+    new ScannerMetrics(),
   );
 });
 
@@ -291,7 +304,10 @@ describe('ScannerService.scan()', () => {
 
 describe('RepositoryRepository', () => {
   it('findOrCreate returns the same row on subsequent calls', async () => {
-    const uow = new UnitOfWork(drizzle(pool, { schema }));
+    const uow = new UnitOfWork(
+      drizzle(pool, { schema }),
+      new UnitOfWorkContextBuilder(),
+    );
 
     const first = await uow.run(({ repositories }) =>
       repositories.findOrCreate('golang', 'go'),

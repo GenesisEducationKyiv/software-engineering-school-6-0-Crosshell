@@ -1,5 +1,5 @@
 import type * as grpc from '@grpc/grpc-js';
-import type { SubscriptionService } from './subscription.service';
+import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 import { loadServiceDefinition } from '@/infrastructure/grpc/grpc-server';
 import { toGrpcError } from '@/infrastructure/grpc/grpc-error.mapper';
 import type {
@@ -12,7 +12,6 @@ import {
   tokenSchema,
   getSubscriptionsQuerySchema,
 } from './subscription.schemas';
-import { appConfig } from '@/shared/config';
 import { UnauthorizedError } from '@/shared/errors/app.errors';
 
 type SubscribeRequest = SubscribeInput;
@@ -27,13 +26,15 @@ export function getSubscriptionServiceDefinition(): grpc.ServiceDefinition {
   );
 }
 
-function verifyApiKey(metadata: grpc.Metadata): void {
-  if (!appConfig.apiKey) return;
+function verifyApiKey(metadata: grpc.Metadata, apiKey?: string): void {
+  if (!apiKey) {
+    return;
+  }
 
   const keys = metadata.get('x-api-key');
   const key = keys.length > 0 ? keys[0].toString() : undefined;
 
-  if (key !== appConfig.apiKey) {
+  if (key !== apiKey) {
     throw new UnauthorizedError();
   }
 }
@@ -50,35 +51,51 @@ function unaryHandler<Req, Res extends object>(
 }
 
 export function createSubscriptionGrpcHandlers(
-  service: SubscriptionService,
+  service: ISubscriptionService,
+  apiKey?: string,
 ): grpc.UntypedServiceImplementation {
   const subscribe = unaryHandler<SubscribeRequest, object>(async (call) => {
-    verifyApiKey(call.metadata);
+    verifyApiKey(call.metadata, apiKey);
     const input = subscribeSchema.parse(call.request);
     await service.subscribe(input);
+
     return {};
   });
 
-  const confirmSubscription = unaryHandler<TokenRequest, object>(async (call) => {
-    verifyApiKey(call.metadata);
-    const { token } = tokenSchema.parse(call.request);
-    await service.confirm(token);
-    return {};
-  });
+  const confirmSubscription = unaryHandler<TokenRequest, object>(
+    async (call) => {
+      verifyApiKey(call.metadata, apiKey);
+      const { token } = tokenSchema.parse(call.request);
+      await service.confirm(token);
+
+      return {};
+    },
+  );
 
   const unsubscribe = unaryHandler<TokenRequest, object>(async (call) => {
-    verifyApiKey(call.metadata);
+    verifyApiKey(call.metadata, apiKey);
     const { token } = tokenSchema.parse(call.request);
     await service.unsubscribe(token);
+
     return {};
   });
 
-  const getSubscriptions = unaryHandler<GetSubscriptionsRequest, object>(async (call) => {
-    verifyApiKey(call.metadata);
-    const { email } = getSubscriptionsQuerySchema.parse(call.request);
-    const subscriptions = await service.getSubscriptionsByEmail(email);
-    return { subscriptions };
-  });
+  const getSubscriptions = unaryHandler<GetSubscriptionsRequest, object>(
+    async (call) => {
+      verifyApiKey(call.metadata, apiKey);
+      const { email } = getSubscriptionsQuerySchema.parse(call.request);
+      const subscriptions = await service.getSubscriptionsByEmail(email);
+
+      return {
+        subscriptions: subscriptions.map((s) => ({
+          email: s.email,
+          repo: `${s.owner}/${s.repo}`,
+          confirmed: s.confirmed,
+          lastSeenTag: s.lastSeenTag,
+        })),
+      };
+    },
+  );
 
   return { subscribe, confirmSubscription, unsubscribe, getSubscriptions };
 }

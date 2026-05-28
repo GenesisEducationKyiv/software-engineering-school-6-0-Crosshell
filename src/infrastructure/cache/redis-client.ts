@@ -1,9 +1,8 @@
 import Redis from 'ioredis';
-import { redisConfig } from '@/shared/config';
 import { logger } from '@/shared/logger';
 
-export function createRedisClient(): Redis {
-  const client = new Redis(redisConfig.url, { lazyConnect: true });
+export function createRedisClient(url: string): Redis {
+  const client = new Redis(url, { lazyConnect: true });
 
   client.on('connect', () => logger.info('[Redis] Connected'));
   client.on('error', (err: Error) =>

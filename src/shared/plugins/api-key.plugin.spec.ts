@@ -4,20 +4,13 @@ import apiKeyPlugin from './api-key.plugin';
 import errorHandlerPlugin from './error-handler.plugin';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 
-let mockApiKey: string | undefined;
-
-vi.mock('@/shared/config', () => ({
-  get appConfig() {
-    return { apiKey: mockApiKey };
-  },
-}));
-
-function buildApp(): FastifyInstance {
+function buildApp(apiKey?: string): FastifyInstance {
   const app = Fastify({ logger: false });
 
   app.register(errorHandlerPlugin);
-  app.register(apiKeyPlugin);
+  app.register(apiKeyPlugin, { apiKey });
   app.get('/protected', () => ({ ok: true }));
+
   return app;
 }
 
@@ -30,8 +23,7 @@ describe('apiKeyPlugin', () => {
 
   describe('when no API key is configured', () => {
     beforeEach(() => {
-      mockApiKey = undefined;
-      app = buildApp();
+      app = buildApp(undefined);
     });
 
     it('should allow requests without an x-api-key header', async () => {
@@ -55,8 +47,7 @@ describe('apiKeyPlugin', () => {
     const CONFIGURED_KEY = 'super-secret-key';
 
     beforeEach(() => {
-      mockApiKey = CONFIGURED_KEY;
-      app = buildApp();
+      app = buildApp(CONFIGURED_KEY);
     });
 
     it('should allow requests with the correct x-api-key header', async () => {

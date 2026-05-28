@@ -1,25 +1,21 @@
-import nodemailer, { type Transporter } from 'nodemailer';
-import { mailerConfig } from '@/shared/config';
 import { confirmationEmailHtml } from '@/modules/mailer/templates/confirmation.template';
 import { releaseNotificationHtml } from '@/modules/mailer/templates/release-notification.template';
+import type { IMailerService } from './interfaces/mailer.service.interface';
+import type { IEmailTransport } from './interfaces/email-transport.interface';
 
-export class MailerService {
-  private readonly transporter: Transporter;
+export interface MailerServiceConfig {
+  from: string;
+}
 
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: mailerConfig.host,
-      port: mailerConfig.port,
-      auth: {
-        user: mailerConfig.user,
-        pass: mailerConfig.pass,
-      },
-    });
-  }
+export class MailerService implements IMailerService {
+  constructor(
+    private readonly transport: IEmailTransport,
+    private readonly config: MailerServiceConfig,
+  ) {}
 
   async sendConfirmationEmail(to: string, confirmUrl: string): Promise<void> {
-    await this.transporter.sendMail({
-      from: mailerConfig.from,
+    await this.transport.sendMail({
+      from: this.config.from,
       to,
       subject: 'Confirm your subscription',
       html: confirmationEmailHtml(confirmUrl),
@@ -33,8 +29,8 @@ export class MailerService {
     releaseUrl: string,
     unsubscribeUrl: string,
   ): Promise<void> {
-    await this.transporter.sendMail({
-      from: mailerConfig.from,
+    await this.transport.sendMail({
+      from: this.config.from,
       to,
       subject: `New release: ${repo} ${tag}`,
       html: releaseNotificationHtml(repo, tag, releaseUrl, unsubscribeUrl),
