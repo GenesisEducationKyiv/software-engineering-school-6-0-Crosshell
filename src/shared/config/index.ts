@@ -6,3 +6,4 @@ export { githubConfig } from './github.config';
 export { scannerConfig } from './scanner.config';
 export { grpcConfig } from './grpc.config';
 export { redisConfig } from './redis.config';
+export { elasticsearchConfig } from './elasticsearch.config';

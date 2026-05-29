@@ -13,11 +13,20 @@ services:
       GRPC_PORT: "50051"
       RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
       REDIS_URL: "redis://notifier-redis:6379"
+      ELASTICSEARCH_URL: "http://notifier-elasticsearch:9200"
     depends_on:
       notifier-rabbitmq:
         condition: service_healthy
       notifier-redis:
         condition: service_healthy
+      notifier-elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
     networks:
       - notifier-network
@@ -50,6 +59,99 @@ services:
     networks:
       - notifier-network
 
+  notifier-elasticsearch:
+    image: elasticsearch:8.13.0
+    container_name: notifier-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - notifier-elasticsearch:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - notifier-network
+
+  notifier-kibana:
+    image: kibana:8.13.0
+    container_name: notifier-kibana
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=http://notifier-elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      notifier-elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    networks:
+      - notifier-network
+
+  notifier-kibana-setup:
+    image: curlimages/curl:8.7.1
+    container_name: notifier-kibana-setup
+    restart: "no"
+    depends_on:
+      notifier-kibana:
+        condition: service_healthy
+    networks:
+      - notifier-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        curl -sf -X POST http://notifier-kibana:5601/api/data_views/data_view \
+          -H 'kbn-xsrf: true' \
+          -H 'Content-Type: application/json' \
+          -d '{"data_view":{"title":"notifier-logs-*","timeFieldName":"@timestamp","name":"Notifier Logs"}}' \
+          || echo "Data view may already exist, skipping"
+
+  notifier-prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: notifier-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - notifier-prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      notifier-api:
+        condition: service_healthy
+    networks:
+      - notifier-network
+
+  notifier-grafana:
+    image: grafana/grafana:10.4.0
+    container_name: notifier-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - notifier-grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - notifier-prometheus
+    networks:
+      - notifier-network
+
 networks:
   notifier-network:
     driver: bridge
@@ -57,3 +159,6 @@ networks:
 volumes:
   notifier-redis:
   notifier-rabbitmq:
+  notifier-elasticsearch:
+  notifier-prometheus:
+  notifier-grafana:

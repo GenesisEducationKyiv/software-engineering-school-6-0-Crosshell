@@ -30,6 +30,7 @@ export class ScannerService {
   }
 
   async scan(): Promise<void> {
+    const start = performance.now();
     this.metrics.incRuns();
     this.logger.info('[Scanner] Running release scan...');
 
@@ -42,6 +43,7 @@ export class ScannerService {
       ),
     );
 
+    this.metrics.observeDuration((performance.now() - start) / 1000);
     this.logger.info('[Scanner] Scan complete');
   }
 
@@ -81,6 +83,7 @@ export class ScannerService {
         `[Scanner] New release ${release.tagName} for ${repository.owner}/${repository.repo}`,
       );
     } catch (err) {
+      this.metrics.incErrors();
       if (err instanceof RateLimitError) {
         this.logger.warn(
           `[Scanner] Rate limit hit for ${repository.owner}/${repository.repo}`,

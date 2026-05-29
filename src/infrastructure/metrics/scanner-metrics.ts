@@ -1,5 +1,10 @@
 import type { IScannerMetrics } from '@/modules/scanner/interfaces/scanner-metrics.interface';
-import { scannerRunsTotal, scannerNewReleasesTotal } from './metrics.registry';
+import {
+  scannerRunsTotal,
+  scannerNewReleasesTotal,
+  scannerErrorsTotal,
+  scannerDurationSeconds,
+} from './metrics.registry';
 
 export class ScannerMetrics implements IScannerMetrics {
   incRuns(): void {
@@ -8,5 +13,13 @@ export class ScannerMetrics implements IScannerMetrics {
 
   incNewReleases(): void {
     scannerNewReleasesTotal.inc();
+  }
+
+  incErrors(): void {
+    scannerErrorsTotal.inc();
+  }
+
+  observeDuration(seconds: number): void {
+    scannerDurationSeconds.observe(seconds);
   }
 }

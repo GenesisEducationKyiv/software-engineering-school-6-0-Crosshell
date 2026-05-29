@@ -1,4 +1,7 @@
 export interface ILogger {
+  debug(msg: string): void;
+  debug(obj: object, msg: string): void;
+
   info(msg: string): void;
   info(obj: object, msg: string): void;
 
