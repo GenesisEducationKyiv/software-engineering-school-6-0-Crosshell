@@ -28,6 +28,7 @@ export class NotificationService {
       } = payload;
       const repo = `${repositoryOwner}/${repositoryRepo}`;
 
+      const start = performance.now();
       const results = await Promise.allSettled(
         subscribers.map(({ email, unsubscribeToken }) =>
           this.mailer.sendReleaseNotification(
@@ -38,6 +39,9 @@ export class NotificationService {
             buildUnsubscribeUrl(unsubscribeToken, this.config.appUrl),
           ),
         ),
+      );
+      this.metrics.observeProcessingDuration(
+        (performance.now() - start) / 1000,
       );
 
       results.forEach((result, i) => {

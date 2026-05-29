@@ -29,6 +29,7 @@
   "author": "Vladyslav Berdychevskyi",
   "license": "ISC",
   "dependencies": {
+    "@elastic/ecs-pino-format": "^1.5.0",
     "@fastify/cors": "^11.2.0",
     "@fastify/static": "^9.1.1",
     "@grpc/grpc-js": "^1.14.3",
@@ -43,6 +44,7 @@
     "nodemailer": "^8.0.5",
     "pg": "^8.20.0",
     "pino": "^9.6.0",
+    "pino-elasticsearch": "^9.0.0",
     "pino-pretty": "^13.0.0",
     "prom-client": "^15.1.3",
     "zod": "^4.3.6"

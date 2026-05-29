@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import {
   registry,
   httpRequestsTotal,
+  httpErrorsTotal,
   httpRequestDurationSeconds,
 } from '@/infrastructure/metrics/metrics.registry';
 
@@ -14,11 +15,17 @@ const metricsPlugin: FastifyPluginAsync = fp(async (server): Promise<void> => {
       return done();
     }
 
-    httpRequestsTotal.inc({
+    const labels = {
       method: request.method,
       route,
       status_code: String(reply.statusCode),
-    });
+    };
+
+    httpRequestsTotal.inc(labels);
+
+    if (reply.statusCode >= 400) {
+      httpErrorsTotal.inc(labels);
+    }
 
     httpRequestDurationSeconds.observe(
       { method: request.method, route },
