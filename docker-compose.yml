@@ -34,6 +34,21 @@ services:
     networks:
       - notifier-network
 
+  notifier-worker:
+    container_name: notifier-worker
+    build:
+      context: .
+      dockerfile: Dockerfile.notifier
+    env_file: .env
+    environment:
+      RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
+    depends_on:
+      notifier-rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - notifier-network
+
   notifier-redis:
     image: redis:7-alpine
     container_name: notifier-redis

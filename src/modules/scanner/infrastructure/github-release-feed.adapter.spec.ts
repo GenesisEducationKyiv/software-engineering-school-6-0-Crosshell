@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { GithubReleaseFeedAdapter } from './github-release-feed.adapter';
-import type { IGithubHttpClient } from '@/modules/github/interfaces/github-http-client.interface';
-import type { GitHubRelease } from '@/modules/github/github.schemas';
+import type { IGithubHttpClient, GitHubRelease } from '@/modules/github';
 import { RateLimitError } from '@/shared/errors/app.errors';
 
 const OWNER = 'acc';

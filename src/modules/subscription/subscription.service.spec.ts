@@ -4,17 +4,15 @@ import { SubscriptionService } from './subscription.service';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
 import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
-import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
-import type {
-  IUnitOfWork,
-  UnitOfWorkContext,
-} from '@/infrastructure/database/unit-of-work';
+import type { IMailerService } from '@/modules/mailer';
+import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
+import type { SubscriptionUoWContext } from './infrastructure/subscription-uow-context.builder';
 import type { SubscribeInput } from './subscription.schemas';
-import type { Repository } from '@/modules/repository/types/repository.type';
+import type { Repository } from '@/modules/repository';
 import type { Subscription } from '@/modules/subscription/types/subscription.type';
 import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
 
-vi.mock('@/modules/subscription/subscription.urls', () => ({
+vi.mock('@/shared/utils/url-builders', () => ({
   buildConfirmUrl: vi.fn(
     (token: string) => `http://localhost:3000/api/confirm/${token}`,
   ),
@@ -26,7 +24,7 @@ vi.mock('@/modules/subscription/subscription.urls', () => ({
 import {
   buildConfirmUrl,
   buildUnsubscribeUrl,
-} from '@/modules/subscription/subscription.urls';
+} from '@/shared/utils/url-builders';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',
@@ -51,18 +49,18 @@ const MOCK_SUBSCRIPTION: Subscription = {
 
 describe('SubscriptionService', () => {
   let service: SubscriptionService;
-  let uow: ReturnType<typeof mock<IUnitOfWork>>;
+  let uow: ReturnType<typeof mock<IUnitOfWork<SubscriptionUoWContext>>>;
   let subscriptionRepository: ReturnType<typeof mock<ISubscriptionRepository>>;
   let repositorySource: ReturnType<typeof mock<IRepositorySource>>;
   let mailer: ReturnType<typeof mock<IMailerService>>;
-  let txCtx: ReturnType<typeof mockDeep<UnitOfWorkContext>>;
+  let txCtx: ReturnType<typeof mockDeep<SubscriptionUoWContext>>;
 
   beforeEach(() => {
-    txCtx = mockDeep<UnitOfWorkContext>();
+    txCtx = mockDeep<SubscriptionUoWContext>();
     txCtx.repositories.findOrCreate.mockResolvedValue(MOCK_REPOSITORY);
     txCtx.subscriptions.createSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
 
-    uow = mock<IUnitOfWork>();
+    uow = mock<IUnitOfWork<SubscriptionUoWContext>>();
     uow.run.mockImplementation((fn) => fn(txCtx));
 
     subscriptionRepository = mock<ISubscriptionRepository>();

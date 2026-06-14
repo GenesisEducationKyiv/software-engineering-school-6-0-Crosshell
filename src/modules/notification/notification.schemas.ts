@@ -1,11 +1,9 @@
 import { z } from 'zod';
 
-export const subscriberSchema = z.object({
+const subscriberSchema = z.object({
   email: z.email(),
   unsubscribeToken: z.uuid(),
 });
-
-export type Subscriber = z.infer<typeof subscriberSchema>;
 
 export const releaseNotificationPayloadSchema = z.object({
   repositoryOwner: z.string(),
@@ -18,3 +16,5 @@ export const releaseNotificationPayloadSchema = z.object({
 export type ReleaseNotificationPayload = z.infer<
   typeof releaseNotificationPayloadSchema
 >;
+
+export type SubscriberInfo = z.infer<typeof subscriberSchema>;

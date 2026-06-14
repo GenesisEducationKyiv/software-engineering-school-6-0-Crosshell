@@ -1,12 +1,13 @@
-import type { IReleaseFeed } from '@/modules/scanner/interfaces/release-feed.interface';
+import type { IReleaseFeed } from './interfaces/release-feed.interface';
 import { RateLimitError } from '@/shared/errors/app.errors';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
-import type { Repository } from '@/modules/repository/types/repository.type';
-import type { Subscriber } from '@/modules/notification/notification.schemas';
-import type { INotificationPublisher } from '../notification/interfaces/notification-publisher.interface';
+import type { IRepositoryRepository, Repository } from '@/modules/repository';
+import type {
+  INotificationPublisher,
+  SubscriberInfo,
+} from '@/modules/notification';
 import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
-import type { IScannerMetrics } from '@/modules/scanner/interfaces/scanner-metrics.interface';
+import type { IScannerMetrics } from './interfaces/scanner-metrics.interface';
 
 export class ScannerService {
   constructor(
@@ -49,7 +50,7 @@ export class ScannerService {
 
   private async scanRepository(
     repository: Repository,
-    subscribers: Subscriber[],
+    subscribers: SubscriberInfo[],
   ): Promise<void> {
     try {
       const release = await this.releaseFeed.getLatestRelease(

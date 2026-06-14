@@ -15,7 +15,7 @@ import {
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
-import { UnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work-context.builder';
+import { SubscriptionUoWContextBuilder } from '@/modules/subscription/infrastructure/subscription-uow-context.builder';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
 import { GithubHttpClient } from '@/modules/github/github-http-client';
 import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
@@ -74,7 +74,7 @@ beforeAll(async () => {
     .mockImplementation(async () => {});
 
   subscriptionService = new SubscriptionService(
-    new UnitOfWork(db, new UnitOfWorkContextBuilder()),
+    new UnitOfWork(db, new SubscriptionUoWContextBuilder()),
     new SubscriptionRepository(db),
     new GithubRepositorySourceAdapter(
       new CachingGithubHttpClientDecorator(

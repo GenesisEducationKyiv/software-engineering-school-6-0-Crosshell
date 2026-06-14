@@ -1,7 +1,9 @@
-import type { Subscriber } from '@/modules/notification/notification.schemas';
-import type { Repository } from '@/modules/repository/types/repository.type';
+import type { Repository } from './repository.type';
+import type { SubscriberInfo } from '@/modules/notification';
+
+export type { SubscriberInfo };
 
 export type RepositoryWithSubscribers = {
   repository: Repository;
-  subscribers: Subscriber[];
+  subscribers: SubscriberInfo[];
 };

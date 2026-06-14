@@ -2,14 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { ScannerService } from './scanner.service';
 import { RateLimitError } from '@/shared/errors/app.errors';
-import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
+import type {
+  IRepositoryRepository,
+  Repository,
+  RepositoryWithSubscribers,
+} from '@/modules/repository';
 import type { IReleaseFeed } from '@/modules/scanner/interfaces/release-feed.interface';
-import type { INotificationPublisher } from '../notification/interfaces/notification-publisher.interface';
+import type { INotificationPublisher, SubscriberInfo } from '@/modules/notification';
 import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
-import type { Subscriber } from '@/modules/notification/notification.schemas';
-import type { Repository } from '@/modules/repository/types/repository.type';
 import type { VcsRelease } from '@/modules/scanner/types/vcs-release.type';
-import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { IScannerMetrics } from '@/modules/scanner/interfaces/scanner-metrics.interface';
 
@@ -20,7 +21,7 @@ const MOCK_REPOSITORY: Repository = {
   lastSeenTag: 'v1.0.0',
 };
 
-const MOCK_SUBSCRIBER: Subscriber = {
+const MOCK_SUBSCRIBER: SubscriberInfo = {
   email: 'user@example.com',
   unsubscribeToken: '00000000-0000-0000-0000-000000000001',
 };
@@ -32,7 +33,7 @@ const MOCK_RELEASE: VcsRelease = {
 
 function makeEntry(
   repository: Repository,
-  subscribers: Subscriber[] = [MOCK_SUBSCRIBER],
+  subscribers: SubscriberInfo[] = [MOCK_SUBSCRIBER],
 ): RepositoryWithSubscribers {
   return { repository, subscribers };
 }

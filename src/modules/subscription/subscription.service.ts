@@ -2,15 +2,16 @@ import type { ISubscriptionRepository } from '@/modules/subscription/interfaces/
 import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
 import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
-import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
+import type { IMailerService } from '@/modules/mailer';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
+import type { SubscriptionUoWContext } from './infrastructure/subscription-uow-context.builder';
 import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 import {
   buildConfirmUrl,
   buildUnsubscribeUrl,
-} from '@/modules/subscription/subscription.urls';
+} from '@/shared/utils/url-builders';
 
 export interface SubscriptionServiceConfig {
   appUrl: string;
@@ -18,7 +19,7 @@ export interface SubscriptionServiceConfig {
 
 export class SubscriptionService implements ISubscriptionService {
   constructor(
-    private readonly uow: IUnitOfWork,
+    private readonly uow: IUnitOfWork<SubscriptionUoWContext>,
     private readonly subscriptionRepository: ISubscriptionRepository,
     private readonly repositorySource: IRepositorySource,
     private readonly mailer: IMailerService,

@@ -1,4 +1,4 @@
-import type { IGithubHttpClient } from '@/modules/github/interfaces/github-http-client.interface';
+import type { IGithubHttpClient } from '@/modules/github';
 import type { IRepositorySource } from '../interfaces/repository-source.interface';
 import type { VcsRepository } from '../types/vcs-repository.type';
 

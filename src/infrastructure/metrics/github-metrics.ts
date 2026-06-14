@@ -1,7 +1,4 @@
-import type {
-  IGithubApiMetrics,
-  IGithubCacheMetrics,
-} from '@/modules/github/interfaces/github-metrics.interface';
+import type { IGithubApiMetrics, IGithubCacheMetrics } from '@/modules/github';
 import {
   githubApiRequestsTotal,
   githubApiErrorsTotal,
