@@ -3,8 +3,7 @@ import type { SubscribeInput } from '@/modules/subscription/subscription.schemas
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
 import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
 import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
-import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
-import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
+import { NotFoundError } from '@/shared/errors/app.errors';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 import {
@@ -32,19 +31,11 @@ export class SubscriptionService implements ISubscriptionService {
 
     const sub = await this.uow.run(async ({ repositories, subscriptions }) => {
       const repository = await repositories.findOrCreate(owner, repo);
-      try {
-        return await subscriptions.createSubscription({
-          email: input.email,
-          repositoryId: repository.id,
-        });
-      } catch (err) {
-        if (isUniqueConstraintError(err)) {
-          throw new ConflictError(
-            'Email is already subscribed to this repository',
-          );
-        }
-        throw err;
-      }
+
+      return subscriptions.createSubscription({
+        email: input.email,
+        repositoryId: repository.id,
+      });
     });
 
     const confirmUrl = buildConfirmUrl(sub.confirmToken, this.config.appUrl);

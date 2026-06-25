@@ -1,57 +1,21 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
-import {
-  repositoriesTable,
-  subscriptionsTable,
-} from '@/infrastructure/database/schema';
-import { RepositoryRepository } from '@/modules/repository/repository.repository';
-import { GithubHttpClient } from '@/modules/github/github-http-client';
-import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
-import { GithubReleaseFeedAdapter } from '@/modules/scanner/infrastructure/github-release-feed.adapter';
-import { CacheService } from '@/infrastructure/cache/cache.service';
-import { ScannerService } from '@/modules/scanner/scanner.service';
-import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
-import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
-import { logger } from '@/shared/logger';
-import { useDb, seedRepoWithConfirmedSubscriber } from './helpers/db.helper';
-import { useRedis } from './helpers/redis.helper';
-import { useQueue, consumeOneNotification } from './helpers/queue.helper';
+import { useScannerTest } from './helpers/scanner-test.helper';
+import { consumeOneNotification } from './helpers/queue.helper';
 import { mswServer } from './setup';
 
-const { getDb } = useDb();
-const { getRedis } = useRedis();
-const { getQueueManager, getNotificationQueue } = useQueue();
-
-function buildScannerService(): ScannerService {
-  return new ScannerService(
-    new RepositoryRepository(getDb()),
-    new GithubReleaseFeedAdapter(
-      new CachingGithubHttpClientDecorator(
-        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
-        new CacheService(getRedis(), logger),
-        new GithubMetrics(),
-        { cacheTtlSeconds: 600 },
-      ),
-    ),
-    getNotificationQueue(),
-    { start: () => {} },
-    logger,
-    new ScannerMetrics(),
-  );
-}
-
-let scannerService: ScannerService;
-
-beforeAll(() => {
-  scannerService = buildScannerService();
-});
+const {
+  getService,
+  getQueueManager,
+  seedRepoWithConfirmedSubscriber,
+  insertRepo,
+  insertSubscription,
+  getRepoById,
+} = useScannerTest();
 
 describe('ScannerService.scan()', () => {
   it('publishes a notification and updates lastSeenTag when a new release is detected', async () => {
     const { repoRow, subRow } = await seedRepoWithConfirmedSubscriber(
-      getDb(),
       'vercel',
       'next.js',
       'v14.0.0',
@@ -68,7 +32,7 @@ describe('ScannerService.scan()', () => {
       ),
     );
 
-    await scannerService.scan();
+    await getService().scan();
 
     const message = await consumeOneNotification(
       getQueueManager().getChannel(),
@@ -88,52 +52,33 @@ describe('ScannerService.scan()', () => {
       ],
     });
 
-    const [updatedRepo] = await getDb()
-      .select()
-      .from(repositoriesTable)
-      .where(eq(repositoriesTable.id, repoRow.id));
-
-    expect(updatedRepo.lastSeenTag).toBe('v15.0.0');
+    const updatedRepo = await getRepoById(repoRow.id);
+    expect(updatedRepo?.lastSeenTag).toBe('v15.0.0');
   });
 
   it('does not publish and does not update the DB when the release tag is unchanged', async () => {
     const { repoRow } = await seedRepoWithConfirmedSubscriber(
-      getDb(),
       'golang',
       'go',
       'v1.0.0',
     );
 
-    await scannerService.scan();
+    await getService().scan();
 
     const message = await consumeOneNotification(
       getQueueManager().getChannel(),
     );
     expect(message).toBeNull();
 
-    const [row] = await getDb()
-      .select()
-      .from(repositoriesTable)
-      .where(eq(repositoriesTable.id, repoRow.id));
-
-    expect(row.lastSeenTag).toBe('v1.0.0');
+    const row = await getRepoById(repoRow.id);
+    expect(row?.lastSeenTag).toBe('v1.0.0');
   });
 
   it('does not publish for repositories that have no confirmed subscriptions', async () => {
-    const [repoRow] = await getDb()
-      .insert(repositoriesTable)
-      .values({ owner: 'golang', repo: 'go', lastSeenTag: null })
-      .returning();
+    const repoRow = await insertRepo('golang', 'go', null);
+    await insertSubscription('unconfirmed@example.com', repoRow.id, false);
 
-    await getDb().insert(subscriptionsTable).values({
-      email: 'unconfirmed@example.com',
-      repositoryId: repoRow.id,
-      confirmed: false,
-      confirmToken: randomUUID(),
-      unsubscribeToken: randomUUID(),
-    });
-
-    await scannerService.scan();
+    await getService().scan();
 
     const message = await consumeOneNotification(
       getQueueManager().getChannel(),
@@ -142,32 +87,17 @@ describe('ScannerService.scan()', () => {
   });
 
   it('publishes notifications with the correct payload for all confirmed subscribers', async () => {
-    const [repoRow] = await getDb()
-      .insert(repositoriesTable)
-      .values({ owner: 'facebook', repo: 'react', lastSeenTag: 'v18.0.0' })
-      .returning();
-
-    const token1 = randomUUID();
-    const token2 = randomUUID();
-
-    await getDb()
-      .insert(subscriptionsTable)
-      .values([
-        {
-          email: 'alice@example.com',
-          repositoryId: repoRow.id,
-          confirmed: true,
-          confirmToken: randomUUID(),
-          unsubscribeToken: token1,
-        },
-        {
-          email: 'bob@example.com',
-          repositoryId: repoRow.id,
-          confirmed: true,
-          confirmToken: randomUUID(),
-          unsubscribeToken: token2,
-        },
-      ]);
+    const repoRow = await insertRepo('facebook', 'react', 'v18.0.0');
+    const aliceSub = await insertSubscription(
+      'alice@example.com',
+      repoRow.id,
+      true,
+    );
+    const bobSub = await insertSubscription(
+      'bob@example.com',
+      repoRow.id,
+      true,
+    );
 
     mswServer.use(
       http.get(
@@ -180,7 +110,7 @@ describe('ScannerService.scan()', () => {
       ),
     );
 
-    await scannerService.scan();
+    await getService().scan();
 
     const message = await consumeOneNotification(
       getQueueManager().getChannel(),
@@ -190,8 +120,11 @@ describe('ScannerService.scan()', () => {
     expect(message!.subscribers).toHaveLength(2);
     expect(message!.subscribers).toEqual(
       expect.arrayContaining([
-        { email: 'alice@example.com', unsubscribeToken: token1 },
-        { email: 'bob@example.com', unsubscribeToken: token2 },
+        {
+          email: 'alice@example.com',
+          unsubscribeToken: aliceSub.unsubscribeToken,
+        },
+        { email: 'bob@example.com', unsubscribeToken: bobSub.unsubscribeToken },
       ]),
     );
     expect(message!.newTag).toBe('v19.0.0');
@@ -199,13 +132,12 @@ describe('ScannerService.scan()', () => {
 
   it('processes a first-ever release (lastSeenTag was null)', async () => {
     const { repoRow } = await seedRepoWithConfirmedSubscriber(
-      getDb(),
       'golang',
       'go',
       null,
     );
 
-    await scannerService.scan();
+    await getService().scan();
 
     const message = await consumeOneNotification(
       getQueueManager().getChannel(),
@@ -213,19 +145,14 @@ describe('ScannerService.scan()', () => {
     expect(message).not.toBeNull();
     expect(message!.newTag).toBe('v1.0.0');
 
-    const [updatedRepo] = await getDb()
-      .select()
-      .from(repositoriesTable)
-      .where(eq(repositoriesTable.id, repoRow.id));
-
-    expect(updatedRepo.lastSeenTag).toBe('v1.0.0');
+    const updatedRepo = await getRepoById(repoRow.id);
+    expect(updatedRepo?.lastSeenTag).toBe('v1.0.0');
   });
 
   it('continues scanning other repos when one GitHub API call returns 404', async () => {
-    await seedRepoWithConfirmedSubscriber(getDb(), 'bad', 'nonexistent', null);
+    await seedRepoWithConfirmedSubscriber('bad', 'nonexistent', null);
 
     const { repoRow: repoBRow } = await seedRepoWithConfirmedSubscriber(
-      getDb(),
       'golang',
       'go',
       null,
@@ -238,7 +165,7 @@ describe('ScannerService.scan()', () => {
       ),
     );
 
-    await scannerService.scan();
+    await getService().scan();
 
     const message = await consumeOneNotification(
       getQueueManager().getChannel(),
@@ -246,11 +173,7 @@ describe('ScannerService.scan()', () => {
     expect(message).not.toBeNull();
     expect(message!.repositoryRepo).toBe('go');
 
-    const [updatedB] = await getDb()
-      .select()
-      .from(repositoriesTable)
-      .where(eq(repositoriesTable.id, repoBRow.id));
-
-    expect(updatedB.lastSeenTag).toBe('v1.0.0');
+    const updatedB = await getRepoById(repoBRow.id);
+    expect(updatedB?.lastSeenTag).toBe('v1.0.0');
   });
 });
