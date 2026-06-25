@@ -11,19 +11,31 @@ import type { ISubscriptionService } from '@/modules/subscription/interfaces/sub
 import { CacheService } from '@/infrastructure/cache/cache.service';
 import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { logger } from '@/shared/logger';
-import type { Database } from '@/infrastructure/database';
 import { buildSubscriptionApp } from './app.helper';
-import { useDb } from './db.helper';
+import { useDb, type UseDbReturn } from './db.helper';
 import { useRedis } from './redis.helper';
 import { createTestMailer } from './mailer.helper';
 
-export function useSubscriptionTest(): {
+type SubscriptionTestReturn = {
   getApp: () => FastifyInstance;
   getService: () => ISubscriptionService;
   getSendConfirmationSpy: () => MockInstance;
-  getDb: () => Database;
-} {
-  const { getDb } = useDb();
+  findRepoByOwnerAndRepo: UseDbReturn['findRepoByOwnerAndRepo'];
+  findAllRepos: UseDbReturn['findAllRepos'];
+  findAllSubscriptions: UseDbReturn['findAllSubscriptions'];
+  findSubscriptionById: UseDbReturn['findSubscriptionById'];
+  findSubscriptionByEmailAndRepo: UseDbReturn['findSubscriptionByEmailAndRepo'];
+};
+
+export function useSubscriptionTest(): SubscriptionTestReturn {
+  const {
+    getDb,
+    findRepoByOwnerAndRepo,
+    findAllRepos,
+    findAllSubscriptions,
+    findSubscriptionById,
+    findSubscriptionByEmailAndRepo,
+  } = useDb();
   const { getRedis } = useRedis();
 
   let app: FastifyInstance;
@@ -69,6 +81,10 @@ export function useSubscriptionTest(): {
     getApp: () => app,
     getService: () => subscriptionService,
     getSendConfirmationSpy: () => sendConfirmationSpy,
-    getDb,
+    findRepoByOwnerAndRepo,
+    findAllRepos,
+    findAllSubscriptions,
+    findSubscriptionById,
+    findSubscriptionByEmailAndRepo,
   };
 }

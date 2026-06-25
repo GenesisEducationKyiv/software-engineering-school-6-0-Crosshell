@@ -1,17 +1,20 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { and, eq } from 'drizzle-orm';
-import {
-  repositoriesTable,
-  subscriptionsTable,
-} from '@/infrastructure/database/schema';
 import type { FastifyInstance } from 'fastify';
 import { buildSubscriptionApp } from './helpers/app.helper';
 import { useSubscriptionTest } from './helpers/subscription-test.helper';
 import { mswServer } from './setup';
 
-const { getApp, getService, getSendConfirmationSpy, getDb } =
-  useSubscriptionTest();
+const {
+  getApp,
+  getService,
+  getSendConfirmationSpy,
+  findRepoByOwnerAndRepo,
+  findAllRepos,
+  findAllSubscriptions,
+  findSubscriptionById,
+  findSubscriptionByEmailAndRepo,
+} = useSubscriptionTest();
 
 describe('POST /api/subscribe', () => {
   it('returns 200 and persists repository + unconfirmed subscription, then sends confirmation email', async () => {
@@ -26,41 +29,32 @@ describe('POST /api/subscribe', () => {
       message: expect.stringContaining('Confirmation email sent'),
     });
 
-    const [repoRow] = await getDb()
-      .select()
-      .from(repositoriesTable)
-      .where(
-        and(
-          eq(repositoriesTable.owner, 'golang'),
-          eq(repositoriesTable.repo, 'go'),
-        ),
-      );
-
+    const repoRow = await findRepoByOwnerAndRepo('golang', 'go');
     expect(repoRow).toBeDefined();
-    expect(repoRow.owner).toBe('golang');
-    expect(repoRow.repo).toBe('go');
-    expect(repoRow.lastSeenTag).toBeNull();
+    expect(repoRow?.owner).toBe('golang');
+    expect(repoRow?.repo).toBe('go');
+    expect(repoRow?.lastSeenTag).toBeNull();
 
-    const [subRow] = await getDb()
-      .select()
-      .from(subscriptionsTable)
-      .where(eq(subscriptionsTable.repositoryId, repoRow.id));
-
+    const subRow = await findSubscriptionByEmailAndRepo(
+      'alice@example.com',
+      'golang',
+      'go',
+    );
     expect(subRow).toBeDefined();
-    expect(subRow.email).toBe('alice@example.com');
-    expect(subRow.confirmed).toBe(false);
-    expect(subRow.confirmToken).toMatch(
+    expect(subRow?.email).toBe('alice@example.com');
+    expect(subRow?.confirmed).toBe(false);
+    expect(subRow?.confirmToken).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
-    expect(subRow.unsubscribeToken).toMatch(
+    expect(subRow?.unsubscribeToken).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
 
     expect(getSendConfirmationSpy()).toHaveBeenCalledOnce();
     expect(getSendConfirmationSpy()).toHaveBeenCalledWith(
       'alice@example.com',
-      expect.stringContaining(subRow.confirmToken),
-      expect.stringContaining(subRow.unsubscribeToken),
+      expect.stringContaining(subRow!.confirmToken),
+      expect.stringContaining(subRow!.unsubscribeToken),
     );
   });
 
@@ -95,7 +89,7 @@ describe('POST /api/subscribe', () => {
 
     expect(response.statusCode).toBe(404);
 
-    const repos = await getDb().select().from(repositoriesTable);
+    const repos = await findAllRepos();
     expect(repos).toHaveLength(0);
   });
 
@@ -119,22 +113,22 @@ describe('GET /api/confirm/:token', () => {
       payload: { email: 'alice@example.com', repo: 'golang/go' },
     });
 
-    const [subRow] = await getDb().select().from(subscriptionsTable);
-    expect(subRow.confirmed).toBe(false);
+    const subRow = await findSubscriptionByEmailAndRepo(
+      'alice@example.com',
+      'golang',
+      'go',
+    );
+    expect(subRow?.confirmed).toBe(false);
 
     const response = await getApp().inject({
       method: 'GET',
-      url: `/api/confirm/${subRow.confirmToken}`,
+      url: `/api/confirm/${subRow!.confirmToken}`,
     });
 
     expect(response.statusCode).toBe(200);
 
-    const [confirmedRow] = await getDb()
-      .select()
-      .from(subscriptionsTable)
-      .where(eq(subscriptionsTable.id, subRow.id));
-
-    expect(confirmedRow.confirmed).toBe(true);
+    const confirmedRow = await findSubscriptionById(subRow!.id);
+    expect(confirmedRow?.confirmed).toBe(true);
   });
 
   it('returns 404 for an unknown confirmation token', async () => {
@@ -155,16 +149,20 @@ describe('GET /api/unsubscribe/:token', () => {
       payload: { email: 'alice@example.com', repo: 'golang/go' },
     });
 
-    const [subRow] = await getDb().select().from(subscriptionsTable);
+    const subRow = await findSubscriptionByEmailAndRepo(
+      'alice@example.com',
+      'golang',
+      'go',
+    );
 
     const response = await getApp().inject({
       method: 'GET',
-      url: `/api/unsubscribe/${subRow.unsubscribeToken}`,
+      url: `/api/unsubscribe/${subRow!.unsubscribeToken}`,
     });
 
     expect(response.statusCode).toBe(200);
 
-    const remaining = await getDb().select().from(subscriptionsTable);
+    const remaining = await findAllSubscriptions();
     expect(remaining).toHaveLength(0);
   });
 
@@ -191,24 +189,15 @@ describe('GET /api/subscriptions', () => {
       payload: { email: 'alice@example.com', repo: 'facebook/react' },
     });
 
-    const [golangSub] = await getDb()
-      .select({ confirmToken: subscriptionsTable.confirmToken })
-      .from(subscriptionsTable)
-      .innerJoin(
-        repositoriesTable,
-        eq(subscriptionsTable.repositoryId, repositoriesTable.id),
-      )
-      .where(
-        and(
-          eq(subscriptionsTable.email, 'alice@example.com'),
-          eq(repositoriesTable.owner, 'golang'),
-          eq(repositoriesTable.repo, 'go'),
-        ),
-      );
+    const golangSub = await findSubscriptionByEmailAndRepo(
+      'alice@example.com',
+      'golang',
+      'go',
+    );
 
     await getApp().inject({
       method: 'GET',
-      url: `/api/confirm/${golangSub.confirmToken}`,
+      url: `/api/confirm/${golangSub!.confirmToken}`,
     });
 
     const response = await getApp().inject({

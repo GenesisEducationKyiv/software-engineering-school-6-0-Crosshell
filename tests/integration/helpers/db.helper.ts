@@ -1,4 +1,4 @@
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
@@ -13,7 +13,7 @@ import type { Database } from '@/infrastructure/database';
 type RepoRow = typeof repositoriesTable.$inferSelect;
 type SubRow = typeof subscriptionsTable.$inferSelect;
 
-export function useDb(): {
+export type UseDbReturn = {
   getDb: () => Database;
   seedRepoWithConfirmedSubscriber: (
     owner: string,
@@ -32,7 +32,21 @@ export function useDb(): {
     confirmed: boolean,
   ) => Promise<SubRow>;
   getRepoById: (id: string) => Promise<RepoRow | null>;
-} {
+  findRepoByOwnerAndRepo: (
+    owner: string,
+    repo: string,
+  ) => Promise<RepoRow | null>;
+  findAllRepos: () => Promise<RepoRow[]>;
+  findAllSubscriptions: () => Promise<SubRow[]>;
+  findSubscriptionById: (id: string) => Promise<SubRow | null>;
+  findSubscriptionByEmailAndRepo: (
+    email: string,
+    owner: string,
+    repo: string,
+  ) => Promise<SubRow | null>;
+};
+
+export function useDb(): UseDbReturn {
   let pool: Pool;
   let db: Database;
 
@@ -119,11 +133,70 @@ export function useDb(): {
     return row ?? null;
   }
 
+  async function findRepoByOwnerAndRepo(owner: string, repo: string) {
+    const [row] = await db
+      .select()
+      .from(repositoriesTable)
+      .where(
+        and(
+          eq(repositoriesTable.owner, owner),
+          eq(repositoriesTable.repo, repo),
+        ),
+      );
+
+    return row ?? null;
+  }
+
+  async function findAllRepos() {
+    return db.select().from(repositoriesTable);
+  }
+
+  async function findAllSubscriptions() {
+    return db.select().from(subscriptionsTable);
+  }
+
+  async function findSubscriptionById(id: string) {
+    const [row] = await db
+      .select()
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.id, id));
+
+    return row ?? null;
+  }
+
+  async function findSubscriptionByEmailAndRepo(
+    email: string,
+    owner: string,
+    repo: string,
+  ) {
+    const repoRow = await findRepoByOwnerAndRepo(owner, repo);
+    if (!repoRow) {
+      return null;
+    }
+
+    const [row] = await db
+      .select()
+      .from(subscriptionsTable)
+      .where(
+        and(
+          eq(subscriptionsTable.email, email),
+          eq(subscriptionsTable.repositoryId, repoRow.id),
+        ),
+      );
+
+    return row ?? null;
+  }
+
   return {
     getDb,
     seedRepoWithConfirmedSubscriber,
     insertRepo,
     insertSubscription,
     getRepoById,
+    findRepoByOwnerAndRepo,
+    findAllRepos,
+    findAllSubscriptions,
+    findSubscriptionById,
+    findSubscriptionByEmailAndRepo,
   };
 }
