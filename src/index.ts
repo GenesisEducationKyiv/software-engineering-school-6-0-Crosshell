@@ -5,6 +5,7 @@ import { server } from './server';
 import { db, pool } from '@/infrastructure/database';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { NotificationQueue } from '@/modules/notification';
+import { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import {
   subscriptionRoutes,
   createSubscriptionGrpcHandlers,
@@ -37,23 +38,33 @@ const start = async () => {
     const notificationQueue = new NotificationQueue(queueManager, logger);
     await notificationQueue.setup();
 
-    const { subscriptionService, scannerService } = createContainer(
-      notificationQueue,
-      cache,
-      logger,
-    );
+    const sagaCommandsQueue = new SagaCommandsQueue(queueManager, logger);
+    await sagaCommandsQueue.setup();
+
+    const { subscriptionService, scannerService, subscribeSagaOrchestrator } =
+      createContainer(notificationQueue, sagaCommandsQueue, cache, logger);
+
+    await subscribeSagaOrchestrator.recoverPendingSagas();
+    subscribeSagaOrchestrator.startReplyConsumer();
 
     const grpcServer = new GrpcServer();
     grpcServer.addService(
       getSubscriptionServiceDefinition(),
-      createSubscriptionGrpcHandlers(subscriptionService, appConfig.apiKey),
+      createSubscriptionGrpcHandlers(
+        subscriptionService,
+        subscribeSagaOrchestrator,
+        appConfig.apiKey,
+      ),
     );
 
     registerGracefulShutdown({ server, grpcServer, queueManager, pool, cache });
 
-    await server.register(subscriptionRoutes(subscriptionService), {
-      prefix: '/api',
-    });
+    await server.register(
+      subscriptionRoutes(subscriptionService, subscribeSagaOrchestrator),
+      {
+        prefix: '/api',
+      },
+    );
 
     await server.listen({ port: appConfig.port, host: '0.0.0.0' });
     await grpcServer.start(grpcConfig.port);
@@ -62,6 +73,8 @@ const start = async () => {
 
     queueManager.setReconnectHandler(async () => {
       await notificationQueue.setup();
+      await sagaCommandsQueue.setup();
+      subscribeSagaOrchestrator.startReplyConsumer();
     });
 
     if (appConfig.nodeEnv === 'development') {

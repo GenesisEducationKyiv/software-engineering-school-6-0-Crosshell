@@ -1,13 +1,4 @@
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-  vi,
-  type MockInstance,
-} from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { and, eq } from 'drizzle-orm';
 import {
@@ -15,7 +6,6 @@ import {
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
-import { SubscriptionUoWContextBuilder } from '@/modules/subscription/infrastructure/subscription-uow-context.builder';
 import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
 import { GithubHttpClient } from '@/modules/github/github-http-client';
 import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
@@ -38,14 +28,47 @@ import apiKeyPlugin from '@/shared/plugins/api-key.plugin';
 import subscriptionRoutes from '@/modules/subscription/subscription.routes';
 import { useDb } from './helpers/db.helper';
 import { useRedis } from './helpers/redis.helper';
-import { createTestMailer } from './helpers/mailer.helper';
 import { mswServer } from './setup';
+import type { SubscribeSagaOrchestrator } from '@/modules/saga';
+import { SubscribeSagaUoWContextBuilder } from '@/modules/saga';
+import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
+import { ConflictError } from '@/shared/errors/app.errors';
+import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
 
 const { getDb } = useDb();
 const { getRedis } = useRedis();
 
+function buildMockOrchestrator(
+  repositorySource: GithubRepositorySourceAdapter,
+): SubscribeSagaOrchestrator {
+  return {
+    startReplyConsumer: () => {},
+    execute: async (input: SubscribeInput) => {
+      const { owner, repo } = await repositorySource.getRepository(input.repo);
+      const uow = new UnitOfWork(getDb(), new SubscribeSagaUoWContextBuilder());
+      await uow.run(async ({ repositories, subscriptions }) => {
+        const repository = await repositories.findOrCreate(owner, repo);
+        try {
+          await subscriptions.createSubscription({
+            email: input.email,
+            repositoryId: repository.id,
+          });
+        } catch (err) {
+          if (isUniqueConstraintError(err)) {
+            throw new ConflictError(
+              'Email is already subscribed to this repository',
+            );
+          }
+          throw err;
+        }
+      });
+    },
+  } as unknown as SubscribeSagaOrchestrator;
+}
+
 async function buildApp(
   service: ISubscriptionService,
+  orchestrator: SubscribeSagaOrchestrator,
   options: { apiKey?: string } = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
@@ -54,7 +77,7 @@ async function buildApp(
   app.register(errorHandlerPlugin);
   app.register(healthPlugin);
   app.register(apiKeyPlugin, { apiKey: options.apiKey });
-  app.register(subscriptionRoutes(service), { prefix: '/api' });
+  app.register(subscriptionRoutes(service, orchestrator), { prefix: '/api' });
   await app.ready();
 
   return app;
@@ -62,45 +85,30 @@ async function buildApp(
 
 let app: FastifyInstance;
 let subscriptionService: ISubscriptionService;
-let sendConfirmationSpy: MockInstance;
+let repositorySource: GithubRepositorySourceAdapter;
 
 beforeAll(async () => {
-  const db = getDb();
   const cache = new CacheService(getRedis(), logger);
-  const mailer = createTestMailer();
 
-  sendConfirmationSpy = vi
-    .spyOn(mailer, 'sendConfirmationEmail')
-    .mockImplementation(async () => {});
-
-  subscriptionService = new SubscriptionService(
-    new UnitOfWork(db, new SubscriptionUoWContextBuilder()),
-    new SubscriptionRepository(db),
-    new GithubRepositorySourceAdapter(
-      new CachingGithubHttpClientDecorator(
-        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
-        cache,
-        new GithubMetrics(),
-        { cacheTtlSeconds: 600 },
-      ),
+  repositorySource = new GithubRepositorySourceAdapter(
+    new CachingGithubHttpClientDecorator(
+      new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
+      cache,
+      new GithubMetrics(),
+      { cacheTtlSeconds: 600 },
     ),
-    mailer,
-    { appUrl: 'http://localhost:3000' },
   );
 
-  app = await buildApp(subscriptionService);
-});
+  subscriptionService = new SubscriptionService(
+    new SubscriptionRepository(getDb()),
+  );
 
-afterAll(async () => {
-  await app.close();
-});
-
-beforeEach(() => {
-  sendConfirmationSpy.mockClear();
+  const orchestrator = buildMockOrchestrator(repositorySource);
+  app = await buildApp(subscriptionService, orchestrator);
 });
 
 describe('POST /api/subscribe', () => {
-  it('returns 200 and persists repository + unconfirmed subscription, then sends confirmation email', async () => {
+  it('returns 200 and persists repository + unconfirmed subscription', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/subscribe',
@@ -140,13 +148,6 @@ describe('POST /api/subscribe', () => {
     );
     expect(subRow.unsubscribeToken).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    );
-
-    expect(sendConfirmationSpy).toHaveBeenCalledOnce();
-    expect(sendConfirmationSpy).toHaveBeenCalledWith(
-      'alice@example.com',
-      expect.stringContaining(subRow.confirmToken),
-      expect.stringContaining(subRow.unsubscribeToken),
     );
   });
 
@@ -193,7 +194,6 @@ describe('POST /api/subscribe', () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(sendConfirmationSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -331,7 +331,10 @@ describe('API Key auth', () => {
   let apiKeyApp: FastifyInstance;
 
   beforeAll(async () => {
-    apiKeyApp = await buildApp(subscriptionService, { apiKey: 'test-key' });
+    const orchestrator = buildMockOrchestrator(repositorySource);
+    apiKeyApp = await buildApp(subscriptionService, orchestrator, {
+      apiKey: 'test-key',
+    });
   });
 
   afterAll(async () => {

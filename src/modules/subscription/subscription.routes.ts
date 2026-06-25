@@ -10,6 +10,7 @@ import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscrip
 import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
 import type { AppServer } from '@/server';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
+import type { SubscribeSagaOrchestrator } from '@/modules/saga';
 
 function toResponse(subscription: SubscriptionWithRepo): SubscriptionResponse {
   return {
@@ -21,13 +22,16 @@ function toResponse(subscription: SubscriptionWithRepo): SubscriptionResponse {
 }
 
 const subscriptionRoutes =
-  (service: ISubscriptionService): FastifyPluginAsyncZod =>
+  (
+    service: ISubscriptionService,
+    orchestrator: SubscribeSagaOrchestrator,
+  ): FastifyPluginAsyncZod =>
   async (server: AppServer): Promise<void> => {
     server.post(
       '/subscribe',
       { schema: { body: subscribeSchema } },
       async (request, reply) => {
-        await service.subscribe(request.body);
+        await orchestrator.execute(request.body);
 
         return reply.code(HttpStatus.OK).send({
           message: 'Subscription successful. Confirmation email sent',

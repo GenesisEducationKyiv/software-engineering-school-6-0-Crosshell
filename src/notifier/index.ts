@@ -6,6 +6,8 @@ import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { NotificationQueue, NotificationService } from '@/modules/notification';
 import { MailerService, NodemailerEmailTransport } from '@/modules/mailer';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
+import { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
+import { SagaCommandHandler } from './saga-command.handler';
 import { logger } from '@/shared/logger';
 import nodemailer from 'nodemailer';
 
@@ -27,9 +29,7 @@ const start = async () => {
     });
     const mailer = new MailerService(
       new NodemailerEmailTransport(transporter),
-      {
-        from: mailerConfig.from,
-      },
+      { from: mailerConfig.from },
     );
 
     const notificationService = new NotificationService(
@@ -40,11 +40,26 @@ const start = async () => {
       { appUrl: appConfig.appUrl },
     );
 
-    notificationService.start();
+    const sagaCommandsQueue = new SagaCommandsQueue(queueManager, logger);
+    await sagaCommandsQueue.setup();
+
+    const sagaCommandHandler = new SagaCommandHandler(
+      mailer,
+      sagaCommandsQueue,
+      logger,
+    );
+
+    const startConsumers = (): void => {
+      notificationService.start();
+      sagaCommandHandler.start();
+    };
+
+    startConsumers();
 
     queueManager.setReconnectHandler(async () => {
       await notificationQueue.setup();
-      notificationService.start();
+      await sagaCommandsQueue.setup();
+      startConsumers();
     });
 
     const shutdown = async (signal: string) => {

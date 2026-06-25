@@ -1,0 +1,48 @@
+import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
+import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
+import type { ILogger } from '@/shared/logger/logger.interface';
+import type { SendConfirmationEmailCommand } from '@/modules/saga/saga.types';
+
+export class SagaCommandHandler {
+  constructor(
+    private readonly mailer: IMailerService,
+    private readonly sagaCommandsQueue: SagaCommandsQueue,
+    private readonly logger: ILogger,
+  ) {}
+
+  start(): void {
+    this.sagaCommandsQueue.consumeCommands(async (command) => {
+      if (command.type === 'SEND_CONFIRMATION_EMAIL') {
+        await this.handleSendConfirmationEmail(command);
+      }
+    });
+  }
+
+  private async handleSendConfirmationEmail(
+    command: SendConfirmationEmailCommand,
+  ): Promise<void> {
+    const { correlationId, payload } = command;
+    try {
+      await this.mailer.sendConfirmationEmail(
+        payload.email,
+        payload.confirmUrl,
+        payload.unsubscribeUrl,
+      );
+      this.sagaCommandsQueue.publishReply({
+        correlationId,
+        type: 'SEND_CONFIRMATION_EMAIL_SUCCESS',
+      });
+      this.logger.info({ correlationId }, '[Saga] Confirmation email sent');
+    } catch (err) {
+      this.logger.error(
+        { err, correlationId },
+        '[Saga] Failed to send confirmation email',
+      );
+      this.sagaCommandsQueue.publishReply({
+        correlationId,
+        type: 'SEND_CONFIRMATION_EMAIL_FAILURE',
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+}

@@ -68,12 +68,32 @@ services:
         condition: service_healthy
       e2e-redis:
         condition: service_healthy
+      notifier-worker:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - notifier-e2e-network
+
+  notifier-worker:
+    build: .
+    command: ["node", "dist/notifier/index.js"]
+    environment:
+      RABBITMQ_URL: "amqp://e2e-rabbitmq:5672"
+      APP_URL: "http://localhost:3000"
+      SMTP_HOST: "e2e-mailhog"
+      SMTP_PORT: "1025"
+      SMTP_USER: "test"
+      SMTP_PASS: "test"
+    depends_on:
+      e2e-rabbitmq:
+        condition: service_healthy
+      e2e-mailhog:
+        condition: service_started
     networks:
       - notifier-e2e-network
 

@@ -32,4 +32,4 @@ COPY --chown=nodejs:nodejs package.json ./
 USER nodejs
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/notifier.js"]
+CMD ["node", "dist/notifier/index.js"]
