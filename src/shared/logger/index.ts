@@ -11,14 +11,14 @@ const isDev = appConfig.nodeEnv === 'development';
 function buildStreams(): pino.StreamEntry[] {
   const streams: pino.StreamEntry[] = [];
 
-  if (isDev) {
-    streams.push({ stream: PinoPretty({ colorize: true }) });
-  }
+  streams.push({
+    stream: isDev ? PinoPretty({ colorize: true }) : process.stdout,
+  });
 
   if (elasticsearchConfig.url) {
     const esStream = pinoElastic({
       node: elasticsearchConfig.url,
-      index: 'notifier-logs',
+      index: () => `notifier-logs-${new Date().toISOString().slice(0, 10)}`,
       esVersion: 8,
       flushBytes: 1000,
     });
@@ -28,15 +28,11 @@ function buildStreams(): pino.StreamEntry[] {
     });
     esStream.on('insertError', (err) => {
       process.stderr.write(
-        `[pino-elasticsearch] insert error: ${err.message}\n`,
+        `[pino-elasticsearch] insert error: ${err.message}, document: ${JSON.stringify(err.document)}\n`,
       );
     });
 
     streams.push({ stream: esStream });
-  }
-
-  if (streams.length === 0) {
-    streams.push({ stream: process.stdout });
   }
 
   return streams;
@@ -50,7 +46,10 @@ if (!isDev) {
   Object.assign(pinoOptions, ecsFormat());
 }
 
-export const logger: ILogger = pino(
-  pinoOptions,
-  pino.multistream(buildStreams()),
-);
+const pinoLogger = pino(pinoOptions, pino.multistream(buildStreams()));
+
+export const logger: ILogger = pinoLogger;
+
+export function flushLogger(): Promise<void> {
+  return new Promise((resolve) => pinoLogger.flush(() => resolve()));
+}
