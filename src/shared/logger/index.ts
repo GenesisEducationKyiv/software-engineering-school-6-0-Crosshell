@@ -8,6 +8,8 @@ import type { ILogger } from './logger.interface';
 
 const isDev = appConfig.nodeEnv === 'development';
 
+let esStream: ReturnType<typeof pinoElastic> | null = null;
+
 function buildStreams(): pino.StreamEntry[] {
   const streams: pino.StreamEntry[] = [];
 
@@ -16,7 +18,7 @@ function buildStreams(): pino.StreamEntry[] {
   });
 
   if (elasticsearchConfig.url) {
-    const esStream = pinoElastic({
+    esStream = pinoElastic({
       node: elasticsearchConfig.url,
       index: () => `notifier-logs-${new Date().toISOString().slice(0, 10)}`,
       esVersion: 8,
@@ -51,5 +53,14 @@ const pinoLogger = pino(pinoOptions, pino.multistream(buildStreams()));
 export const logger: ILogger = pinoLogger;
 
 export function flushLogger(): Promise<void> {
-  return new Promise((resolve) => pinoLogger.flush(() => resolve()));
+  return new Promise<void>((resolve) => {
+    pinoLogger.flush(() => {
+      if (!esStream) {
+        resolve();
+        return;
+      }
+
+      esStream.end(() => resolve());
+    });
+  });
 }

@@ -15,8 +15,8 @@ export class ScannerMetrics implements IScannerMetrics {
     scannerNewReleasesTotal.inc();
   }
 
-  incErrors(): void {
-    scannerErrorsTotal.inc();
+  incErrors(stage: 'db' | 'scan'): void {
+    scannerErrorsTotal.inc({ stage });
   }
 
   observeDuration(seconds: number): void {

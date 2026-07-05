@@ -46,7 +46,7 @@ export class ScannerService {
 
       this.logger.info('[Scanner] Scan complete');
     } catch (err) {
-      this.metrics.incErrors();
+      this.metrics.incErrors('db');
       this.logger.error({ err }, '[Scanner] DB error during scan');
       throw err;
     } finally {
@@ -90,7 +90,7 @@ export class ScannerService {
         `[Scanner] New release ${release.tagName} for ${repository.owner}/${repository.repo}`,
       );
     } catch (err) {
-      this.metrics.incErrors();
+      this.metrics.incErrors('scan');
       if (err instanceof RateLimitError) {
         this.logger.warn(
           `[Scanner] Rate limit hit for ${repository.owner}/${repository.repo}`,

@@ -74,7 +74,8 @@ export const scannerNewReleasesTotal = new Counter({
 // Scanner - Errors
 export const scannerErrorsTotal = new Counter({
   name: 'scanner_errors_total',
-  help: 'Total number of errors encountered while checking a repository',
+  help: 'Total number of errors encountered during scanning',
+  labelNames: ['stage'] as const,
   registers: [registry],
 });
 
