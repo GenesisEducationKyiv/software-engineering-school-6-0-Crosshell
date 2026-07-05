@@ -5,11 +5,12 @@ import type { Subscription } from '@/modules/subscription/types/subscription.typ
 import {
   repositoriesTable,
   subscriptionsTable,
+  SUBSCRIPTION_EMAIL_REPO_UNIQUE,
 } from '@/infrastructure/database/schema';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
 import type { CreateSubscriptionData } from '@/modules/subscription/types/create-subscription-data.type';
 import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
-import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
+import { isUniqueConstraintErrorFor } from '@/infrastructure/database/helpers/pg-errors.helper';
 import { ConflictError } from '@/shared/errors/app.errors';
 
 export class SubscriptionRepository implements ISubscriptionRepository {
@@ -31,7 +32,7 @@ export class SubscriptionRepository implements ISubscriptionRepository {
 
       return row;
     } catch (err) {
-      if (isUniqueConstraintError(err)) {
+      if (isUniqueConstraintErrorFor(err, SUBSCRIPTION_EMAIL_REPO_UNIQUE)) {
         throw new ConflictError(
           'Email is already subscribed to this repository',
         );
