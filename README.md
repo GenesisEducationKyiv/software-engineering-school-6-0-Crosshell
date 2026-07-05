@@ -272,55 +272,7 @@ The service uses two tables managed by Drizzle ORM:
 
 ## Testing
 
-### Unit tests
-
-Unit tests use **Vitest** and run against in-process mocks (MSW for HTTP, `vitest-mock-extended` for dependencies):
-
-```bash
-npm run test        # Watch mode
-npm run test:run    # Single run, no watch
-```
-
-### Integration tests
-
-Integration tests spin up real infrastructure (PostgreSQL, Redis, RabbitMQ) via a dedicated Docker Compose file, run all specs, then tear everything down:
-
-```bash
-npm run test:integration
-```
-
-To keep the containers running between runs during development:
-
-```bash
-npm run test:integration:up      # Start test containers
-npm run test:integration:run     # Run integration specs only
-npm run test:integration:down    # Stop and remove test containers
-```
-
----
-
-## CI Pipeline
-
-Two GitHub Actions workflows run on every push and pull request to `main`:
-
-### `ci.yml` - Typecheck, Lint & Build
-
-Runs sequentially to catch static errors before any code ships:
-
-1. **Type-check** - `tsc --noEmit` across the entire codebase
-2. **Lint** - ESLint with `no-explicit-any` and unused-variable rules enforced
-3. **Build** - `tsup` compiles `src/index.ts` to a single CJS bundle in `dist/`
-
-### `test.yml` - Unit & Integration Tests
-
-Runs two parallel jobs:
-
-| Job                   | What it does                                                                                                                                     |
-|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Unit Tests**        | Runs `vitest run` against in-process mocks (MSW + vitest-mock-extended). No external services required.                                          |
-| **Integration Tests** | Spins up PostgreSQL, Redis, and RabbitMQ as GitHub Actions service containers, then runs the full integration suite against real infrastructure. |
-
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and [`.github/workflows/test.yml`](.github/workflows/test.yml) for the full workflow definitions.
+See [testing.md](testing.md) for instructions on running unit, integration, and E2E tests.
 
 ---
 
@@ -359,7 +311,7 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and [`.github/workflo
 │       └── plugins/              # Fastify plugins (auth, errors, health, metrics)
 ├── drizzle/                      # Auto-generated Drizzle migrations
 ├── docker-compose.yml            # Full stack (app + infra)
-├── docker-compose.test.yml       # Integration test infra only
+├── docker-compose.integration.yml # Integration test infra only
 └── .github/workflows/
     ├── ci.yml                    # Typecheck, lint, build
     └── test.yml                  # Unit + integration tests

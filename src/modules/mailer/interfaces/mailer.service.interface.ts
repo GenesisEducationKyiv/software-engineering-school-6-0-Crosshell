@@ -1,5 +1,9 @@
 export interface IMailerService {
-  sendConfirmationEmail(to: string, confirmUrl: string): Promise<void>;
+  sendConfirmationEmail(
+    to: string,
+    confirmUrl: string,
+    unsubscribeUrl: string,
+  ): Promise<void>;
   sendReleaseNotification(
     to: string,
     repo: string,

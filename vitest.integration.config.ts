@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
 const TEST_DATABASE_URL =
-  'postgresql://notifier:notifier@localhost:5433/notifier_test';
+  'postgresql://notifier:notifier@localhost:5433/notifier_integration';
 const TEST_REDIS_URL = 'redis://localhost:6380';
 const TEST_RABBITMQ_URL = 'amqp://localhost:5673';
 
@@ -15,7 +15,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['tests/integration/**/*.test.ts'],
+    include: ['tests/integration/**/*.spec.ts'],
     globalSetup: ['tests/integration/global-setup.ts'],
     setupFiles: ['tests/integration/setup.ts'],
     clearMocks: true,

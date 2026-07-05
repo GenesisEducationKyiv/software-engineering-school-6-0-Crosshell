@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { GithubHttpClient } from './github-http-client';
 import { NotFoundError, RateLimitError } from '@/shared/errors/app.errors';
 import type { GitHubRelease, GitHubRepository } from './github.schemas';
-import { server } from '../../../tests/mocks/server';
+import { server } from '../../../tests/integration/mocks/server';
 
 const GITHUB_CONFIG = { baseUrl: 'https://api.github.com', token: undefined };
 

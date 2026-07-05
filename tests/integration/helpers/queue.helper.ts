@@ -1,8 +1,12 @@
 import type { Channel } from 'amqplib';
+import { beforeAll, afterAll, beforeEach } from 'vitest';
 import {
   releaseNotificationPayloadSchema,
   type ReleaseNotificationPayload,
 } from '@/modules/notification/notification.schemas';
+import { NotificationQueue } from '@/modules/notification/notification.queue';
+import { QueueManager } from '@/infrastructure/queue/queue-manager';
+import { logger } from '@/shared/logger';
 
 const QUEUE_NAME = 'release.notifications';
 
@@ -14,8 +18,40 @@ export async function consumeOneNotification(
   channel: Channel,
 ): Promise<ReleaseNotificationPayload | null> {
   const msg = await channel.get(QUEUE_NAME, { noAck: true });
-  if (!msg) return null;
+
+  if (!msg) {
+    return null;
+  }
+
   return releaseNotificationPayloadSchema.parse(
     JSON.parse(msg.content.toString()),
   );
+}
+
+export function useQueue(): {
+  getQueueManager: () => QueueManager;
+  getNotificationQueue: () => NotificationQueue;
+} {
+  let queueManager: QueueManager;
+  let notificationQueue: NotificationQueue;
+
+  beforeAll(async () => {
+    queueManager = new QueueManager({ url: process.env['RABBITMQ_URL']! });
+    await queueManager.connect();
+    notificationQueue = new NotificationQueue(queueManager, logger);
+    await notificationQueue.setup();
+  });
+
+  afterAll(async () => {
+    await queueManager.close();
+  });
+
+  beforeEach(async () => {
+    await purgeNotificationQueue(queueManager.getChannel());
+  });
+
+  return {
+    getQueueManager: () => queueManager,
+    getNotificationQueue: () => notificationQueue,
+  };
 }

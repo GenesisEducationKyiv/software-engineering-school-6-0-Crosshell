@@ -13,12 +13,16 @@ export class MailerService implements IMailerService {
     private readonly config: MailerServiceConfig,
   ) {}
 
-  async sendConfirmationEmail(to: string, confirmUrl: string): Promise<void> {
+  async sendConfirmationEmail(
+    to: string,
+    confirmUrl: string,
+    unsubscribeUrl: string,
+  ): Promise<void> {
     await this.transport.sendMail({
       from: this.config.from,
       to,
       subject: 'Confirm your subscription',
-      html: confirmationEmailHtml(confirmUrl),
+      html: confirmationEmailHtml(confirmUrl, unsubscribeUrl),
     });
   }
 
