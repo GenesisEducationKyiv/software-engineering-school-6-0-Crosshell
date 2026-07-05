@@ -57,6 +57,7 @@ export function flushLogger(): Promise<void> {
     pinoLogger.flush(() => {
       if (!esStream) {
         resolve();
+
         return;
       }
 
