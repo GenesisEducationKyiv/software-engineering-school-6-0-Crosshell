@@ -17,14 +17,6 @@ export const httpRequestsTotal = new Counter({
   registers: [registry],
 });
 
-// RED - Errors
-export const httpErrorsTotal = new Counter({
-  name: 'http_errors_total',
-  help: 'Total number of HTTP requests that resulted in a 4xx or 5xx response',
-  labelNames: ['method', 'route', 'status_code'] as const,
-  registers: [registry],
-});
-
 // RED - Duration
 export const httpRequestDurationSeconds = new Histogram({
   name: 'http_request_duration_seconds',
@@ -82,7 +74,8 @@ export const scannerNewReleasesTotal = new Counter({
 // Scanner - Errors
 export const scannerErrorsTotal = new Counter({
   name: 'scanner_errors_total',
-  help: 'Total number of errors encountered while checking a repository',
+  help: 'Total number of errors encountered during scanning',
+  labelNames: ['stage'] as const,
   registers: [registry],
 });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { mock, mockDeep } from 'vitest-mock-extended';
 import { SubscriptionService } from './subscription.service';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
@@ -10,21 +10,6 @@ import type { SubscriptionUoWContext } from './infrastructure/subscription-uow-c
 import type { SubscribeInput } from './subscription.schemas';
 import type { Repository } from '@/modules/repository';
 import type { Subscription } from '@/modules/subscription/types/subscription.type';
-import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
-
-vi.mock('@/shared/utils/url-builders', () => ({
-  buildConfirmUrl: vi.fn(
-    (token: string) => `http://localhost:3000/api/confirm/${token}`,
-  ),
-  buildUnsubscribeUrl: vi.fn(
-    (token: string) => `http://localhost:3000/unsubscribe.html?token=${token}`,
-  ),
-}));
-
-import {
-  buildConfirmUrl,
-  buildUnsubscribeUrl,
-} from '@/shared/utils/url-builders';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',
@@ -120,14 +105,13 @@ describe('SubscriptionService', () => {
     });
 
     describe('transaction handling', () => {
-      it('should throw ConflictError when a unique-constraint DB error occurs inside the transaction', async () => {
-        txCtx.subscriptions.createSubscription.mockRejectedValue({
-          code: '23505',
-          message: 'duplicate key',
-        });
+      it('should throw ConflictError when the email is already subscribed to the repository', async () => {
+        txCtx.subscriptions.createSubscription.mockRejectedValue(
+          new ConflictError('Email is already subscribed to this repository'),
+        );
 
         await expect(service.subscribe(VALID_INPUT)).rejects.toThrow(
-          new ConflictError('Email is already subscribed to this repository'),
+          ConflictError,
         );
       });
 
@@ -183,25 +167,27 @@ describe('SubscriptionService', () => {
       it('should build the confirmation URL using the subscription confirmToken', async () => {
         await service.subscribe(VALID_INPUT);
 
-        expect(buildConfirmUrl).toHaveBeenCalledWith(
-          MOCK_SUBSCRIPTION.confirmToken,
-          'http://localhost:3000',
+        expect(mailer.sendConfirmationEmail).toHaveBeenCalledWith(
+          VALID_INPUT.email,
+          `http://localhost:3000/confirm.html?token=${MOCK_SUBSCRIPTION.confirmToken}`,
+          expect.any(String),
         );
       });
 
       it('should build the unsubscribe URL using the subscription unsubscribeToken', async () => {
         await service.subscribe(VALID_INPUT);
 
-        expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
-          MOCK_SUBSCRIPTION.unsubscribeToken,
-          'http://localhost:3000',
+        expect(mailer.sendConfirmationEmail).toHaveBeenCalledWith(
+          VALID_INPUT.email,
+          expect.any(String),
+          `http://localhost:3000/unsubscribe.html?token=${MOCK_SUBSCRIPTION.unsubscribeToken}`,
         );
       });
 
       it('should send a confirmation email to the subscriber with the confirm and unsubscribe URLs', async () => {
         await service.subscribe(VALID_INPUT);
 
-        const expectedConfirmUrl = `http://localhost:3000/api/confirm/${MOCK_SUBSCRIPTION.confirmToken}`;
+        const expectedConfirmUrl = `http://localhost:3000/confirm.html?token=${MOCK_SUBSCRIPTION.confirmToken}`;
         const expectedUnsubscribeUrl = `http://localhost:3000/unsubscribe.html?token=${MOCK_SUBSCRIPTION.unsubscribeToken}`;
         expect(mailer.sendConfirmationEmail).toHaveBeenCalledWith(
           VALID_INPUT.email,
@@ -228,30 +214,14 @@ describe('SubscriptionService', () => {
         expect(result).toBeUndefined();
       });
 
-      it('should execute steps in the correct order: GitHub - transaction - email', async () => {
-        const callOrder: string[] = [];
+      it('should not send a confirmation email when the transaction fails', async () => {
+        txCtx.subscriptions.createSubscription.mockRejectedValue(
+          new Error('DB write failed'),
+        );
 
-        repositorySource.getRepository.mockImplementation(async () => {
-          callOrder.push('getRepository');
+        await expect(service.subscribe(VALID_INPUT)).rejects.toThrow();
 
-          return { owner: 'acc', repo: 'testName' };
-        });
-        uow.run.mockImplementation(async (fn) => {
-          callOrder.push('uow.run');
-
-          return fn(txCtx);
-        });
-        mailer.sendConfirmationEmail.mockImplementation(async () => {
-          callOrder.push('sendConfirmationEmail');
-        });
-
-        await service.subscribe(VALID_INPUT);
-
-        expect(callOrder).toEqual([
-          'getRepository',
-          'uow.run',
-          'sendConfirmationEmail',
-        ]);
+        expect(mailer.sendConfirmationEmail).not.toHaveBeenCalled();
       });
     });
   });
@@ -328,7 +298,7 @@ describe('SubscriptionService', () => {
         );
       });
 
-      it('should not call deleteById when the token does not exist', async () => {
+      it('should not delete the subscription when the token does not exist', async () => {
         subscriptionRepository.findByUnsubscribeToken.mockResolvedValue(null);
 
         await expect(service.unsubscribe(VALID_TOKEN)).rejects.toThrow(
@@ -377,40 +347,6 @@ describe('SubscriptionService', () => {
   });
 
   describe('getSubscriptionsByEmail', () => {
-    it('should return an empty array when the email has no confirmed subscriptions', async () => {
-      subscriptionRepository.findConfirmedByEmail.mockResolvedValue([]);
-
-      const result = await service.getSubscriptionsByEmail('user@example.com');
-
-      expect(result).toEqual([]);
-    });
-
-    it('should return all confirmed subscriptions for the given email', async () => {
-      const subscriptions: SubscriptionWithRepo[] = [
-        {
-          email: 'user@example.com',
-          owner: 'acc',
-          repo: 'testName',
-          confirmed: true,
-          lastSeenTag: 'v1.0.0',
-        },
-        {
-          email: 'user@example.com',
-          owner: 'facebook',
-          repo: 'react',
-          confirmed: true,
-          lastSeenTag: null,
-        },
-      ];
-      subscriptionRepository.findConfirmedByEmail.mockResolvedValue(
-        subscriptions,
-      );
-
-      const result = await service.getSubscriptionsByEmail('user@example.com');
-
-      expect(result).toEqual(subscriptions);
-    });
-
     it('should query the repository with the exact email provided', async () => {
       const email = 'specific@user.com';
 

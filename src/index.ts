@@ -2,6 +2,7 @@ import 'dotenv/config';
 import '@/shared/config';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { server } from './server';
+import healthPlugin from '@/shared/plugins/health.plugin';
 import { db, pool } from '@/infrastructure/database';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { NotificationQueue } from '@/modules/notification';
@@ -30,6 +31,13 @@ const start = async () => {
     const redisClient = createRedisClient(redisConfig.url);
     await redisClient.connect();
     const cache = new CacheService(redisClient, logger);
+
+    await server.register(healthPlugin, {
+      probe: async () => {
+        await pool.query('SELECT 1');
+        await redisClient.ping();
+      },
+    });
 
     const queueManager = new QueueManager({ url: queueConfig.url });
     await queueManager.connect();

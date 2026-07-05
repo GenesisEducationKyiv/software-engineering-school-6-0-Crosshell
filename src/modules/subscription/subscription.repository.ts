@@ -5,10 +5,13 @@ import type { Subscription } from '@/modules/subscription/types/subscription.typ
 import {
   repositoriesTable,
   subscriptionsTable,
+  SUBSCRIPTION_EMAIL_REPO_UNIQUE,
 } from '@/infrastructure/database/schema';
 import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
 import type { CreateSubscriptionData } from '@/modules/subscription/types/create-subscription-data.type';
 import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
+import { isUniqueConstraintErrorFor } from '@/infrastructure/database/helpers/pg-errors.helper';
+import { ConflictError } from '@/shared/errors/app.errors';
 
 export class SubscriptionRepository implements ISubscriptionRepository {
   constructor(private readonly db: DbClient) {}
@@ -16,17 +19,26 @@ export class SubscriptionRepository implements ISubscriptionRepository {
   async createSubscription(
     data: CreateSubscriptionData,
   ): Promise<Subscription> {
-    const [row] = await this.db
-      .insert(subscriptionsTable)
-      .values({
-        email: data.email,
-        repositoryId: data.repositoryId,
-        confirmToken: randomUUID(),
-        unsubscribeToken: randomUUID(),
-      })
-      .returning();
+    try {
+      const [row] = await this.db
+        .insert(subscriptionsTable)
+        .values({
+          email: data.email,
+          repositoryId: data.repositoryId,
+          confirmToken: randomUUID(),
+          unsubscribeToken: randomUUID(),
+        })
+        .returning();
 
-    return row;
+      return row;
+    } catch (err) {
+      if (isUniqueConstraintErrorFor(err, SUBSCRIPTION_EMAIL_REPO_UNIQUE)) {
+        throw new ConflictError(
+          'Email is already subscribed to this repository',
+        );
+      }
+      throw err;
+    }
   }
 
   async findByConfirmToken(token: string): Promise<Subscription | null> {

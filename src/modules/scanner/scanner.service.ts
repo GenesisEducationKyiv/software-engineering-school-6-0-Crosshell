@@ -35,17 +35,24 @@ export class ScannerService {
     this.metrics.incRuns();
     this.logger.info('[Scanner] Running release scan...');
 
-    const entries =
-      await this.repositoryRepository.getRepositoriesWithActiveSubscriptions();
+    try {
+      const entries =
+        await this.repositoryRepository.getRepositoriesWithActiveSubscriptions();
 
-    await Promise.allSettled(
-      entries.map(({ repository, subscribers }) =>
-        this.scanRepository(repository, subscribers),
-      ),
-    );
+      await Promise.allSettled(
+        entries.map(({ repository, subscribers }) =>
+          this.scanRepository(repository, subscribers),
+        ),
+      );
 
-    this.metrics.observeDuration((performance.now() - start) / 1000);
-    this.logger.info('[Scanner] Scan complete');
+      this.logger.info('[Scanner] Scan complete');
+    } catch (err) {
+      this.metrics.incErrors('db');
+      this.logger.error({ err }, '[Scanner] DB error during scan');
+      throw err;
+    } finally {
+      this.metrics.observeDuration((performance.now() - start) / 1000);
+    }
   }
 
   private async scanRepository(
@@ -84,7 +91,7 @@ export class ScannerService {
         `[Scanner] New release ${release.tagName} for ${repository.owner}/${repository.repo}`,
       );
     } catch (err) {
-      this.metrics.incErrors();
+      this.metrics.incErrors('scan');
       if (err instanceof RateLimitError) {
         this.logger.warn(
           `[Scanner] Rate limit hit for ${repository.owner}/${repository.repo}`,

@@ -88,7 +88,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "notifier-prometheus" },
-          "expr": "sum(rate(http_errors_total[1m])) by (method, route, status_code)",
+          "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[1m])) by (method, route, status_code)",
           "legendFormat": "{{method}} {{route}} {{status_code}}",
           "refId": "A"
         }
@@ -130,7 +130,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "notifier-prometheus" },
-          "expr": "sum(rate(http_errors_total[1m])) / sum(rate(http_requests_total[1m])) * 100 or vector(0)",
+          "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[1m])) / sum(rate(http_requests_total[1m])) * 100 or vector(0)",
           "legendFormat": "error ratio",
           "refId": "A"
         }
@@ -599,8 +599,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "notifier-prometheus" },
-          "expr": "increase(scanner_errors_total[1h])",
-          "legendFormat": "errors",
+          "expr": "sum(increase(scanner_errors_total[1h])) by (stage)",
+          "legendFormat": "{{stage}}",
           "refId": "A"
         }
       ],
