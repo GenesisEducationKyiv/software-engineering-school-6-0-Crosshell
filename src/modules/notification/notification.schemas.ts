@@ -16,5 +16,3 @@ export const releaseNotificationPayloadSchema = z.object({
 export type ReleaseNotificationPayload = z.infer<
   typeof releaseNotificationPayloadSchema
 >;
-
-export type SubscriberInfo = z.infer<typeof subscriberSchema>;
