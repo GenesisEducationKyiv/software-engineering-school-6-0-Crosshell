@@ -1,8 +1,8 @@
 import type { Channel, ConsumeMessage } from 'amqplib';
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
-import { releaseNotificationPayloadSchema } from '@/modules/notification/notification.schemas';
+import type { ReleaseNotificationPayload } from './notification.schemas';
+import { releaseNotificationPayloadSchema } from './notification.schemas';
 import type { INotificationPublisher } from './interfaces/notification-publisher.interface';
 import type { INotificationConsumer } from './interfaces/notification.consumer.interface';
 

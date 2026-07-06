@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
+import type { ReleaseNotificationPayload } from '@/modules/notification';
 import { useNotificationTest } from './helpers/notification-test.helper';
 import { useQueue } from './helpers/queue.helper';
 

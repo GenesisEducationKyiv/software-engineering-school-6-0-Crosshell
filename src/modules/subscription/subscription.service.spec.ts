@@ -3,13 +3,13 @@ import { mock, mockDeep } from 'vitest-mock-extended';
 import { SubscriptionService } from './subscription.service';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
-import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
+import type { IRepositorySource } from './interfaces/repository-source.interface';
 import type { IMailerService } from '@/modules/mailer';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import type { SubscriptionUoWContext } from './infrastructure/subscription-uow-context.builder';
 import type { SubscribeInput } from './subscription.schemas';
 import type { Repository } from '@/modules/repository';
-import type { Subscription } from '@/modules/subscription/types/subscription.type';
+import type { Subscription } from './types/subscription.type';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',

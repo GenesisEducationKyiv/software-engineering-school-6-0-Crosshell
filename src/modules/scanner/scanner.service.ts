@@ -2,10 +2,8 @@ import type { IReleaseFeed } from './interfaces/release-feed.interface';
 import { RateLimitError } from '@/shared/errors/app.errors';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { IRepositoryRepository, Repository } from '@/modules/repository';
-import type {
-  INotificationPublisher,
-  SubscriberInfo,
-} from '@/modules/notification';
+import type { INotificationPublisher } from '@/modules/notification';
+import type { SubscriberInfo } from '@/shared/types';
 import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
 import type { IScannerMetrics } from './interfaces/scanner-metrics.interface';
 

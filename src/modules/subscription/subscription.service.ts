@@ -1,7 +1,7 @@
-import type { ISubscriptionRepository } from '@/modules/subscription/interfaces/subscription.repository.interface';
-import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
-import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
-import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
+import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
+import type { SubscribeInput } from './subscription.schemas';
+import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
+import type { IRepositorySource } from './interfaces/repository-source.interface';
 import type { IMailerService } from '@/modules/mailer';
 import { NotFoundError } from '@/shared/errors/app.errors';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';

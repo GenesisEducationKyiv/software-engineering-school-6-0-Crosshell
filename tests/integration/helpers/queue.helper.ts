@@ -2,9 +2,9 @@ import type { Channel } from 'amqplib';
 import { beforeAll, afterAll, beforeEach } from 'vitest';
 import {
   releaseNotificationPayloadSchema,
+  NotificationQueue,
   type ReleaseNotificationPayload,
-} from '@/modules/notification/notification.schemas';
-import { NotificationQueue } from '@/modules/notification/notification.queue';
+} from '@/modules/notification';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { logger } from '@/shared/logger';
 

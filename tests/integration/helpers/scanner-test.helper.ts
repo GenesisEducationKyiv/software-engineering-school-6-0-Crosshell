@@ -1,10 +1,11 @@
 import { beforeAll } from 'vitest';
-import { RepositoryRepository } from '@/modules/repository/repository.repository';
-import { GithubHttpClient } from '@/modules/github/github-http-client';
-import { CachingGithubHttpClientDecorator } from '@/modules/github/decorators/caching-github-http-client.decorator';
-import { GithubReleaseFeedAdapter } from '@/modules/scanner/infrastructure/github-release-feed.adapter';
+import { RepositoryRepository } from '@/modules/repository';
+import {
+  GithubHttpClient,
+  CachingGithubHttpClientDecorator,
+} from '@/modules/github';
+import { ScannerService, GithubReleaseFeedAdapter } from '@/modules/scanner';
 import { CacheService } from '@/infrastructure/cache/cache.service';
-import { ScannerService } from '@/modules/scanner/scanner.service';
 import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
 import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { logger } from '@/shared/logger';

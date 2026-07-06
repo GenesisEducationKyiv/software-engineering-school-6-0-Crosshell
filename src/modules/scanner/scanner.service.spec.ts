@@ -7,12 +7,13 @@ import type {
   Repository,
   RepositoryWithSubscribers,
 } from '@/modules/repository';
-import type { IReleaseFeed } from '@/modules/scanner/interfaces/release-feed.interface';
-import type { INotificationPublisher, SubscriberInfo } from '@/modules/notification';
+import type { IReleaseFeed } from './interfaces/release-feed.interface';
+import type { INotificationPublisher } from '@/modules/notification';
+import type { SubscriberInfo } from '@/shared/types';
 import type { IScheduler } from '@/infrastructure/scheduler/scheduler.interface';
-import type { VcsRelease } from '@/modules/scanner/types/vcs-release.type';
+import type { VcsRelease } from './types/vcs-release.type';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { IScannerMetrics } from '@/modules/scanner/interfaces/scanner-metrics.interface';
+import type { IScannerMetrics } from './interfaces/scanner-metrics.interface';
 
 const MOCK_REPOSITORY: Repository = {
   id: 'repo-uuid-1',

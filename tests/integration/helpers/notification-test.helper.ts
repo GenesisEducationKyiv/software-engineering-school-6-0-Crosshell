@@ -1,11 +1,13 @@
 import { vi, beforeAll, beforeEach, type MockInstance } from 'vitest';
-import { NotificationService } from '@/modules/notification/notification.service';
+import {
+  NotificationService,
+  type NotificationQueue,
+} from '@/modules/notification';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
 import { logger } from '@/shared/logger';
 import { useQueue } from './queue.helper';
 import { createTestMailer } from './mailer.helper';
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
-import type { NotificationQueue } from '@/modules/notification/notification.queue';
 
 export function useNotificationTest(): {
   getSendReleaseNotificationSpy: () => MockInstance;

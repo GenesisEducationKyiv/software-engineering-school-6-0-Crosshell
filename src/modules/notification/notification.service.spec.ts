@@ -2,13 +2,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { NotificationService } from './notification.service';
 import type { IMailerService } from '@/modules/mailer';
-import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
-import type {
-  ReleaseNotificationPayload,
-  SubscriberInfo,
-} from '@/modules/notification/notification.schemas';
+import type { INotificationConsumer } from './interfaces/notification.consumer.interface';
+import type { ReleaseNotificationPayload } from './notification.schemas';
+import type { SubscriberInfo } from '@/shared/types';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { INotificationMetrics } from '@/modules/notification/interfaces/notification-metrics.interface';
+import type { INotificationMetrics } from './interfaces/notification-metrics.interface';
 import { buildUnsubscribeUrl } from '@/shared/utils/url-builders';
 
 const SUBSCRIBER_ALICE: SubscriberInfo = {
@@ -135,7 +133,6 @@ describe('NotificationService', () => {
 
         expect(metrics.incSent).not.toHaveBeenCalledWith('failure');
       });
-
     });
 
     describe('when one email fails to send', () => {

@@ -36,6 +36,18 @@ export default tseslint.config(
       ],
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/modules/*/**'],
+              message:
+                'Import from another module only through its public barrel (@/modules/<name>). If this file lives inside that module, use a relative import instead.',
+            },
+          ],
+        },
+      ],
       eqeqeq: 'error',
       'no-template-curly-in-string': 'error',
       'array-callback-return': 'error',

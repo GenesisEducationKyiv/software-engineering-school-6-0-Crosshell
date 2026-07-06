@@ -4,8 +4,8 @@ import {
   subscriptionsTable,
 } from '@/infrastructure/database/schema';
 import { and, eq } from 'drizzle-orm';
-import type { RepositoryWithSubscribers } from '@/modules/repository/types/repository-with-subscribers.type';
-import type { Repository } from '@/modules/repository/types/repository.type';
+import type { RepositoryWithSubscribers } from './types/repository-with-subscribers.type';
+import type { Repository } from './types/repository.type';
 import type { IRepositoryRepository } from './interfaces/repository.repository.interface';
 
 export class RepositoryRepository implements IRepositoryRepository {

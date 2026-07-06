@@ -1,8 +1,8 @@
 import type { IMailerService } from '@/modules/mailer';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
+import type { INotificationConsumer } from './interfaces/notification.consumer.interface';
 import { buildUnsubscribeUrl } from '@/shared/utils/url-builders';
-import type { INotificationMetrics } from '@/modules/notification/interfaces/notification-metrics.interface';
+import type { INotificationMetrics } from './interfaces/notification-metrics.interface';
 
 export interface NotificationServiceConfig {
   appUrl: string;
