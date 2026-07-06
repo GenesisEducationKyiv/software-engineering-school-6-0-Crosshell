@@ -31,5 +31,7 @@ COPY --chown=nodejs:nodejs package.json ./
 
 USER nodejs
 
+EXPOSE 3002
+
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/notifier.js"]

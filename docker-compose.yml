@@ -42,9 +42,16 @@ services:
     env_file: .env
     environment:
       RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
+      NOTIFIER_WORKER_PORT: "3002"
     depends_on:
       notifier-rabbitmq:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
     networks:
       - notifier-network
