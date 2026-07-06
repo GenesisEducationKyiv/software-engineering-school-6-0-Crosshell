@@ -1,11 +1,5 @@
-import nodemailer from 'nodemailer';
 import { db } from '@/infrastructure/database';
-import {
-  mailerConfig,
-  githubConfig,
-  appConfig,
-  scannerConfig,
-} from '@/shared/config';
+import { githubConfig, appConfig, scannerConfig } from '@/shared/config';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { SubscriptionUoWContextBuilder } from '@/modules/subscription';
 import { RepositoryRepository } from '@/modules/repository';
@@ -19,7 +13,7 @@ import {
   CachingGithubHttpClientDecorator,
   MetricsGithubHttpClientDecorator,
 } from '@/modules/github';
-import { MailerService, NodemailerEmailTransport } from '@/modules/mailer';
+import { createMailerService } from '@/modules/mailer';
 import { ScannerService, GithubReleaseFeedAdapter } from '@/modules/scanner';
 import type { INotificationPublisher } from '@/modules/notification';
 import type { ICacheService } from '@/infrastructure/cache/interfaces/cache.service.interface';
@@ -38,17 +32,7 @@ export function createContainer(
   cache: ICacheService,
   logger: ILogger,
 ): AppContainer {
-  const transporter = nodemailer.createTransport({
-    host: mailerConfig.host,
-    port: mailerConfig.port,
-    auth: {
-      user: mailerConfig.user,
-      pass: mailerConfig.pass,
-    },
-  });
-  const mailer = new MailerService(new NodemailerEmailTransport(transporter), {
-    from: mailerConfig.from,
-  });
+  const mailer = createMailerService();
 
   const githubMetrics = new GithubMetrics();
   const githubHttpClient = new CachingGithubHttpClientDecorator(

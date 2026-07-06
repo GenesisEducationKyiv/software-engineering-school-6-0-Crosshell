@@ -57,7 +57,13 @@ const start = async () => {
       createSubscriptionGrpcHandlers(subscriptionService, appConfig.apiKey),
     );
 
-    registerGracefulShutdown({ server, grpcServer, queueManager, pool, cache });
+    registerGracefulShutdown([
+      server,
+      grpcServer,
+      queueManager,
+      { close: () => pool.end() },
+      { close: () => cache.quit() },
+    ]);
 
     await server.register(subscriptionRoutes(subscriptionService), {
       prefix: '/api',
