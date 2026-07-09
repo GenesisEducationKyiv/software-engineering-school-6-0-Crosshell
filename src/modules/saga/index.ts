@@ -10,4 +10,5 @@ export type {
   SagaInstance,
   CreateSagaInstanceData,
   SubscribeSagaPayload,
+  SendConfirmationEmailCommand,
 } from './saga.types';

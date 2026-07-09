@@ -1,15 +1,19 @@
 import 'dotenv/config';
+import Fastify from 'fastify';
+import type { FastifyBaseLogger } from 'fastify';
 import { queueConfig } from '@/shared/config/queue.config';
-import { mailerConfig } from '@/shared/config/mailer.config';
 import { appConfig } from '@/shared/config/app.config';
+import { notifierWorkerConfig } from '@/shared/config/notifier-worker.config';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { NotificationQueue, NotificationService } from '@/modules/notification';
-import { MailerService, NodemailerEmailTransport } from '@/modules/mailer';
+import { createMailerService } from '@/modules/mailer';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
 import { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import { SagaCommandHandler } from './saga-command.handler';
 import { logger } from '@/shared/logger';
-import nodemailer from 'nodemailer';
+import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
+import healthPlugin from '@/shared/plugins/health.plugin';
+import metricsPlugin from '@/shared/plugins/metrics.plugin';
 
 const start = async () => {
   try {
@@ -19,18 +23,7 @@ const start = async () => {
     const notificationQueue = new NotificationQueue(queueManager, logger);
     await notificationQueue.setup();
 
-    const transporter = nodemailer.createTransport({
-      host: mailerConfig.host,
-      port: mailerConfig.port,
-      auth: {
-        user: mailerConfig.user,
-        pass: mailerConfig.pass,
-      },
-    });
-    const mailer = new MailerService(
-      new NodemailerEmailTransport(transporter),
-      { from: mailerConfig.from },
-    );
+    const mailer = createMailerService();
 
     const notificationService = new NotificationService(
       mailer,
@@ -62,15 +55,25 @@ const start = async () => {
       startConsumers();
     });
 
-    const shutdown = async (signal: string) => {
-      logger.info(`[Notifier] Received ${signal}, shutting down...`);
-      await queueManager.close();
-      process.exit(0);
-    };
+    const workerServer = Fastify({
+      loggerInstance: logger as FastifyBaseLogger,
+    });
 
-    for (const signal of ['SIGINT', 'SIGTERM']) {
-      process.on(signal, () => void shutdown(signal));
-    }
+    await workerServer.register(healthPlugin, {
+      probe: async () => {
+        if (!queueManager.isHealthy()) {
+          throw new Error('Queue connection is not healthy');
+        }
+      },
+    });
+    await workerServer.register(metricsPlugin);
+
+    await workerServer.listen({
+      port: notifierWorkerConfig.port,
+      host: '0.0.0.0',
+    });
+
+    registerGracefulShutdown([workerServer, queueManager]);
 
     logger.info('[Notifier] Service started');
   } catch (error) {

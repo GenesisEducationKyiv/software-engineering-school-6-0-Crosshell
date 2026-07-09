@@ -1,6 +1,6 @@
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { SagaCommand, SagaReply } from '@/modules/saga/saga.types';
+import type { SagaCommand, SagaReply } from '@/modules/saga';
 
 const COMMANDS_QUEUE = 'saga.subscription.commands';
 const REPLIES_QUEUE = 'saga.subscription.replies';

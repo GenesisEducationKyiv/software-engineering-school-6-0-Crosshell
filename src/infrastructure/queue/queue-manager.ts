@@ -50,6 +50,10 @@ export class QueueManager {
     logger.info('[Queue] Connected to RabbitMQ');
   }
 
+  isHealthy(): boolean {
+    return this.connection !== null && this.channel !== null;
+  }
+
   getChannel(): Channel {
     if (!this.channel) {
       throw new Error(

@@ -1,5 +1,5 @@
-import type { ISubscriptionRepository } from '@/modules/subscription/interfaces/subscription.repository.interface';
-import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
+import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
+import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
 import { NotFoundError } from '@/shared/errors/app.errors';
 import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 

@@ -1,13 +1,13 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import type { SubscriptionResponse } from '@/modules/subscription/subscription.schemas';
+import type { SubscriptionResponse } from './subscription.schemas';
 import {
   subscribeSchema,
   tokenSchema,
   getSubscriptionsQuerySchema,
   subscriptionResponseSchema,
-} from '@/modules/subscription/subscription.schemas';
-import type { SubscriptionWithRepo } from '@/modules/subscription/types/subscription-with-repo.type';
-import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
+} from './subscription.schemas';
+import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
+import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 import type { AppServer } from '@/server';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
 import type { SubscribeSagaOrchestrator } from '@/modules/saga';

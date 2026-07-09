@@ -1,7 +1,7 @@
-import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
+import type { IMailerService } from '@/modules/mailer';
 import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { SendConfirmationEmailCommand } from '@/modules/saga/saga.types';
+import type { SendConfirmationEmailCommand } from '@/modules/saga';
 
 export class SagaCommandHandler {
   constructor(

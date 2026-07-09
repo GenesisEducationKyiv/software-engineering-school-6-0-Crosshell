@@ -3,14 +3,16 @@ import { mock, mockDeep } from 'vitest-mock-extended';
 import { SubscribeSagaOrchestrator } from './subscribe-saga.orchestrator';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
-import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
 import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
+import type {
+  IRepositorySource,
+  SubscribeInput,
+  Subscription,
+} from '@/modules/subscription';
 import type { SagaInstance, SagaReply } from './saga.types';
 import type { Repository } from '@/modules/repository';
-import type { Subscription } from '@/modules/subscription/types/subscription.type';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',
@@ -145,9 +147,7 @@ describe('SubscribeSagaOrchestrator', () => {
 
   describe('execute — compensation on timeout', () => {
     beforeEach(() => {
-      sagaCommandsQueue.publishCommand.mockImplementation(() => {
-        // no reply
-      });
+      sagaCommandsQueue.publishCommand.mockImplementation(() => {});
     });
 
     it('rejects with a timeout error', async () => {
@@ -171,7 +171,6 @@ describe('SubscribeSagaOrchestrator', () => {
         expect.any(String),
         'COMPENSATING',
       );
-      // COMPENSATED is written inside the same UoW transaction as deleteById
       expect(txCtx.sagaInstances.updateStatus).toHaveBeenCalledWith(
         expect.any(String),
         'COMPENSATED',

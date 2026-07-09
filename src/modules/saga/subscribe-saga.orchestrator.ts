@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
-import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
-import type { SubscribeInput } from '@/modules/subscription/subscription.schemas';
+import type { IRepositorySource, SubscribeInput } from '@/modules/subscription';
 import { ConflictError } from '@/shared/errors/app.errors';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
 import {

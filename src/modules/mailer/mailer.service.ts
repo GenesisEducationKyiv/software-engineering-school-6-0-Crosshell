@@ -1,5 +1,5 @@
-import { confirmationEmailHtml } from '@/modules/mailer/templates/confirmation.template';
-import { releaseNotificationHtml } from '@/modules/mailer/templates/release-notification.template';
+import { confirmationEmailHtml } from './templates/confirmation.template';
+import { releaseNotificationHtml } from './templates/release-notification.template';
 import type { IMailerService } from './interfaces/mailer.service.interface';
 import type { IEmailTransport } from './interfaces/email-transport.interface';
 

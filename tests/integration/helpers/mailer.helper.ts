@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
-import { MailerService } from '@/modules/mailer/mailer.service';
-import { NodemailerEmailTransport } from '@/modules/mailer/nodemailer-email-transport';
+import { MailerService, NodemailerEmailTransport } from '@/modules/mailer';
 
 export function createTestMailer(): MailerService {
   const transporter = nodemailer.createTransport({ jsonTransport: true });

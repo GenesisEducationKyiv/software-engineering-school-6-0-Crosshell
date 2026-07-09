@@ -9,6 +9,8 @@ import {
 import { baseTableColumns } from '@/infrastructure/database/helpers/columns.helper';
 import { relations } from 'drizzle-orm';
 
+export const SUBSCRIPTION_EMAIL_REPO_UNIQUE = 'email_repository_id_unq';
+
 export const repositoriesTable = pgTable(
   'repositories',
   {
@@ -35,7 +37,7 @@ export const subscriptionsTable = pgTable(
       .unique(),
   },
   (table) => [
-    unique('email_repository_id_unq').on(table.email, table.repositoryId),
+    unique(SUBSCRIPTION_EMAIL_REPO_UNIQUE).on(table.email, table.repositoryId),
   ],
 );
 

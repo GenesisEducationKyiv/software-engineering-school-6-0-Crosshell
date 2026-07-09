@@ -2,8 +2,10 @@ import type { DbClient } from '@/infrastructure/database';
 import type { IUnitOfWorkContextBuilder } from '@/infrastructure/database/unit-of-work';
 import { RepositoryRepository } from '@/modules/repository';
 import type { IRepositoryRepository } from '@/modules/repository';
-import { SubscriptionRepository } from '@/modules/subscription/subscription.repository';
-import type { ISubscriptionRepository } from '@/modules/subscription/interfaces/subscription.repository.interface';
+import {
+  SubscriptionRepository,
+  type ISubscriptionRepository,
+} from '@/modules/subscription';
 import { SagaRepository } from './saga.repository';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
 

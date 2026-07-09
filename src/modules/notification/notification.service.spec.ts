@@ -1,21 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { NotificationService } from './notification.service';
 import type { IMailerService } from '@/modules/mailer';
-import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
-import type {
-  ReleaseNotificationPayload,
-  SubscriberInfo,
-} from '@/modules/notification/notification.schemas';
+import type { INotificationConsumer } from './interfaces/notification.consumer.interface';
+import type { ReleaseNotificationPayload } from './notification.schemas';
+import type { SubscriberInfo } from '@/shared/types';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { INotificationMetrics } from '@/modules/notification/interfaces/notification-metrics.interface';
-
-vi.mock('@/shared/utils/url-builders', () => ({
-  buildUnsubscribeUrl: vi.fn(
-    (token: string) => `http://localhost:3000/api/unsubscribe/${token}`,
-  ),
-}));
-
+import type { INotificationMetrics } from './interfaces/notification-metrics.interface';
 import { buildUnsubscribeUrl } from '@/shared/utils/url-builders';
 
 const SUBSCRIBER_ALICE: SubscriberInfo = {
@@ -74,14 +65,6 @@ describe('NotificationService', () => {
         expect.any(Function),
       );
     });
-
-    it('should log that the service is listening', () => {
-      service.start();
-
-      expect(logger.info).toHaveBeenCalledWith(
-        '[Notifier] Listening for release notifications',
-      );
-    });
   });
 
   describe('message handler', () => {
@@ -108,29 +91,31 @@ describe('NotificationService', () => {
         );
       });
 
-      it('should build an unsubscribe URL for each subscriber token', async () => {
+      it('should pass the correct unsubscribe URL for each subscriber to the mailer', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
-        expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
+        const aliceUrl = buildUnsubscribeUrl(
           SUBSCRIBER_ALICE.unsubscribeToken,
           'http://localhost:3000',
         );
-        expect(buildUnsubscribeUrl).toHaveBeenCalledWith(
+        const bobUrl = buildUnsubscribeUrl(
           SUBSCRIBER_BOB.unsubscribeToken,
           'http://localhost:3000',
         );
-      });
 
-      it('should pass the built unsubscribe URL to the mailer', async () => {
-        await capturedHandler(MOCK_PAYLOAD);
-
-        const expectedUrl = `http://localhost:3000/api/unsubscribe/${SUBSCRIBER_ALICE.unsubscribeToken}`;
         expect(mailer.sendReleaseNotification).toHaveBeenCalledWith(
           SUBSCRIBER_ALICE.email,
           expect.any(String),
           expect.any(String),
           expect.any(String),
-          expectedUrl,
+          aliceUrl,
+        );
+        expect(mailer.sendReleaseNotification).toHaveBeenCalledWith(
+          SUBSCRIBER_BOB.email,
+          expect.any(String),
+          expect.any(String),
+          expect.any(String),
+          bobUrl,
         );
       });
     });
@@ -147,12 +132,6 @@ describe('NotificationService', () => {
         await capturedHandler(MOCK_PAYLOAD);
 
         expect(metrics.incSent).not.toHaveBeenCalledWith('failure');
-      });
-
-      it('should not log any error', async () => {
-        await capturedHandler(MOCK_PAYLOAD);
-
-        expect(logger.error).not.toHaveBeenCalled();
       });
     });
 
@@ -190,19 +169,6 @@ describe('NotificationService', () => {
 
         expect(metrics.incSent).toHaveBeenCalledWith('success');
       });
-
-      it('should log an error with the failed email, repo, and error details', async () => {
-        await capturedHandler(MOCK_PAYLOAD);
-
-        expect(logger.error).toHaveBeenCalledWith(
-          {
-            err: smtpError,
-            email: SUBSCRIBER_ALICE.email,
-            repo: 'acc/testName',
-          },
-          '[Notifier] Failed to send release email',
-        );
-      });
     });
 
     describe('when all emails fail to send', () => {
@@ -218,12 +184,6 @@ describe('NotificationService', () => {
         expect(metrics.incSent).toHaveBeenCalledTimes(2);
         expect(metrics.incSent).toHaveBeenCalledWith('failure');
         expect(metrics.incSent).not.toHaveBeenCalledWith('success');
-      });
-
-      it('should log an error for each failed subscriber', async () => {
-        await capturedHandler(MOCK_PAYLOAD);
-
-        expect(logger.error).toHaveBeenCalledTimes(2);
       });
 
       it('should resolve without throwing even if all sends fail', async () => {

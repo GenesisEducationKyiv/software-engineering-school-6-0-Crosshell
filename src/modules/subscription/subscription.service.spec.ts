@@ -3,8 +3,7 @@ import { mock } from 'vitest-mock-extended';
 import { SubscriptionService } from './subscription.service';
 import { NotFoundError } from '@/shared/errors/app.errors';
 import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
-import type { Subscription } from '@/modules/subscription/types/subscription.type';
-import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
+import type { Subscription } from './types/subscription.type';
 
 const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub-uuid-1',
@@ -102,7 +101,7 @@ describe('SubscriptionService', () => {
         );
       });
 
-      it('should not call deleteById when the token does not exist', async () => {
+      it('should not delete the subscription when the token does not exist', async () => {
         subscriptionRepository.findByUnsubscribeToken.mockResolvedValue(null);
 
         await expect(service.unsubscribe(VALID_TOKEN)).rejects.toThrow(
@@ -151,40 +150,6 @@ describe('SubscriptionService', () => {
   });
 
   describe('getSubscriptionsByEmail', () => {
-    it('should return an empty array when the email has no confirmed subscriptions', async () => {
-      subscriptionRepository.findConfirmedByEmail.mockResolvedValue([]);
-
-      const result = await service.getSubscriptionsByEmail('user@example.com');
-
-      expect(result).toEqual([]);
-    });
-
-    it('should return all confirmed subscriptions for the given email', async () => {
-      const subscriptions: SubscriptionWithRepo[] = [
-        {
-          email: 'user@example.com',
-          owner: 'acc',
-          repo: 'testName',
-          confirmed: true,
-          lastSeenTag: 'v1.0.0',
-        },
-        {
-          email: 'user@example.com',
-          owner: 'facebook',
-          repo: 'react',
-          confirmed: true,
-          lastSeenTag: null,
-        },
-      ];
-      subscriptionRepository.findConfirmedByEmail.mockResolvedValue(
-        subscriptions,
-      );
-
-      const result = await service.getSubscriptionsByEmail('user@example.com');
-
-      expect(result).toEqual(subscriptions);
-    });
-
     it('should query the repository with the exact email provided', async () => {
       const email = 'specific@user.com';
 

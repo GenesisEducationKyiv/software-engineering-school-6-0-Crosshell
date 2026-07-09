@@ -6,7 +6,7 @@ import healthPlugin from '@/shared/plugins/health.plugin';
 
 async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
-  app.register(healthPlugin);
+  app.register(healthPlugin, { probe: async () => {} });
   app.register(metricsPlugin);
   await app.ready();
 

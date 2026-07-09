@@ -1,55 +1,14 @@
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  beforeEach,
-  vi,
-  type MockInstance,
-} from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
-import { NotificationService } from '@/modules/notification/notification.service';
-import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
-import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
-import { logger } from '@/shared/logger';
-import type { NotificationQueue } from '@/modules/notification/notification.queue';
+import type { ReleaseNotificationPayload } from '@/modules/notification';
+import { useNotificationTest } from './helpers/notification-test.helper';
 import { useQueue } from './helpers/queue.helper';
-import { createTestMailer } from './helpers/mailer.helper';
-
-function buildNotificationService(
-  mailer: IMailerService,
-  queue: NotificationQueue,
-): NotificationService {
-  return new NotificationService(
-    mailer,
-    queue,
-    logger,
-    new NotificationMetrics(),
-    { appUrl: 'http://localhost:3000' },
-  );
-}
 
 const DLQ_NAME = 'release.notifications.dead';
 
 describe('NotificationService', () => {
-  const { getNotificationQueue } = useQueue();
-
-  let mailer: IMailerService;
-  let sendReleaseNotificationSpy: MockInstance;
-
-  beforeAll(() => {
-    mailer = createTestMailer();
-    sendReleaseNotificationSpy = vi
-      .spyOn(mailer, 'sendReleaseNotification')
-      .mockResolvedValue(undefined);
-
-    buildNotificationService(mailer, getNotificationQueue()).start();
-  });
-
-  beforeEach(() => {
-    sendReleaseNotificationSpy.mockResolvedValue(undefined);
-  });
+  const { getSendReleaseNotificationSpy, getNotificationQueue } =
+    useNotificationTest();
 
   it('delivers email to all subscribers when a message appears in the queue', async () => {
     const payload: ReleaseNotificationPayload = {
@@ -67,7 +26,20 @@ describe('NotificationService', () => {
 
     await vi.waitFor(
       () => {
-        expect(sendReleaseNotificationSpy).toHaveBeenCalledTimes(2);
+        expect(getSendReleaseNotificationSpy()).toHaveBeenCalledWith(
+          'alice@example.com',
+          expect.any(String),
+          expect.any(String),
+          expect.any(String),
+          expect.any(String),
+        );
+        expect(getSendReleaseNotificationSpy()).toHaveBeenCalledWith(
+          'bob@example.com',
+          expect.any(String),
+          expect.any(String),
+          expect.any(String),
+          expect.any(String),
+        );
       },
       { timeout: 10_000 },
     );
@@ -87,12 +59,12 @@ describe('NotificationService', () => {
 
     await vi.waitFor(
       () => {
-        expect(sendReleaseNotificationSpy).toHaveBeenCalledOnce();
+        expect(getSendReleaseNotificationSpy()).toHaveBeenCalledOnce();
       },
       { timeout: 10_000 },
     );
 
-    expect(sendReleaseNotificationSpy).toHaveBeenCalledWith(
+    expect(getSendReleaseNotificationSpy()).toHaveBeenCalledWith(
       'user@example.com',
       'vercel/next.js',
       'v15.0.0',
@@ -102,7 +74,7 @@ describe('NotificationService', () => {
   });
 
   it('continues delivering to other subscribers when one email fails', async () => {
-    sendReleaseNotificationSpy.mockImplementation(
+    getSendReleaseNotificationSpy().mockImplementation(
       async (
         to: string,
         _repo: string,
@@ -131,12 +103,12 @@ describe('NotificationService', () => {
 
     await vi.waitFor(
       () => {
-        expect(sendReleaseNotificationSpy).toHaveBeenCalledTimes(2);
+        expect(getSendReleaseNotificationSpy()).toHaveBeenCalledTimes(2);
       },
       { timeout: 10_000 },
     );
 
-    expect(sendReleaseNotificationSpy).toHaveBeenCalledWith(
+    expect(getSendReleaseNotificationSpy()).toHaveBeenCalledWith(
       'good@example.com',
       expect.any(String),
       expect.any(String),
