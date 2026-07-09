@@ -1,5 +1,10 @@
 import { db } from '@/infrastructure/database';
-import { githubConfig, appConfig, scannerConfig } from '@/shared/config';
+import {
+  githubConfig,
+  appConfig,
+  scannerConfig,
+  sagaTransportConfig,
+} from '@/shared/config';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import { RepositoryRepository } from '@/modules/repository';
 import {
@@ -24,12 +29,14 @@ import {
   SubscribeSagaOrchestrator,
   SagaRepository,
   SubscribeSagaUoWContextBuilder,
+  GrpcConfirmationEmailSender,
 } from '@/modules/saga';
 
 export interface AppContainer {
   subscriptionService: SubscriptionService;
   scannerService: ScannerService;
   subscribeSagaOrchestrator: SubscribeSagaOrchestrator;
+  grpcConfirmationEmailSender?: GrpcConfirmationEmailSender;
 }
 
 export function createContainer(
@@ -58,13 +65,22 @@ export function createContainer(
 
   const subscriptionService = new SubscriptionService(subscriptionRepository);
 
+  const grpcConfirmationEmailSender =
+    sagaTransportConfig.transport === 'grpc'
+      ? new GrpcConfirmationEmailSender(
+          sagaTransportConfig.grpcUrl,
+          sagaTransportConfig.grpcDeadlineMs,
+        )
+      : undefined;
+
   const subscribeSagaOrchestrator = new SubscribeSagaOrchestrator(
     new UnitOfWork(db, new SubscribeSagaUoWContextBuilder()),
     repositorySource,
     sagaCommandsQueue,
     new SagaRepository(db),
     logger,
-    { appUrl: appConfig.appUrl },
+    { appUrl: appConfig.appUrl, transport: sagaTransportConfig.transport },
+    grpcConfirmationEmailSender,
   );
 
   const scannerService = new ScannerService(
@@ -76,5 +92,10 @@ export function createContainer(
     new ScannerMetrics(),
   );
 
-  return { subscriptionService, scannerService, subscribeSagaOrchestrator };
+  return {
+    subscriptionService,
+    scannerService,
+    subscribeSagaOrchestrator,
+    grpcConfirmationEmailSender,
+  };
 }

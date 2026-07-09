@@ -100,23 +100,23 @@ The service is a **monolithic Node.js application** composed of four concurrent 
 
 ### Tech Stack
 
-| Layer            | Technology                                   |
-|------------------|----------------------------------------------|
-| Runtime          | Node.js 22                                   |
-| Language         | TypeScript 5                                 |
-| HTTP framework   | Fastify 5 with Zod type provider             |
-| RPC              | gRPC (`@grpc/grpc-js`, `@grpc/proto-loader`) |
-| ORM              | Drizzle ORM                                  |
-| Database         | PostgreSQL 16                                |
-| Cache            | Redis 7 (ioredis)                            |
-| Message queue    | RabbitMQ 3 (amqplib)                         |
-| Email            | Nodemailer (SMTP)                            |
-| Scheduler        | node-cron                                    |
-| Validation       | Zod                                          |
-| Logging          | Pino                                         |
-| Metrics          | prom-client (Prometheus)                     |
-| Testing          | Vitest + MSW + vitest-mock-extended          |
-| Containerisation | Docker + Docker Compose                      |
+| Layer            | Technology                                                                         |
+|------------------|------------------------------------------------------------------------------------|
+| Runtime          | Node.js 22                                                                         |
+| Language         | TypeScript 5                                                                       |
+| HTTP framework   | Fastify 5 with Zod type provider                                                   |
+| RPC              | gRPC (`@grpc/grpc-js`), contracts managed by [buf](https://buf.build) + `ts-proto` |
+| ORM              | Drizzle ORM                                                                        |
+| Database         | PostgreSQL 16                                                                      |
+| Cache            | Redis 7 (ioredis)                                                                  |
+| Message queue    | RabbitMQ 3 (amqplib)                                                               |
+| Email            | Nodemailer (SMTP)                                                                  |
+| Scheduler        | node-cron                                                                          |
+| Validation       | Zod                                                                                |
+| Logging          | Pino                                                                               |
+| Metrics          | prom-client (Prometheus)                                                           |
+| Testing          | Vitest + MSW + vitest-mock-extended                                                |
+| Containerisation | Docker + Docker Compose                                                            |
 
 ---
 
@@ -136,14 +136,14 @@ If the `API_KEY` environment variable is not set, authentication is disabled and
 
 All subscription routes are mounted under the `/api` prefix.
 
-| Method | Path                        | Description                                           |
-|--------|-----------------------------|-------------------------------------------------------|
-| `POST` | `/api/subscribe`            | Subscribe an email to a repository's releases         |
-| `GET`  | `/api/confirm/:token`       | Confirm a subscription using the token from the email |
-| `GET`  | `/api/unsubscribe/:token`   | Cancel a subscription using its unsubscribe token     |
-| `GET`  | `/api/subscriptions?email=` | List all subscriptions for a given email address      |
-| `GET`  | `/health`                   | Liveness check - returns `{ "status": "ok" }`         |
-| `GET`  | `/metrics`                  | Prometheus metrics (plain text)                       |
+| Method | Path                        | Description                                                                                                                                           |
+|--------|-----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `POST` | `/api/subscribe`            | Subscribe an email to a repository's releases                                                                                                         |
+| `GET`  | `/api/confirm/:token`       | Confirm a subscription using the token from the email                                                                                                 |
+| `GET`  | `/api/unsubscribe/:token`   | Cancel a subscription using its unsubscribe token                                                                                                     |
+| `GET`  | `/api/subscriptions?email=` | List all subscriptions for a given email address                                                                                                      |
+| `GET`  | `/health`                   | Liveness check - returns `{ "status": "ok" }`                                                                                                         |
+| `GET`  | `/metrics`                  | Prometheus metrics (plain text)                                                                                                                       |
 
 **POST /api/subscribe - Request body**
 
@@ -156,14 +156,53 @@ All subscription routes are mounted under the `/api` prefix.
 
 ### gRPC Interface
 
-The gRPC server runs on port `50051` and exposes the `SubscriptionService` defined in [`proto/subscription.proto`](proto/subscription.proto). The API key must be supplied in request metadata under the `x-api-key` key.
+The gRPC server runs on port `50051` and exposes the **external-facing** `SubscriptionService`, mirroring every REST route above for outside clients. The API key must be supplied in request metadata under `x-api-key`.
 
-| RPC method | Equivalent REST route |
-|------------|-----------------------|
-| `Subscribe` | `POST /api/subscribe` |
-| `ConfirmSubscription` | `GET /api/confirm/:token` |
-| `Unsubscribe` | `GET /api/unsubscribe/:token` |
-| `GetSubscriptions` | `GET /api/subscriptions` |
+| RPC method            | Equivalent REST route         |
+|-----------------------|-------------------------------|
+| `Subscribe`           | `POST /api/subscribe`         |
+| `ConfirmSubscription` | `GET /api/confirm/:token`     |
+| `Unsubscribe`         | `GET /api/unsubscribe/:token` |
+| `GetSubscriptions`    | `GET /api/subscriptions`      |
+
+Both this contract and the internal one below are defined under [`proto/`](proto/), managed by [buf](https://buf.build) and compiled with `ts-proto` into `src/generated/` - no runtime `.proto` parsing.
+
+---
+
+## Saga Confirmation Email: RabbitMQ vs gRPC
+
+The confirmation-email step of the `SUBSCRIBE` saga is a synchronous, internal call between two existing services - the API service's `SubscribeSagaOrchestrator` publishes a command and blocks awaiting a typed reply before completing or compensating the saga. That existing call, not a newly invented one, is the gRPC candidate for this increment: it now has a second, interchangeable transport alongside the original RabbitMQ one.
+
+```
+[API service: SubscribeSagaOrchestrator] --RabbitMQ (default) or gRPC--> [SagaMailService (notifier worker)]
+```
+
+**Contract:** [`proto/saga/v1/saga.proto`](proto/saga/v1/saga.proto) - a single `SendConfirmationEmail` RPC, managed by the same buf + `ts-proto` pipeline as `SubscriptionService` (see [`buf.yaml`](buf.yaml) / [`buf.gen.yaml`](buf.gen.yaml)).
+
+**Transport selection:** the notifier worker always runs both server-side implementations ([`saga-command.handler.ts`](src/notifier/saga-command.handler.ts) for the queue, [`saga-mail.grpc.ts`](src/notifier/saga-mail.grpc.ts) for gRPC); the API service's `SAGA_MAIL_TRANSPORT` env var (`queue` default, or `grpc`) picks which one the orchestrator calls - see [Environment Variables](#environment-variables).
+
+**Error handling:** a gRPC failure maps to `INTERNAL` via the same error mapper `SubscriptionService` uses. Either transport failing triggers identical saga compensation, so the caller sees the same outcome regardless of which one is configured - covered in `subscribe-saga.orchestrator.spec.ts`.
+
+### Throughput comparison
+
+`ghz` doesn't have a RabbitMQ equivalent, so the queue side is measured with a small purpose-built harness ([`scripts/bench-queue-transport.ts`](scripts/bench-queue-transport.ts), `npm run bench:queue`) that drives the same `SagaCommandsQueue` class the orchestrator uses - publish a command, await the matching reply by `correlationId`. Both benchmarks talk to a notifier worker pointed at a local MailHog instance (so SMTP round-trip time doesn't dominate the numbers), same concurrency and duration:
+
+```bash
+npm run bench:queue -- 50 10000                                       # 50 concurrent, 10s
+
+ghz --insecure --proto proto/saga/v1/saga.proto \
+  --call saga.v1.SagaMailService.SendConfirmationEmail \
+  -d '{"correlationId":"bench","email":"bench@example.com","confirmUrl":"http://localhost/confirm","unsubscribeUrl":"http://localhost/unsubscribe"}' \
+  -c 50 -z 10s localhost:50052
+```
+
+|              | RabbitMQ | gRPC    | Δ        |
+|--------------|----------|---------|----------|
+| Requests/sec | ~575     | ~1,058  | **+84%** |
+| Avg latency  | 86.6 ms  | 47.1 ms | **-46%** |
+| p99 latency  | 139.1 ms | 69.0 ms | **-50%** |
+
+The gap comes from the shape of each transport, not serialization: the queue path is a publish and a separate consume on each leg (command in, reply out - four broker round-trips per request), while gRPC is one connection carrying a direct request/response. Both eventually call the exact same `IMailerService.sendConfirmationEmail`, so this isolates transport overhead specifically.
 
 ---
 
@@ -243,21 +282,26 @@ npm run db:studio      # Open Drizzle Studio (visual DB browser)
 
 ### Optional
 
-| Variable                   | Default                                            | Description                                                                                                                  |
-|----------------------------|----------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
-| `NODE_ENV`                 | `production`                                       | Runtime environment - `development`, `production`, or `test`                                                                 |
-| `APP_PORT` / `PORT`        | `3000`                                             | Port for the Fastify HTTP server                                                                                             |
-| `GRPC_PORT`                | `50051`                                            | Port for the gRPC server                                                                                                     |
-| `API_KEY`                  | _(none)_                                           | Static API key required in the `x-api-key` header. When unset, all endpoints are publicly accessible                         |
-| `GITHUB_TOKEN`             | _(none)_                                           | GitHub personal access token. Without it the GitHub API rate limit is 60 req/hour; with it the limit rises to 5,000 req/hour |
-| `GITHUB_BASE_URL`          | `https://api.github.com`                           | Base URL for GitHub API requests (useful for testing against mocks)                                                          |
-| `GITHUB_CACHE_TTL_SECONDS` | `600`                                              | How long (in seconds) GitHub API responses are cached in Redis                                                               |
-| `SCANNER_CRON`             | `*/10 * * * *`                                     | Cron expression controlling how often the release scanner runs                                                               |
-| `SMTP_PORT`                | `587`                                              | SMTP server port                                                                                                             |
-| `SMTP_FROM`                | `"GitHub Release Notifier" <noreply@releases.app>` | The `From` address on outgoing emails                                                                                        |
-| `POSTGRES_DB`              | _(none)_                                           | Used by the bundled `docker-compose.yml` to create the database                                                              |
-| `POSTGRES_USER`            | _(none)_                                           | Used by the bundled `docker-compose.yml`                                                                                     |
-| `POSTGRES_PASSWORD`        | _(none)_                                           | Used by the bundled `docker-compose.yml`                                                                                     |
+| Variable                   | Default                                            | Description                                                                                                                                                              |
+|----------------------------|----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `NODE_ENV`                 | `production`                                       | Runtime environment - `development`, `production`, or `test`                                                                                                             |
+| `APP_PORT` / `PORT`        | `3000`                                             | Port for the Fastify HTTP server                                                                                                                                         |
+| `GRPC_PORT`                | `50051`                                            | Port for the gRPC server                                                                                                                                                 |
+| `API_KEY`                  | _(none)_                                           | Static API key required in the `x-api-key` header. When unset, all endpoints are publicly accessible                                                                     |
+| `GITHUB_TOKEN`             | _(none)_                                           | GitHub personal access token. Without it the GitHub API rate limit is 60 req/hour; with it the limit rises to 5,000 req/hour                                             |
+| `GITHUB_BASE_URL`          | `https://api.github.com`                           | Base URL for GitHub API requests (useful for testing against mocks)                                                                                                      |
+| `GITHUB_CACHE_TTL_SECONDS` | `600`                                              | How long (in seconds) GitHub API responses are cached in Redis                                                                                                           |
+| `SCANNER_CRON`             | `*/10 * * * *`                                     | Cron expression controlling how often the release scanner runs                                                                                                           |
+| `SMTP_PORT`                | `587`                                              | SMTP server port                                                                                                                                                         |
+| `SMTP_FROM`                | `"GitHub Release Notifier" <noreply@releases.app>` | The `From` address on outgoing emails                                                                                                                                    |
+| `POSTGRES_DB`              | _(none)_                                           | Used by the bundled `docker-compose.yml` to create the database                                                                                                          |
+| `POSTGRES_USER`            | _(none)_                                           | Used by the bundled `docker-compose.yml`                                                                                                                                 |
+| `POSTGRES_PASSWORD`        | _(none)_                                           | Used by the bundled `docker-compose.yml`                                                                                                                                 |
+| `NOTIFIER_WORKER_PORT`     | `3002`                                             | Notifier worker's `/health` and `/metrics` port                                                                                                                          |
+| `SAGA_GRPC_PORT`           | `50052`                                            | Notifier worker's internal gRPC port for the confirmation-email service (not published to the host, see [confirmation-email](#saga-confirmation-email-rabbitmq-vs-grpc)) |
+| `SAGA_MAIL_TRANSPORT`      | `queue`                                            | `queue` or `grpc` - which transport the orchestrator uses to send the confirmation email                                                                                 |
+| `SAGA_GRPC_URL`            | `localhost:50052`                                  | Where the API service reaches that gRPC port, used when `SAGA_MAIL_TRANSPORT=grpc`                                                                                       |
+| `SAGA_GRPC_DEADLINE_MS`    | `10000`                                            | Deadline for the gRPC call before it's treated as a failure                                                                                                              |
 
 ---
 
@@ -281,15 +325,22 @@ See [testing.md](testing.md) for instructions on running unit, integration, and 
 ```
 .
 ├── proto/                        # Protobuf definitions
-│   └── subscription.proto
+│   ├── subscription/v1/          # external SubscriptionService contract
+│   └── saga/v1/                  # internal SagaMailService contract
+├── buf.yaml                      # buf module + lint config (whole proto/ tree)
+├── buf.gen.yaml                  # buf codegen config (ts-proto -> src/generated)
 ├── public/                       # Static HTML frontend (served at /)
 │   ├── index.html                # Subscribe form
 │   ├── confirm.html              # Confirmation landing page
 │   └── unsubscribe.html          # Unsubscribe landing page
 ├── src/
 │   ├── container.ts              # Manual dependency wiring (no DI framework)
-│   ├── index.ts                  # Entry point - starts all subsystems
+│   ├── index.ts                  # API service entry point
 │   ├── server.ts                 # Fastify instance setup
+│   ├── notifier/                 # Notifier worker entry point (separate deployable)
+│   ├── generated/                # buf/ts-proto generated code (do not edit)
+│   │   ├── saga/v1/
+│   │   └── subscription/v1/
 │   ├── infrastructure/
 │   │   ├── cache/                # Redis client + CacheService
 │   │   ├── database/             # Drizzle client, schema, UnitOfWork
@@ -301,6 +352,7 @@ See [testing.md](testing.md) for instructions on running unit, integration, and 
 │   │   ├── mailer/               # Nodemailer service + email templates
 │   │   ├── notification/         # RabbitMQ consumer + publisher
 │   │   ├── repository/           # Tracked repository repository
+│   │   ├── saga/                 # Subscribe saga orchestrator (RabbitMQ or gRPC transport)
 │   │   ├── scanner/              # Cron-driven release scanner
 │   │   └── subscription/         # Subscribe / confirm / unsubscribe logic
 │   └── shared/

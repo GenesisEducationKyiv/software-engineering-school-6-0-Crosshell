@@ -16,6 +16,7 @@ import { GrpcServer } from '@/infrastructure/grpc/grpc-server';
 import { logger } from '@/shared/logger';
 import { createContainer } from '@/container';
 import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
+import type { Closeable } from '@/shared/lifecycle/graceful-shutdown';
 import {
   appConfig,
   grpcConfig,
@@ -51,8 +52,12 @@ const start = async () => {
     const sagaCommandsQueue = new SagaCommandsQueue(queueManager, logger);
     await sagaCommandsQueue.setup();
 
-    const { subscriptionService, scannerService, subscribeSagaOrchestrator } =
-      createContainer(notificationQueue, sagaCommandsQueue, cache, logger);
+    const {
+      subscriptionService,
+      scannerService,
+      subscribeSagaOrchestrator,
+      grpcConfirmationEmailSender,
+    } = createContainer(notificationQueue, sagaCommandsQueue, cache, logger);
 
     subscribeSagaOrchestrator.startReplyConsumer();
 
@@ -69,13 +74,17 @@ const start = async () => {
       ),
     );
 
-    registerGracefulShutdown([
+    const shutdownResources: Closeable[] = [
       server,
       grpcServer,
       queueManager,
       { close: () => pool.end() },
       { close: () => cache.quit() },
-    ]);
+    ];
+    if (grpcConfirmationEmailSender) {
+      shutdownResources.push(grpcConfirmationEmailSender);
+    }
+    registerGracefulShutdown(shutdownResources);
 
     await server.register(
       subscriptionRoutes(subscriptionService, subscribeSagaOrchestrator),

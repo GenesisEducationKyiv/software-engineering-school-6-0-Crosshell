@@ -1,12 +1,17 @@
 import type * as grpc from '@grpc/grpc-js';
+import {
+  SubscriptionServiceService,
+  type SubscribeRequest,
+  type SubscribeResponse,
+  type ConfirmSubscriptionRequest,
+  type ConfirmSubscriptionResponse,
+  type UnsubscribeRequest,
+  type UnsubscribeResponse,
+  type GetSubscriptionsRequest,
+  type GetSubscriptionsResponse,
+} from '@/generated/subscription/v1/subscription';
 import type { ISubscriptionService } from './interfaces/subscription.service.interface';
-import { loadServiceDefinition } from '@/infrastructure/grpc/grpc-server';
 import { toGrpcError } from '@/infrastructure/grpc/grpc-error.mapper';
-import type {
-  GetSubscriptionsQuery,
-  SubscribeInput,
-  UnsubscribeInput,
-} from './subscription.schemas';
 import {
   subscribeSchema,
   tokenSchema,
@@ -15,16 +20,8 @@ import {
 import { UnauthorizedError } from '@/shared/errors/app.errors';
 import type { SubscribeSagaOrchestrator } from '@/modules/saga';
 
-type SubscribeRequest = SubscribeInput;
-type TokenRequest = UnsubscribeInput;
-type GetSubscriptionsRequest = GetSubscriptionsQuery;
-
 export function getSubscriptionServiceDefinition(): grpc.ServiceDefinition {
-  return loadServiceDefinition(
-    'subscription.proto',
-    'subscription',
-    'SubscriptionService',
-  );
+  return SubscriptionServiceService as unknown as grpc.ServiceDefinition;
 }
 
 function verifyApiKey(metadata: grpc.Metadata, apiKey?: string): void {
@@ -56,48 +53,54 @@ export function createSubscriptionGrpcHandlers(
   orchestrator: SubscribeSagaOrchestrator,
   apiKey?: string,
 ): grpc.UntypedServiceImplementation {
-  const subscribe = unaryHandler<SubscribeRequest, object>(async (call) => {
-    verifyApiKey(call.metadata, apiKey);
-    const input = subscribeSchema.parse(call.request);
-    await orchestrator.execute(input);
-
-    return {};
-  });
-
-  const confirmSubscription = unaryHandler<TokenRequest, object>(
+  const subscribe = unaryHandler<SubscribeRequest, SubscribeResponse>(
     async (call) => {
       verifyApiKey(call.metadata, apiKey);
-      const { token } = tokenSchema.parse(call.request);
-      await service.confirm(token);
+      const input = subscribeSchema.parse(call.request);
+      await orchestrator.execute(input);
 
       return {};
     },
   );
 
-  const unsubscribe = unaryHandler<TokenRequest, object>(async (call) => {
+  const confirmSubscription = unaryHandler<
+    ConfirmSubscriptionRequest,
+    ConfirmSubscriptionResponse
+  >(async (call) => {
     verifyApiKey(call.metadata, apiKey);
     const { token } = tokenSchema.parse(call.request);
-    await service.unsubscribe(token);
+    await service.confirm(token);
 
     return {};
   });
 
-  const getSubscriptions = unaryHandler<GetSubscriptionsRequest, object>(
+  const unsubscribe = unaryHandler<UnsubscribeRequest, UnsubscribeResponse>(
     async (call) => {
       verifyApiKey(call.metadata, apiKey);
-      const { email } = getSubscriptionsQuerySchema.parse(call.request);
-      const subscriptions = await service.getSubscriptionsByEmail(email);
+      const { token } = tokenSchema.parse(call.request);
+      await service.unsubscribe(token);
 
-      return {
-        subscriptions: subscriptions.map((s) => ({
-          email: s.email,
-          repo: `${s.owner}/${s.repo}`,
-          confirmed: s.confirmed,
-          lastSeenTag: s.lastSeenTag,
-        })),
-      };
+      return {};
     },
   );
+
+  const getSubscriptions = unaryHandler<
+    GetSubscriptionsRequest,
+    GetSubscriptionsResponse
+  >(async (call) => {
+    verifyApiKey(call.metadata, apiKey);
+    const { email } = getSubscriptionsQuerySchema.parse(call.request);
+    const subscriptions = await service.getSubscriptionsByEmail(email);
+
+    return {
+      subscriptions: subscriptions.map((s) => ({
+        email: s.email,
+        repo: `${s.owner}/${s.repo}`,
+        confirmed: s.confirmed,
+        lastSeenTag: s.lastSeenTag ?? '',
+      })),
+    };
+  });
 
   return { subscribe, confirmSubscription, unsubscribe, getSubscriptions };
 }

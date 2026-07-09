@@ -1,0 +1,20 @@
+syntax = "proto3";
+package saga.v1;
+
+// Server-side implementation lives in the notifier worker (the saga
+// participant that owns the mailer). Client-side implementation lives in the
+// API service's SubscribeSagaOrchestrator, as an alternative to the existing
+// RabbitMQ command/reply transport (see SAGA_MAIL_TRANSPORT).
+service SagaMailService {
+  rpc SendConfirmationEmail(SendConfirmationEmailRequest)
+      returns (SendConfirmationEmailResponse);
+}
+
+message SendConfirmationEmailRequest {
+  string correlation_id = 1;
+  string email = 2;
+  string confirm_url = 3;
+  string unsubscribe_url = 4;
+}
+
+message SendConfirmationEmailResponse {}

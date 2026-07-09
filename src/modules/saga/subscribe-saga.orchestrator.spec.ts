@@ -13,6 +13,7 @@ import type {
 } from '@/modules/subscription';
 import type { SagaInstance, SagaReply } from './saga.types';
 import type { Repository } from '@/modules/repository';
+import type { IConfirmationEmailSender } from './interfaces/confirmation-email-sender.interface';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',
@@ -228,6 +229,71 @@ describe('SubscribeSagaOrchestrator', () => {
       expect(txCtx.subscriptions.deleteById).toHaveBeenCalledWith(
         MOCK_SUBSCRIPTION.id,
       );
+    });
+  });
+
+  describe('execute — grpc transport', () => {
+    let confirmationEmailSender: ReturnType<
+      typeof mock<IConfirmationEmailSender>
+    >;
+    let grpcOrchestrator: SubscribeSagaOrchestrator;
+
+    beforeEach(() => {
+      confirmationEmailSender = mock<IConfirmationEmailSender>();
+      grpcOrchestrator = new SubscribeSagaOrchestrator(
+        uow,
+        repositorySource,
+        sagaCommandsQueue,
+        sagaRepository,
+        mock<ILogger>(),
+        { appUrl: 'http://localhost', transport: 'grpc' },
+        confirmationEmailSender,
+      );
+    });
+
+    it('sends via the grpc sender and marks the saga COMPLETED, bypassing the queue', async () => {
+      confirmationEmailSender.send.mockResolvedValue(undefined);
+
+      await grpcOrchestrator.execute(VALID_INPUT);
+
+      expect(confirmationEmailSender.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: VALID_INPUT.email,
+        }),
+      );
+      expect(sagaRepository.updateStatus).toHaveBeenCalledWith(
+        expect.any(String),
+        'COMPLETED',
+      );
+      expect(sagaCommandsQueue.publishCommand).not.toHaveBeenCalled();
+    });
+
+    it('compensates and rejects when the grpc sender fails', async () => {
+      confirmationEmailSender.send.mockRejectedValue(
+        new Error('deadline exceeded'),
+      );
+
+      await expect(grpcOrchestrator.execute(VALID_INPUT)).rejects.toThrow();
+
+      expect(txCtx.subscriptions.deleteById).toHaveBeenCalledWith(
+        MOCK_SUBSCRIPTION.id,
+      );
+      const statuses = sagaRepository.updateStatus.mock.calls.map((c) => c[1]);
+      expect(statuses).not.toContain('COMPLETED');
+    });
+
+    it('fails fast at construction when transport is grpc without a sender', () => {
+      expect(
+        () =>
+          new SubscribeSagaOrchestrator(
+            uow,
+            repositorySource,
+            sagaCommandsQueue,
+            sagaRepository,
+            mock<ILogger>(),
+            { appUrl: 'http://localhost', transport: 'grpc' },
+          ),
+      ).toThrow('no confirmationEmailSender was provided');
     });
   });
 
