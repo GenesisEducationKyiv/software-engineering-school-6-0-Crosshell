@@ -40,12 +40,11 @@ export class SubscribeSagaOrchestrator {
       if (resolver) {
         this.pendingReplies.delete(reply.correlationId);
         resolver(reply);
-      } else {
-        this.logger.warn(
-          { correlationId: reply.correlationId },
-          '[Saga] Received reply for unknown or expired correlationId',
-        );
+
+        return;
       }
+
+      await this.resolveOrphanedReply(reply);
     });
   }
 
@@ -58,9 +57,49 @@ export class SubscribeSagaOrchestrator {
           { correlationId: saga.correlationId, status },
           '[Saga] Recovering stuck saga — compensating',
         );
-        await this.compensate(saga.correlationId, saga.payload.subscriptionId);
+        await this.compensate(saga.correlationId, saga.payload.subscriptionId, [
+          status,
+        ]);
       }
     }
+  }
+
+  private async resolveOrphanedReply(reply: SagaReply): Promise<void> {
+    const saga = await this.sagaRepository.findByCorrelationId(
+      reply.correlationId,
+    );
+    if (!saga || saga.status !== 'AWAITING_EMAIL') {
+      this.logger.warn(
+        { correlationId: reply.correlationId },
+        '[Saga] Received reply for unknown or already-resolved correlationId',
+      );
+
+      return;
+    }
+
+    if (reply.type === 'SEND_CONFIRMATION_EMAIL_SUCCESS') {
+      const completed = await this.sagaRepository.updateStatusIfCurrent(
+        reply.correlationId,
+        'COMPLETED',
+        ['AWAITING_EMAIL'],
+      );
+      if (completed) {
+        this.logger.info(
+          { correlationId: reply.correlationId },
+          '[Saga] Recovered success reply after restart — saga completed',
+        );
+      }
+
+      return;
+    }
+
+    this.logger.warn(
+      { correlationId: reply.correlationId, error: reply.error },
+      '[Saga] Recovered failure reply after restart — compensating',
+    );
+    await this.compensate(reply.correlationId, saga.payload.subscriptionId, [
+      'AWAITING_EMAIL',
+    ]);
   }
 
   async execute(input: SubscribeInput): Promise<void> {
@@ -167,8 +206,25 @@ export class SubscribeSagaOrchestrator {
   private async compensate(
     correlationId: string,
     subscriptionId: string,
+    expectedStatuses?: SagaStatus[],
   ): Promise<void> {
-    await this.sagaRepository.updateStatus(correlationId, 'COMPENSATING');
+    if (expectedStatuses) {
+      const transitioned = await this.sagaRepository.updateStatusIfCurrent(
+        correlationId,
+        'COMPENSATING',
+        expectedStatuses,
+      );
+      if (!transitioned) {
+        this.logger.info(
+          { correlationId },
+          '[Saga] Skipping compensation — saga already resolved elsewhere',
+        );
+
+        return;
+      }
+    } else {
+      await this.sagaRepository.updateStatus(correlationId, 'COMPENSATING');
+    }
 
     await this.uow.run(async ({ subscriptions, sagaInstances }) => {
       await subscriptions.deleteById(subscriptionId);

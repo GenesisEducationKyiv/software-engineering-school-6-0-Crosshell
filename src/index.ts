@@ -25,6 +25,8 @@ import {
 import { createRedisClient } from '@/infrastructure/cache/redis-client';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 
+const RECOVERY_GRACE_MS = 2_000;
+
 const start = async () => {
   try {
     await migrate(db, { migrationsFolder: './drizzle/migrations' });
@@ -52,8 +54,10 @@ const start = async () => {
     const { subscriptionService, scannerService, subscribeSagaOrchestrator } =
       createContainer(notificationQueue, sagaCommandsQueue, cache, logger);
 
-    await subscribeSagaOrchestrator.recoverPendingSagas();
     subscribeSagaOrchestrator.startReplyConsumer();
+
+    await new Promise((resolve) => setTimeout(resolve, RECOVERY_GRACE_MS));
+    await subscribeSagaOrchestrator.recoverPendingSagas();
 
     const grpcServer = new GrpcServer();
     grpcServer.addService(

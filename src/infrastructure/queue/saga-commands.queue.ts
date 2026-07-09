@@ -25,8 +25,9 @@ export class SagaCommandsQueue {
       });
 
     if (!ok) {
-      throw new Error(
-        `[SagaQueue] Write buffer full — command ${command.type} not sent (correlationId=${command.correlationId})`,
+      this.logger.warn(
+        { correlationId: command.correlationId, type: command.type },
+        '[SagaQueue] Write buffer full — command queued, backpressure in effect',
       );
     }
   }
@@ -39,8 +40,9 @@ export class SagaCommandsQueue {
       });
 
     if (!ok) {
-      throw new Error(
-        `[SagaQueue] Write buffer full — reply ${reply.type} not sent (correlationId=${reply.correlationId})`,
+      this.logger.warn(
+        { correlationId: reply.correlationId, type: reply.type },
+        '[SagaQueue] Write buffer full — reply queued, backpressure in effect',
       );
     }
   }

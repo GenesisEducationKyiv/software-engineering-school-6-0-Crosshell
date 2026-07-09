@@ -28,11 +28,6 @@ export class SagaCommandHandler {
         payload.confirmUrl,
         payload.unsubscribeUrl,
       );
-      this.sagaCommandsQueue.publishReply({
-        correlationId,
-        type: 'SEND_CONFIRMATION_EMAIL_SUCCESS',
-      });
-      this.logger.info({ correlationId }, '[Saga] Confirmation email sent');
     } catch (err) {
       this.logger.error(
         { err, correlationId },
@@ -43,6 +38,14 @@ export class SagaCommandHandler {
         type: 'SEND_CONFIRMATION_EMAIL_FAILURE',
         error: err instanceof Error ? err.message : String(err),
       });
+
+      return;
     }
+
+    this.sagaCommandsQueue.publishReply({
+      correlationId,
+      type: 'SEND_CONFIRMATION_EMAIL_SUCCESS',
+    });
+    this.logger.info({ correlationId }, '[Saga] Confirmation email sent');
   }
 }

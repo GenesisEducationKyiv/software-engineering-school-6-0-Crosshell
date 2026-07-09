@@ -66,6 +66,8 @@ describe('SubscribeSagaOrchestrator', () => {
     sagaRepository = mock<ISagaRepository>();
     sagaRepository.updateStatus.mockResolvedValue(undefined);
     sagaRepository.findByStatus.mockResolvedValue([]);
+    sagaRepository.findByCorrelationId.mockResolvedValue(null);
+    sagaRepository.updateStatusIfCurrent.mockResolvedValue(true);
 
     sagaCommandsQueue = mock<SagaCommandsQueue>();
     sagaCommandsQueue.consumeReplies.mockImplementation((handler) => {
@@ -252,9 +254,10 @@ describe('SubscribeSagaOrchestrator', () => {
 
       await orchestrator.recoverPendingSagas();
 
-      expect(sagaRepository.updateStatus).toHaveBeenCalledWith(
+      expect(sagaRepository.updateStatusIfCurrent).toHaveBeenCalledWith(
         'corr-1',
         'COMPENSATING',
+        ['AWAITING_EMAIL'],
       );
       expect(txCtx.subscriptions.deleteById).toHaveBeenCalledWith(
         'sub-stuck-1',
@@ -302,6 +305,134 @@ describe('SubscribeSagaOrchestrator', () => {
       await orchestrator.recoverPendingSagas();
 
       expect(txCtx.subscriptions.deleteById).not.toHaveBeenCalled();
+    });
+
+    it('skips compensation when a reply already resolved the saga concurrently', async () => {
+      const stuckSaga: SagaInstance = {
+        id: 'saga-id-3',
+        correlationId: 'corr-3',
+        type: 'SUBSCRIBE',
+        status: 'AWAITING_EMAIL',
+        payload: {
+          subscriptionId: 'sub-stuck-3',
+          email: 'a@b.com',
+          confirmUrl: 'http://x/confirm',
+          unsubscribeUrl: 'http://x/unsub',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      sagaRepository.findByStatus.mockImplementation(async (status) =>
+        status === 'AWAITING_EMAIL' ? [stuckSaga] : [],
+      );
+
+      sagaRepository.updateStatusIfCurrent.mockResolvedValue(false);
+
+      await orchestrator.recoverPendingSagas();
+
+      expect(txCtx.subscriptions.deleteById).not.toHaveBeenCalled();
+      expect(txCtx.sagaInstances.updateStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('startReplyConsumer — reply with no live resolver (post-restart)', () => {
+    it('ignores replies for a correlationId with no saga record', async () => {
+      sagaRepository.findByCorrelationId.mockResolvedValue(null);
+
+      await replyHandler({
+        correlationId: 'unknown-corr',
+        type: 'SEND_CONFIRMATION_EMAIL_SUCCESS',
+      });
+
+      expect(sagaRepository.updateStatusIfCurrent).not.toHaveBeenCalled();
+    });
+
+    it('completes a saga stuck in AWAITING_EMAIL when a queued success reply arrives', async () => {
+      const stuckSaga: SagaInstance = {
+        id: 'saga-id-4',
+        correlationId: 'corr-4',
+        type: 'SUBSCRIBE',
+        status: 'AWAITING_EMAIL',
+        payload: {
+          subscriptionId: 'sub-stuck-4',
+          email: 'a@b.com',
+          confirmUrl: 'http://x/confirm',
+          unsubscribeUrl: 'http://x/unsub',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      sagaRepository.findByCorrelationId.mockResolvedValue(stuckSaga);
+
+      await replyHandler({
+        correlationId: 'corr-4',
+        type: 'SEND_CONFIRMATION_EMAIL_SUCCESS',
+      });
+
+      expect(sagaRepository.updateStatusIfCurrent).toHaveBeenCalledWith(
+        'corr-4',
+        'COMPLETED',
+        ['AWAITING_EMAIL'],
+      );
+      expect(txCtx.subscriptions.deleteById).not.toHaveBeenCalled();
+    });
+
+    it('compensates a saga stuck in AWAITING_EMAIL when a queued failure reply arrives', async () => {
+      const stuckSaga: SagaInstance = {
+        id: 'saga-id-5',
+        correlationId: 'corr-5',
+        type: 'SUBSCRIBE',
+        status: 'AWAITING_EMAIL',
+        payload: {
+          subscriptionId: 'sub-stuck-5',
+          email: 'a@b.com',
+          confirmUrl: 'http://x/confirm',
+          unsubscribeUrl: 'http://x/unsub',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      sagaRepository.findByCorrelationId.mockResolvedValue(stuckSaga);
+
+      await replyHandler({
+        correlationId: 'corr-5',
+        type: 'SEND_CONFIRMATION_EMAIL_FAILURE',
+        error: 'SMTP unavailable',
+      });
+
+      expect(txCtx.subscriptions.deleteById).toHaveBeenCalledWith(
+        'sub-stuck-5',
+      );
+      expect(txCtx.sagaInstances.updateStatus).toHaveBeenCalledWith(
+        'corr-5',
+        'COMPENSATED',
+      );
+    });
+
+    it('ignores a reply for a saga that already reached a terminal status', async () => {
+      const completedSaga: SagaInstance = {
+        id: 'saga-id-6',
+        correlationId: 'corr-6',
+        type: 'SUBSCRIBE',
+        status: 'COMPLETED',
+        payload: {
+          subscriptionId: 'sub-6',
+          email: 'a@b.com',
+          confirmUrl: 'http://x/confirm',
+          unsubscribeUrl: 'http://x/unsub',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      sagaRepository.findByCorrelationId.mockResolvedValue(completedSaga);
+
+      await replyHandler({
+        correlationId: 'corr-6',
+        type: 'SEND_CONFIRMATION_EMAIL_SUCCESS',
+      });
+
+      expect(sagaRepository.updateStatusIfCurrent).not.toHaveBeenCalled();
     });
   });
 });
