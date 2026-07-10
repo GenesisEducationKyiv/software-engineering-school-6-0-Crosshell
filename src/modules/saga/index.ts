@@ -11,6 +11,7 @@ export type {
   IConfirmationEmailSender,
   SendConfirmationEmailInput,
 } from './interfaces/confirmation-email-sender.interface';
+export type { ISagaCommandsQueue } from './interfaces/saga-commands-queue.interface';
 export { GrpcConfirmationEmailSender } from './adapters/grpc-confirmation-email.sender';
 export type {
   SagaCommand,

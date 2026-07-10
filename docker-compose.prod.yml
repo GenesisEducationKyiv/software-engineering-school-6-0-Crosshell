@@ -14,6 +14,7 @@ services:
       RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
       REDIS_URL: "redis://notifier-redis:6379"
       ELASTICSEARCH_URL: "http://elastic:${ELASTIC_PASSWORD:?ELASTIC_PASSWORD must be set}@notifier-elasticsearch:9200"
+      SAGA_GRPC_URL: "notifier-worker:50052"
     depends_on:
       notifier-rabbitmq:
         condition: service_healthy
@@ -21,8 +22,36 @@ services:
         condition: service_healthy
       notifier-elasticsearch:
         condition: service_healthy
+      notifier-worker:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - notifier-network
+
+  notifier-worker:
+    container_name: notifier-worker
+    image: notifier-worker:latest
+    ports:
+      - "${NOTIFIER_WORKER_PORT:-3002}:3002"
+    env_file: .env
+    environment:
+      NOTIFIER_WORKER_PORT: "3002"
+      SAGA_GRPC_PORT: "50052"
+      RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
+      ELASTICSEARCH_URL: "http://elastic:${ELASTIC_PASSWORD:?ELASTIC_PASSWORD must be set}@notifier-elasticsearch:9200"
+    depends_on:
+      notifier-rabbitmq:
+        condition: service_healthy
+      notifier-elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

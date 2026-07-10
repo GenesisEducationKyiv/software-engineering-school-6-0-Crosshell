@@ -52,6 +52,8 @@ The service is fully deployed and publicly accessible on **Google Cloud Platform
 
 ## Architecture
 
+> For layers and module boundaries (dependency rules, how they're enforced), see [docs/architecture.md](docs/architecture.md). For the full system design (requirements, API, deployment, observability), see [docs/system-design.md](docs/system-design.md).
+
 The service is a **monolithic Node.js application** composed of four concurrent subsystems started from a single entry point.
 
 ```

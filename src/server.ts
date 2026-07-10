@@ -7,7 +7,7 @@ import {
 } from 'fastify-type-provider-zod';
 import { appConfig } from '@/shared/config';
 import errorHandlerPlugin from '@/shared/plugins/error-handler.plugin';
-import metricsPlugin from '@/shared/plugins/metrics.plugin';
+import metricsPlugin from '@/infrastructure/metrics/metrics.plugin';
 import apiKeyPlugin from '@/shared/plugins/api-key.plugin';
 import { logger } from '@/shared/logger';
 import type { FastifyBaseLogger } from 'fastify';

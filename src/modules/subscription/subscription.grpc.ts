@@ -18,7 +18,7 @@ import {
   getSubscriptionsQuerySchema,
 } from './subscription.schemas';
 import { UnauthorizedError } from '@/shared/errors/app.errors';
-import type { SubscribeSagaOrchestrator } from '@/modules/saga';
+import type { ISubscribeOrchestrator } from './interfaces/subscribe-orchestrator.interface';
 
 export function getSubscriptionServiceDefinition(): grpc.ServiceDefinition {
   return SubscriptionServiceService as unknown as grpc.ServiceDefinition;
@@ -50,7 +50,7 @@ function unaryHandler<Req, Res extends object>(
 
 export function createSubscriptionGrpcHandlers(
   service: ISubscriptionService,
-  orchestrator: SubscribeSagaOrchestrator,
+  orchestrator: ISubscribeOrchestrator,
   apiKey?: string,
 ): grpc.UntypedServiceImplementation {
   const subscribe = unaryHandler<SubscribeRequest, SubscribeResponse>(

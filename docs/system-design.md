@@ -35,44 +35,57 @@ The service tracks GitHub repositories and sends email notifications to subscrib
 
 - **GitHub API rate limit:** unauthenticated access has a low hourly cap; a token is required for tracking more than a handful of repositories.
 - **Email delivery:** an external provider; latency and availability are outside the service's control – hence the queue.
-- **Single process:** the current architecture is a monolithic Node.js process. Horizontal scaling will require an external scheduler for the cron job (to prevent parallel scan runs).
+- **Two processes, one deployable:** the API process and the notifier worker each currently run as a single instance. Horizontal scaling of the API process will require an external scheduler for the cron job (to prevent parallel scan runs).
 
 ---
 
 ## 3. Architecture
+
+The service runs as two processes sharing one codebase: an **API process** (REST/gRPC, subscriptions, the scanner) and a **notifier worker** that owns all outbound email. They talk to each other only through message queues or gRPC, never by sharing memory or a direct database connection to each other's data.
+
+Subscribing is itself a short saga: the API process persists the pending subscription, then hands the confirmation email off to the worker over a queue or gRPC (configurable) and waits for a reply before completing the request.
 
 ```mermaid
 flowchart TD
     REST["Client (REST)"]
     GRPC["Client (gRPC)"]
 
-    subgraph proc["Node.js Process"]
+    subgraph api["API process"]
         Servers["REST & gRPC Servers"]
         SS["SubscriptionService"]
-        DBTx["DB Tx"]
+        Saga["Subscribe Saga Orchestrator"]
         GHClient["GitHub Client + Cache"]
         Scanner["Scanner (every 10 min)"]
+    end
+
+    subgraph worker["Notifier worker"]
         NS["NotificationService"]
+        SagaHandler["Confirmation-email handler"]
     end
 
     DB[("Database")]
     Cache[("Cache")]
-    Queue[/"Notification Queue"/]
+    NotifyChannel[/"Release-notification queue"/]
+    SagaChannel[/"Confirmation-email channel<br/>(queue or gRPC)"/]
     GitHub(["GitHub"])
     Email(["Email Provider"])
 
     REST -->|HTTP| Servers
     GRPC -->|gRPC| Servers
     Servers --> SS
-    SS --> DBTx
+    Servers --> Saga
+    SS --> DB
     SS --> GHClient
-    DBTx --> DB
+    Saga --> DB
+    Saga -->|confirmation email| SagaChannel
+    SagaChannel --> SagaHandler
+    SagaHandler --> Email
     GHClient --> Cache
     GHClient -->|API| GitHub
     Scanner -->|read / write| DB
     Scanner --> GHClient
-    Scanner -->|publish| Queue
-    Queue -->|consume| NS
+    Scanner -->|publish| NotifyChannel
+    NotifyChannel --> NS
     NS --> Email
 ```
 
@@ -105,11 +118,12 @@ Mirrors all REST subscription operations via protobuf RPC. See the `proto/` dire
 
 ### Local Development
 
-`docker-compose.yml` including the `notifier-api` container. For local development, bring up only the infrastructure services and run the app directly:
+For local development, bring up only the infrastructure services and run each process directly, in separate terminals:
 
 ```bash
 docker compose up -d notifier-postgres notifier-redis notifier-rabbitmq
-npm run dev
+npm run dev            # API process
+npm run dev:notifier   # notifier worker
 ```
 
 ### Production
@@ -118,7 +132,7 @@ npm run dev
 docker compose -f docker-compose.prod.yml up 
 ```
 
-The service runs as a single Docker container; infrastructure services run as separate containers in the same network.
+The application processes run as Docker containers alongside the infrastructure services, in the same network.
 
 **Environment variables:** see `.env.example` for the full list with descriptions.
 
@@ -136,12 +150,12 @@ Separate ports prevent conflicts with the local dev environment during test runs
 
 ### Metrics
 
-Prometheus metrics cover HTTP requests, GitHub API calls, scanner activity, and notification delivery outcomes. Default Node.js runtime metrics (event loop, heap, GC) are also exported.
+Prometheus metrics cover HTTP requests, GitHub API calls, scanner activity, and notification delivery outcomes; each process exposes its own `/metrics` endpoint, visualized in Grafana. Default Node.js runtime metrics (event loop, heap, GC) are also exported.
 
 ### Logging
 
-Structured JSON logs at `info` / `warn` / `error` levels covering queue lifecycle, scan activity, notification delivery, and cache behavior.
+Structured JSON logs at `info` / `warn` / `error` levels, shipped to Elasticsearch and browsable in Kibana, covering queue lifecycle, scan activity, saga steps, notification delivery, and cache behavior.
 
 ### Graceful Shutdown
 
-On `SIGTERM` the service stops accepting new requests, finishes active ones, then closes all infrastructure connections in order.
+On `SIGTERM` each process stops accepting new requests, finishes active ones, then closes its own infrastructure connections in order.

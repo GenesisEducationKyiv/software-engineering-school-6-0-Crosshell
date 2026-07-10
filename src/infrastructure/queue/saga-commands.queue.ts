@@ -1,11 +1,15 @@
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { SagaCommand, SagaReply } from '@/modules/saga';
+import type {
+  ISagaCommandsQueue,
+  SagaCommand,
+  SagaReply,
+} from '@/modules/saga';
 
 const COMMANDS_QUEUE = 'saga.subscription.commands';
 const REPLIES_QUEUE = 'saga.subscription.replies';
 
-export class SagaCommandsQueue {
+export class SagaCommandsQueue implements ISagaCommandsQueue {
   constructor(
     private readonly queueManager: QueueManager,
     private readonly logger: ILogger,

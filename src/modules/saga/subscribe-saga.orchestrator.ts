@@ -1,13 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
-import type { IRepositorySource, SubscribeInput } from '@/modules/subscription';
+import type {
+  IRepositorySource,
+  ISubscribeOrchestrator,
+  SubscribeInput,
+} from '@/modules/subscription';
 import { ConflictError } from '@/shared/errors/app.errors';
 import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
 import {
   buildConfirmUrl,
   buildUnsubscribeUrl,
 } from '@/shared/utils/url-builders';
-import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
+import type { ISagaCommandsQueue } from './interfaces/saga-commands-queue.interface';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
 import type { SagaReply, SagaStatus } from './saga.types';
 import type { ILogger } from '@/shared/logger/logger.interface';
@@ -22,7 +26,7 @@ export interface SubscribeSagaConfig {
   transport?: ConfirmationEmailTransport;
 }
 
-export class SubscribeSagaOrchestrator {
+export class SubscribeSagaOrchestrator implements ISubscribeOrchestrator {
   private static readonly DEFAULT_TIMEOUT_MS = 30_000;
   private readonly pendingReplies = new Map<
     string,
@@ -32,7 +36,7 @@ export class SubscribeSagaOrchestrator {
   constructor(
     private readonly uow: IUnitOfWork<SubscribeSagaUoWContext>,
     private readonly repositorySource: IRepositorySource,
-    private readonly sagaCommandsQueue: SagaCommandsQueue,
+    private readonly sagaCommandsQueue: ISagaCommandsQueue,
     private readonly sagaRepository: ISagaRepository,
     private readonly logger: ILogger,
     private readonly config: SubscribeSagaConfig,
