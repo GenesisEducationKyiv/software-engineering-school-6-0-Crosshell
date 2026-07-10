@@ -15,7 +15,7 @@ npm ci
 
 ## Run all tests
 
-Runs unit → integration → E2E sequentially. Each stage manages its own Docker containers.
+Runs unit → architecture → integration → E2E sequentially. Each stage manages its own Docker containers.
 
 ```bash
 npm run test:all
@@ -28,11 +28,23 @@ npm run test:all
 No external dependencies needed.
 
 ```bash
-npm run test:run        # single run
+npm run test:unit:run   # single run
 npm run test            # watch mode
 ```
 
 **Location:** `src/**/*.spec.ts`
+
+---
+
+## Architecture tests
+
+Checks the module/layer dependency rules, wrapped in a Vitest spec so a boundary violation fails like any other test.
+
+```bash
+npm run test:arch
+```
+
+**Location:** `tests/architecture/*.spec.ts`
 
 ---
 
