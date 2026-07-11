@@ -22,7 +22,6 @@ import {
 export const protobufPackage = "saga.v1";
 
 export interface SendConfirmationEmailRequest {
-  correlationId: string;
   email: string;
   confirmUrl: string;
   unsubscribeUrl: string;
@@ -32,22 +31,19 @@ export interface SendConfirmationEmailResponse {
 }
 
 function createBaseSendConfirmationEmailRequest(): SendConfirmationEmailRequest {
-  return { correlationId: "", email: "", confirmUrl: "", unsubscribeUrl: "" };
+  return { email: "", confirmUrl: "", unsubscribeUrl: "" };
 }
 
 export const SendConfirmationEmailRequest: MessageFns<SendConfirmationEmailRequest> = {
   encode(message: SendConfirmationEmailRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.correlationId !== "") {
-      writer.uint32(10).string(message.correlationId);
-    }
     if (message.email !== "") {
-      writer.uint32(18).string(message.email);
+      writer.uint32(10).string(message.email);
     }
     if (message.confirmUrl !== "") {
-      writer.uint32(26).string(message.confirmUrl);
+      writer.uint32(18).string(message.confirmUrl);
     }
     if (message.unsubscribeUrl !== "") {
-      writer.uint32(34).string(message.unsubscribeUrl);
+      writer.uint32(26).string(message.unsubscribeUrl);
     }
     return writer;
   },
@@ -64,7 +60,7 @@ export const SendConfirmationEmailRequest: MessageFns<SendConfirmationEmailReque
             break;
           }
 
-          message.correlationId = reader.string();
+          message.email = reader.string();
           continue;
         }
         case 2: {
@@ -72,19 +68,11 @@ export const SendConfirmationEmailRequest: MessageFns<SendConfirmationEmailReque
             break;
           }
 
-          message.email = reader.string();
+          message.confirmUrl = reader.string();
           continue;
         }
         case 3: {
           if (tag !== 26) {
-            break;
-          }
-
-          message.confirmUrl = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
             break;
           }
 
@@ -105,7 +93,6 @@ export const SendConfirmationEmailRequest: MessageFns<SendConfirmationEmailReque
   },
   fromPartial<I extends Exact<DeepPartial<SendConfirmationEmailRequest>, I>>(object: I): SendConfirmationEmailRequest {
     const message = createBaseSendConfirmationEmailRequest();
-    message.correlationId = object.correlationId ?? "";
     message.email = object.email ?? "";
     message.confirmUrl = object.confirmUrl ?? "";
     message.unsubscribeUrl = object.unsubscribeUrl ?? "";

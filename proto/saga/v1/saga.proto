@@ -11,10 +11,9 @@ service SagaMailService {
 }
 
 message SendConfirmationEmailRequest {
-  string correlation_id = 1;
-  string email = 2;
-  string confirm_url = 3;
-  string unsubscribe_url = 4;
+  string email = 1;
+  string confirm_url = 2;
+  string unsubscribe_url = 3;
 }
 
 message SendConfirmationEmailResponse {}

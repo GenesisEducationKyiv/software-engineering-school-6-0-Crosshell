@@ -10,8 +10,6 @@ import {
 } from '../interfaces/confirmation-email-sender.interface';
 import type { Closeable } from '@/shared/lifecycle/graceful-shutdown';
 
-// Codes where the server may have completed the send before the client gave
-// up on the response — the request outcome is genuinely unknown, not failed.
 const AMBIGUOUS_GRPC_STATUS_CODES: ReadonlySet<grpc.status> = new Set([
   grpc.status.DEADLINE_EXCEEDED,
   grpc.status.CANCELLED,
@@ -38,7 +36,6 @@ export class GrpcConfirmationEmailSender
     return new Promise((resolve, reject) => {
       this.client.sendConfirmationEmail(
         {
-          correlationId: input.correlationId,
           email: input.email,
           confirmUrl: input.confirmUrl,
           unsubscribeUrl: input.unsubscribeUrl,

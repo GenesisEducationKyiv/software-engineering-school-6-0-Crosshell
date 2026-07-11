@@ -8,13 +8,13 @@ import { useQueue } from './helpers/queue.helper';
 const MAX_HANDLER_ATTEMPTS = 4;
 
 describe('NotificationService', () => {
-  const { getSendReleaseNotificationSpy, getQueueManager, getNotificationQueue } =
-    useNotificationTest();
+  const {
+    getSendReleaseNotificationSpy,
+    getQueueManager,
+    getNotificationQueue,
+  } = useNotificationTest();
 
   afterEach(async () => {
-    // A test that simulates a send failure (e.g. "one email fails") leaves
-    // that message retrying in the background with real delays. Drain it so
-    // it can't dead-letter back onto the main queue during a later test.
     const channel = getQueueManager().getChannel();
     await channel.purgeQueue(QUEUE_NAME);
     await channel.purgeQueue(RETRY_QUEUE_NAME);
