@@ -17,6 +17,7 @@ export type {
   IConfirmationEmailSender,
   SendConfirmationEmailInput,
 } from './interfaces/confirmation-email-sender.interface';
+export { AmbiguousConfirmationEmailError } from './interfaces/confirmation-email-sender.interface';
 export { GrpcConfirmationEmailSender } from './adapters/grpc-confirmation-email.sender';
 export type {
   SagaCommand,

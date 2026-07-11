@@ -7,7 +7,10 @@ import type { SagaReply, SagaStatus } from './saga.types';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
 import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
-import type { IConfirmationEmailSender } from './interfaces/confirmation-email-sender.interface';
+import {
+  AmbiguousConfirmationEmailError,
+  type IConfirmationEmailSender,
+} from './interfaces/confirmation-email-sender.interface';
 
 export type ConfirmationEmailTransport = 'queue' | 'grpc';
 
@@ -195,6 +198,13 @@ export class SubscribeSagaOrchestrator {
         unsubscribeUrl,
       });
     } catch (err) {
+      if (err instanceof AmbiguousConfirmationEmailError) {
+        this.logger.warn(
+          { correlationId, err },
+          '[Saga] gRPC confirmation email outcome unknown — leaving saga pending, not compensating',
+        );
+      }
+
       this.logger.error(
         { correlationId, err },
         '[Saga] gRPC confirmation email failed — compensating',
