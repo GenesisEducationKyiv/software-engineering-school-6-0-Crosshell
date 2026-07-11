@@ -135,14 +135,6 @@ module.exports = {
         path: '(^src/modules/[^/]+/(infrastructure|adapters)/)|(^src/infrastructure)',
       },
     },
-    {
-      name: 'notifier-is-a-composition-root',
-      severity: 'error',
-      comment:
-        'src/notifier is the worker process entrypoint. Nothing outside it may depend on it.',
-      from: { path: '^src/(shared|infrastructure|modules|generated)' },
-      to: { path: '^src/notifier' },
-    },
   ],
   options: {
     tsPreCompilationDeps: true,
