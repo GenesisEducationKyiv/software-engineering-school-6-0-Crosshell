@@ -1,17 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
-import type { IRepositorySource, SubscribeInput } from '@/modules/subscription';
-import { ConflictError } from '@/shared/errors/app.errors';
-import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
-import {
-  buildConfirmUrl,
-  buildUnsubscribeUrl,
-} from '@/shared/utils/url-builders';
+import type { SubscribeInput } from '@/modules/subscription';
 import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
 import type { SagaReply, SagaStatus } from './saga.types';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
+import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
 
 export interface SubscribeSagaConfig {
   appUrl: string;
@@ -27,7 +22,7 @@ export class SubscribeSagaOrchestrator {
 
   constructor(
     private readonly uow: IUnitOfWork<SubscribeSagaUoWContext>,
-    private readonly repositorySource: IRepositorySource,
+    private readonly createSubscriptionStep: CreateSubscriptionStep,
     private readonly sagaCommandsQueue: SagaCommandsQueue,
     private readonly sagaRepository: ISagaRepository,
     private readonly logger: ILogger,
@@ -103,55 +98,10 @@ export class SubscribeSagaOrchestrator {
   }
 
   async execute(input: SubscribeInput): Promise<void> {
-    const { owner, repo } = await this.repositorySource.getRepository(
-      input.repo,
-    );
-
     const correlationId = randomUUID();
 
-    const { subscriptionId, confirmUrl, unsubscribeUrl } = await this.uow.run(
-      async ({ repositories, subscriptions, sagaInstances }) => {
-        const repository = await repositories.findOrCreate(owner, repo);
-
-        let sub;
-        try {
-          sub = await subscriptions.createSubscription({
-            email: input.email,
-            repositoryId: repository.id,
-          });
-        } catch (err) {
-          if (isUniqueConstraintError(err)) {
-            throw new ConflictError(
-              'Email is already subscribed to this repository',
-            );
-          }
-          throw err;
-        }
-
-        const confirmUrl = buildConfirmUrl(
-          sub.confirmToken,
-          this.config.appUrl,
-        );
-        const unsubscribeUrl = buildUnsubscribeUrl(
-          sub.unsubscribeToken,
-          this.config.appUrl,
-        );
-
-        await sagaInstances.create({
-          correlationId,
-          type: 'SUBSCRIBE',
-          status: 'SUBSCRIPTION_CREATED',
-          payload: {
-            subscriptionId: sub.id,
-            email: input.email,
-            confirmUrl,
-            unsubscribeUrl,
-          },
-        });
-
-        return { subscriptionId: sub.id, confirmUrl, unsubscribeUrl };
-      },
-    );
+    const { subscriptionId, confirmUrl, unsubscribeUrl } =
+      await this.createSubscriptionStep.execute(input, correlationId);
 
     const { promise: replyPromise, cancel: cancelReply } =
       this.waitForReply(correlationId);

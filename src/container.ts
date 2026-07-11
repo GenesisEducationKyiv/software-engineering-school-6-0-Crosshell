@@ -22,6 +22,7 @@ import { CronScheduler } from '@/infrastructure/scheduler/cron-scheduler';
 import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import {
   SubscribeSagaOrchestrator,
+  CreateSubscriptionStep,
   SagaRepository,
   SubscribeSagaUoWContextBuilder,
 } from '@/modules/saga';
@@ -58,9 +59,16 @@ export function createContainer(
 
   const subscriptionService = new SubscriptionService(subscriptionRepository);
 
+  const subscribeSagaUow = new UnitOfWork(
+    db,
+    new SubscribeSagaUoWContextBuilder(),
+  );
+
   const subscribeSagaOrchestrator = new SubscribeSagaOrchestrator(
-    new UnitOfWork(db, new SubscribeSagaUoWContextBuilder()),
-    repositorySource,
+    subscribeSagaUow,
+    new CreateSubscriptionStep(subscribeSagaUow, repositorySource, {
+      appUrl: appConfig.appUrl,
+    }),
     sagaCommandsQueue,
     new SagaRepository(db),
     logger,
