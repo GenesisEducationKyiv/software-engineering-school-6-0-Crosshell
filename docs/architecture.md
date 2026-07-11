@@ -63,7 +63,10 @@ flowchart TD
     Comp --> Saga
     Comp --> Modules
     Comp --> Infra
+    Comp --> Leaves
     Saga --> Modules
+    Saga --> Infra
+    Saga --> Leaves
     Modules --> Infra
     Modules --> Leaves
     Infra --> Leaves
@@ -78,7 +81,9 @@ The key rules, from the bottom up:
 - **Modules talk to each other only through public barrels** (`@/modules/<name>`),
   never through deep paths into another module's internals.
 - **`saga` sits above the other modules**, composing them into a distributed
-  transaction. Nothing imports `saga` back, which keeps the module graph a DAG.
+  transaction. It has the same dependency rights as any module (infrastructure, shared)
+  plus the other modules' barrels; nothing imports `saga` back, which keeps the module
+  graph a DAG.
 - **Composition roots are the only place allowed to know about everything.** Nothing
   outside them depends on one (single type-only carve-out: routes use the `AppServer`
   type from `server.ts`).
