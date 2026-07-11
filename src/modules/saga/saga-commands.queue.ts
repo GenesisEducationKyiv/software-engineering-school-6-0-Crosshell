@@ -1,9 +1,14 @@
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { SagaCommand, SagaReply } from '@/modules/saga';
-
-const COMMANDS_QUEUE = 'saga.subscription.commands';
-const REPLIES_QUEUE = 'saga.subscription.replies';
+import type { SagaCommand, SagaReply } from './saga.types';
+import {
+  COMMANDS_QUEUE,
+  COMMANDS_DLX,
+  COMMANDS_DLQ,
+  REPLIES_QUEUE,
+  REPLIES_DLX,
+  REPLIES_DLQ,
+} from './saga-commands.constants';
 
 export class SagaCommandsQueue {
   constructor(
@@ -13,8 +18,28 @@ export class SagaCommandsQueue {
 
   async setup(): Promise<void> {
     const ch = this.queueManager.getChannel();
-    await ch.assertQueue(COMMANDS_QUEUE, { durable: true });
-    await ch.assertQueue(REPLIES_QUEUE, { durable: true });
+
+    await ch.assertExchange(COMMANDS_DLX, 'direct', { durable: true });
+    await ch.assertQueue(COMMANDS_DLQ, { durable: true });
+    await ch.bindQueue(COMMANDS_DLQ, COMMANDS_DLX, COMMANDS_QUEUE);
+    await ch.assertQueue(COMMANDS_QUEUE, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': COMMANDS_DLX,
+        'x-dead-letter-routing-key': COMMANDS_QUEUE,
+      },
+    });
+
+    await ch.assertExchange(REPLIES_DLX, 'direct', { durable: true });
+    await ch.assertQueue(REPLIES_DLQ, { durable: true });
+    await ch.bindQueue(REPLIES_DLQ, REPLIES_DLX, REPLIES_QUEUE);
+    await ch.assertQueue(REPLIES_QUEUE, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': REPLIES_DLX,
+        'x-dead-letter-routing-key': REPLIES_QUEUE,
+      },
+    });
   }
 
   publishCommand(command: SagaCommand): void {

@@ -24,12 +24,13 @@ import type { ILogger } from '@/shared/logger/logger.interface';
 import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
 import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { CronScheduler } from '@/infrastructure/scheduler/cron-scheduler';
-import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import {
   SubscribeSagaOrchestrator,
+  CreateSubscriptionStep,
   SagaRepository,
   SubscribeSagaUoWContextBuilder,
   GrpcConfirmationEmailSender,
+  type SagaCommandsQueue,
 } from '@/modules/saga';
 
 export interface AppContainer {
@@ -65,6 +66,11 @@ export function createContainer(
 
   const subscriptionService = new SubscriptionService(subscriptionRepository);
 
+  const subscribeSagaUow = new UnitOfWork(
+    db,
+    new SubscribeSagaUoWContextBuilder(),
+  );
+
   const grpcConfirmationEmailSender =
     sagaTransportConfig.transport === 'grpc'
       ? new GrpcConfirmationEmailSender(
@@ -74,8 +80,10 @@ export function createContainer(
       : undefined;
 
   const subscribeSagaOrchestrator = new SubscribeSagaOrchestrator(
-    new UnitOfWork(db, new SubscribeSagaUoWContextBuilder()),
-    repositorySource,
+    subscribeSagaUow,
+    new CreateSubscriptionStep(subscribeSagaUow, repositorySource, {
+      appUrl: appConfig.appUrl,
+    }),
     sagaCommandsQueue,
     new SagaRepository(db),
     logger,

@@ -1,30 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mock, mockDeep } from 'vitest-mock-extended';
 import { SubscribeSagaOrchestrator } from './subscribe-saga.orchestrator';
+import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
-import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
+import type { SagaCommandsQueue } from './saga-commands.queue';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type {
-  IRepositorySource,
-  SubscribeInput,
-  Subscription,
-} from '@/modules/subscription';
+import type { SubscribeInput, Subscription } from '@/modules/subscription';
 import type { SagaInstance, SagaReply } from './saga.types';
-import type { Repository } from '@/modules/repository';
 import type { IConfirmationEmailSender } from './interfaces/confirmation-email-sender.interface';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',
   repo: 'owner/repo',
-};
-
-const MOCK_REPOSITORY: Repository = {
-  id: 'repo-uuid-1',
-  owner: 'owner',
-  repo: 'repo',
-  lastSeenTag: null,
 };
 
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -36,33 +25,35 @@ const MOCK_SUBSCRIPTION: Subscription = {
   unsubscribeToken: 'unsub-token',
 };
 
+const CREATE_SUBSCRIPTION_RESULT = {
+  subscriptionId: MOCK_SUBSCRIPTION.id,
+  confirmUrl: 'http://localhost/confirm.html?token=confirm-token',
+  unsubscribeUrl: 'http://localhost/unsubscribe.html?token=unsub-token',
+};
+
 const REPLY_TIMEOUT_MS = 30;
 
 describe('SubscribeSagaOrchestrator', () => {
   let orchestrator: SubscribeSagaOrchestrator;
   let uow: ReturnType<typeof mock<IUnitOfWork<SubscribeSagaUoWContext>>>;
   let txCtx: ReturnType<typeof mockDeep<SubscribeSagaUoWContext>>;
-  let repositorySource: ReturnType<typeof mock<IRepositorySource>>;
+  let createSubscriptionStep: ReturnType<typeof mock<CreateSubscriptionStep>>;
   let sagaCommandsQueue: ReturnType<typeof mock<SagaCommandsQueue>>;
   let sagaRepository: ReturnType<typeof mock<ISagaRepository>>;
   let replyHandler: (reply: SagaReply) => Promise<void>;
 
   beforeEach(() => {
     txCtx = mockDeep<SubscribeSagaUoWContext>();
-    txCtx.repositories.findOrCreate.mockResolvedValue(MOCK_REPOSITORY);
-    txCtx.subscriptions.createSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
-    txCtx.sagaInstances.create.mockResolvedValue(undefined);
     txCtx.subscriptions.deleteById.mockResolvedValue(undefined);
     txCtx.sagaInstances.updateStatus.mockResolvedValue(undefined);
 
     uow = mock<IUnitOfWork<SubscribeSagaUoWContext>>();
     uow.run.mockImplementation((fn) => fn(txCtx));
 
-    repositorySource = mock<IRepositorySource>();
-    repositorySource.getRepository.mockResolvedValue({
-      owner: 'owner',
-      repo: 'repo',
-    });
+    createSubscriptionStep = mock<CreateSubscriptionStep>();
+    createSubscriptionStep.execute.mockResolvedValue(
+      CREATE_SUBSCRIPTION_RESULT,
+    );
 
     sagaRepository = mock<ISagaRepository>();
     sagaRepository.updateStatus.mockResolvedValue(undefined);
@@ -77,7 +68,7 @@ describe('SubscribeSagaOrchestrator', () => {
 
     orchestrator = new SubscribeSagaOrchestrator(
       uow,
-      repositorySource,
+      createSubscriptionStep,
       sagaCommandsQueue,
       sagaRepository,
       mock<ILogger>(),
@@ -96,31 +87,13 @@ describe('SubscribeSagaOrchestrator', () => {
       });
     });
 
-    it('creates subscription and saga instance inside the same UoW.run call', async () => {
-      let subCreatedInTx = false;
-      let sagaCreatedInTx = false;
-
-      uow.run.mockImplementationOnce(async (fn) => {
-        const innerCtx = mockDeep<SubscribeSagaUoWContext>();
-        innerCtx.repositories.findOrCreate.mockResolvedValue(MOCK_REPOSITORY);
-        innerCtx.subscriptions.createSubscription.mockImplementation(
-          async () => {
-            subCreatedInTx = true;
-
-            return MOCK_SUBSCRIPTION;
-          },
-        );
-        innerCtx.sagaInstances.create.mockImplementation(async () => {
-          sagaCreatedInTx = true;
-        });
-
-        return fn(innerCtx);
-      });
-
+    it('passes the input and a fresh correlationId to the create-subscription step', async () => {
       await orchestrator.execute(VALID_INPUT);
 
-      expect(subCreatedInTx).toBe(true);
-      expect(sagaCreatedInTx).toBe(true);
+      expect(createSubscriptionStep.execute).toHaveBeenCalledWith(
+        VALID_INPUT,
+        expect.any(String),
+      );
     });
 
     it('marks saga AWAITING_EMAIL after publishing command', async () => {
@@ -242,7 +215,7 @@ describe('SubscribeSagaOrchestrator', () => {
       confirmationEmailSender = mock<IConfirmationEmailSender>();
       grpcOrchestrator = new SubscribeSagaOrchestrator(
         uow,
-        repositorySource,
+        createSubscriptionStep,
         sagaCommandsQueue,
         sagaRepository,
         mock<ILogger>(),
@@ -287,7 +260,7 @@ describe('SubscribeSagaOrchestrator', () => {
         () =>
           new SubscribeSagaOrchestrator(
             uow,
-            repositorySource,
+            createSubscriptionStep,
             sagaCommandsQueue,
             sagaRepository,
             mock<ILogger>(),

@@ -1,9 +1,8 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
-import { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import { logger } from '@/shared/logger';
-import type { SagaReply } from '@/modules/saga';
+import { SagaCommandsQueue, type SagaReply } from '@/modules/saga';
 
 const CONCURRENCY = Number(process.argv[2] ?? 50);
 const DURATION_MS = Number(process.argv[3] ?? 10_000);
