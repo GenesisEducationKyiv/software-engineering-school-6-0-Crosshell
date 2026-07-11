@@ -82,7 +82,7 @@ const start = async () => {
     const sagaGrpcServer = new GrpcServer();
     sagaGrpcServer.addService(
       getSagaMailServiceDefinition(),
-      createSagaMailGrpcHandlers(mailer),
+      createSagaMailGrpcHandlers(mailer, logger),
     );
     await sagaGrpcServer.start(sagaGrpcConfig.port);
 

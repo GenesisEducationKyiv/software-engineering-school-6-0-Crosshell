@@ -7,6 +7,7 @@ import {
 } from '@/generated/saga/v1/saga';
 import { toGrpcError } from '@/infrastructure/grpc/grpc-error.mapper';
 import type { IMailerService } from '@/modules/mailer';
+import type { ILogger } from '@/shared/logger/logger.interface';
 
 const sendConfirmationEmailSchema = z.object({
   correlationId: z.string().min(1),
@@ -32,14 +33,26 @@ export function getSagaMailServiceDefinition(): grpc.ServiceDefinition {
 
 export function createSagaMailGrpcHandlers(
   mailer: IMailerService,
+  logger: ILogger,
 ): grpc.UntypedServiceImplementation {
   const sendConfirmationEmail = unaryHandler<
     SendConfirmationEmailRequest,
     SendConfirmationEmailResponse
   >(async (call) => {
-    const { email, confirmUrl, unsubscribeUrl } =
+    const { correlationId, email, confirmUrl, unsubscribeUrl } =
       sendConfirmationEmailSchema.parse(call.request);
-    await mailer.sendConfirmationEmail(email, confirmUrl, unsubscribeUrl);
+
+    try {
+      await mailer.sendConfirmationEmail(email, confirmUrl, unsubscribeUrl);
+    } catch (err) {
+      logger.error(
+        { err, correlationId },
+        '[SagaMail] Failed to send confirmation email',
+      );
+      throw err;
+    }
+
+    logger.info({ correlationId }, '[SagaMail] Confirmation email sent');
 
     return {};
   });
