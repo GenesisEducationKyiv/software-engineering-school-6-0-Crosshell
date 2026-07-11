@@ -45,6 +45,8 @@ The service runs as two processes sharing one codebase: an **API process** (REST
 
 Subscribing is itself a short saga: the API process persists the pending subscription, then hands the confirmation email off to the worker over a queue or gRPC (configurable) and waits for a reply before completing the request.
 
+The diagram below shows the data flow between the processes. For the internal code structure (modules, layers, dependency rules) see [architecture.md](./architecture.md); the full component diagram is in [architecture.mmd](./architecture.mmd).
+
 ```mermaid
 flowchart TD
     REST["Client (REST)"]
