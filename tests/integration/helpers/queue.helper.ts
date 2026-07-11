@@ -3,15 +3,16 @@ import { beforeAll, afterAll, beforeEach } from 'vitest';
 import {
   releaseNotificationPayloadSchema,
   NotificationQueue,
+  QUEUE_NAME,
+  RETRY_QUEUE_NAME,
   type ReleaseNotificationPayload,
 } from '@/modules/notification';
 import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { logger } from '@/shared/logger';
 
-const QUEUE_NAME = 'release.notifications';
-
 export async function purgeNotificationQueue(channel: Channel): Promise<void> {
   await channel.purgeQueue(QUEUE_NAME);
+  await channel.purgeQueue(RETRY_QUEUE_NAME);
 }
 
 export async function consumeOneNotification(
