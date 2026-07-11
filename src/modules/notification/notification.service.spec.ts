@@ -14,17 +14,12 @@ const SUBSCRIBER_ALICE: SubscriberInfo = {
   unsubscribeToken: '00000000-0000-0000-0000-000000000001',
 };
 
-const SUBSCRIBER_BOB: SubscriberInfo = {
-  email: 'bob@example.com',
-  unsubscribeToken: '00000000-0000-0000-0000-000000000002',
-};
-
 const MOCK_PAYLOAD: ReleaseNotificationPayload = {
   repositoryOwner: 'acc',
   repositoryRepo: 'testName',
   newTag: 'v2.0.0',
   releaseUrl: 'https://github.com/acc/testName/releases/tag/v2.0.0',
-  subscribers: [SUBSCRIBER_ALICE, SUBSCRIBER_BOB],
+  subscriber: SUBSCRIBER_ALICE,
 };
 
 describe('NotificationService', () => {
@@ -73,13 +68,13 @@ describe('NotificationService', () => {
     });
 
     describe('email sending', () => {
-      it('should send a release notification for every subscriber', async () => {
+      it('should send a release notification for the subscriber', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
-        expect(mailer.sendReleaseNotification).toHaveBeenCalledTimes(2);
+        expect(mailer.sendReleaseNotification).toHaveBeenCalledOnce();
       });
 
-      it('should pass the correct repo string, tag, and release URL to the mailer', async () => {
+      it('should pass the correct recipient, repo string, tag, and release URL to the mailer', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
         expect(mailer.sendReleaseNotification).toHaveBeenCalledWith(
@@ -91,15 +86,11 @@ describe('NotificationService', () => {
         );
       });
 
-      it('should pass the correct unsubscribe URL for each subscriber to the mailer', async () => {
+      it('should pass the correct unsubscribe URL for the subscriber to the mailer', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
         const aliceUrl = buildUnsubscribeUrl(
           SUBSCRIBER_ALICE.unsubscribeToken,
-          'http://localhost:3000',
-        );
-        const bobUrl = buildUnsubscribeUrl(
-          SUBSCRIBER_BOB.unsubscribeToken,
           'http://localhost:3000',
         );
 
@@ -110,22 +101,14 @@ describe('NotificationService', () => {
           expect.any(String),
           aliceUrl,
         );
-        expect(mailer.sendReleaseNotification).toHaveBeenCalledWith(
-          SUBSCRIBER_BOB.email,
-          expect.any(String),
-          expect.any(String),
-          expect.any(String),
-          bobUrl,
-        );
       });
     });
 
-    describe('when all emails are sent successfully', () => {
-      it('should increment the success counter for each subscriber', async () => {
+    describe('when the email is sent successfully', () => {
+      it('should increment the success counter', async () => {
         await capturedHandler(MOCK_PAYLOAD);
 
-        expect(metrics.incSent).toHaveBeenCalledTimes(2);
-        expect(metrics.incSent).toHaveBeenCalledWith('success');
+        expect(metrics.incSent).toHaveBeenCalledExactlyOnceWith('success');
       });
 
       it('should not increment the failure counter', async () => {
@@ -133,74 +116,46 @@ describe('NotificationService', () => {
 
         expect(metrics.incSent).not.toHaveBeenCalledWith('failure');
       });
-    });
 
-    describe('when one email fails to send', () => {
-      const smtpError = new Error('SMTP connection refused');
-
-      beforeEach(() => {
-        mailer.sendReleaseNotification.mockImplementation(async (email) => {
-          if (email === SUBSCRIBER_ALICE.email) {
-            throw smtpError;
-          }
-        });
-      });
-
-      it('should still send a notification to the remaining subscriber', async () => {
-        await capturedHandler(MOCK_PAYLOAD);
-
-        expect(mailer.sendReleaseNotification).toHaveBeenCalledWith(
-          SUBSCRIBER_BOB.email,
-          expect.any(String),
-          expect.any(String),
-          expect.any(String),
-          expect.any(String),
-        );
-      });
-
-      it('should increment the failure counter for the failed subscriber', async () => {
-        await capturedHandler(MOCK_PAYLOAD);
-
-        expect(metrics.incSent).toHaveBeenCalledWith('failure');
-      });
-
-      it('should increment the success counter for the successful subscriber', async () => {
-        await capturedHandler(MOCK_PAYLOAD);
-
-        expect(metrics.incSent).toHaveBeenCalledWith('success');
-      });
-    });
-
-    describe('when all emails fail to send', () => {
-      beforeEach(() => {
-        mailer.sendReleaseNotification.mockRejectedValue(
-          new Error('SMTP down'),
-        );
-      });
-
-      it('should increment the failure counter for every subscriber', async () => {
-        await capturedHandler(MOCK_PAYLOAD);
-
-        expect(metrics.incSent).toHaveBeenCalledTimes(2);
-        expect(metrics.incSent).toHaveBeenCalledWith('failure');
-        expect(metrics.incSent).not.toHaveBeenCalledWith('success');
-      });
-
-      it('should resolve without throwing even if all sends fail', async () => {
+      it('should resolve without throwing', async () => {
         await expect(capturedHandler(MOCK_PAYLOAD)).resolves.toBeUndefined();
       });
     });
 
-    describe('when there is a single subscriber', () => {
-      it('should send exactly one notification', async () => {
-        const singleSubscriberPayload: ReleaseNotificationPayload = {
-          ...MOCK_PAYLOAD,
-          subscribers: [SUBSCRIBER_ALICE],
-        };
+    describe('when the email fails to send', () => {
+      const smtpError = new Error('SMTP connection refused');
 
-        await capturedHandler(singleSubscriberPayload);
+      beforeEach(() => {
+        mailer.sendReleaseNotification.mockRejectedValue(smtpError);
+      });
 
-        expect(mailer.sendReleaseNotification).toHaveBeenCalledOnce();
+      it('should increment the failure counter', async () => {
+        await capturedHandler(MOCK_PAYLOAD).catch(() => {});
+
+        expect(metrics.incSent).toHaveBeenCalledExactlyOnceWith('failure');
+      });
+
+      it('should not increment the success counter', async () => {
+        await capturedHandler(MOCK_PAYLOAD).catch(() => {});
+
+        expect(metrics.incSent).not.toHaveBeenCalledWith('success');
+      });
+
+      it('should log the failure with the recipient email and repo', async () => {
+        await capturedHandler(MOCK_PAYLOAD).catch(() => {});
+
+        expect(logger.error).toHaveBeenCalledWith(
+          {
+            err: smtpError,
+            email: SUBSCRIBER_ALICE.email,
+            repo: 'acc/testName',
+          },
+          '[Notifier] Failed to send release email',
+        );
+      });
+
+      it('should rethrow so the queue can retry or dead-letter the message', async () => {
+        await expect(capturedHandler(MOCK_PAYLOAD)).rejects.toThrow(smtpError);
       });
     });
   });

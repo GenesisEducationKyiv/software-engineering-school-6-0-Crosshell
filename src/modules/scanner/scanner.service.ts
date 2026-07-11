@@ -72,13 +72,15 @@ export class ScannerService {
 
       this.metrics.incNewReleases();
 
-      this.notificationPublisher.publish({
-        repositoryOwner: repository.owner,
-        repositoryRepo: repository.repo,
-        newTag: release.tagName,
-        releaseUrl: release.releaseUrl,
-        subscribers,
-      });
+      for (const subscriber of subscribers) {
+        this.notificationPublisher.publish({
+          repositoryOwner: repository.owner,
+          repositoryRepo: repository.repo,
+          newTag: release.tagName,
+          releaseUrl: release.releaseUrl,
+          subscriber,
+        });
+      }
 
       await this.repositoryRepository.updateLastSeenTag(
         repository.id,

@@ -5,23 +5,24 @@ import { NotificationQueue } from './notification.queue';
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ReleaseNotificationPayload } from './notification.schemas';
 import type { ILogger } from '@/shared/logger/logger.interface';
-
-const QUEUE_NAME = 'release.notifications';
-const DLX_NAME = 'release.notifications.dlx';
-const DLQ_NAME = 'release.notifications.dead';
-const MAX_RETRIES = 3;
+import {
+  QUEUE_NAME,
+  DLX_NAME,
+  DLQ_NAME,
+  RETRY_QUEUE_NAME,
+  MAX_RETRIES,
+  RETRY_DELAYS_MS,
+} from './notification.constants';
 
 const VALID_PAYLOAD: ReleaseNotificationPayload = {
   repositoryOwner: 'acc',
   repositoryRepo: 'testName',
   newTag: 'v2.0.0',
   releaseUrl: 'https://github.com/acc/testName/releases/tag/v2.0.0',
-  subscribers: [
-    {
-      email: 'user@example.com',
-      unsubscribeToken: '550e8400-e29b-41d4-a716-446655440001',
-    },
-  ],
+  subscriber: {
+    email: 'user@example.com',
+    unsubscribeToken: '550e8400-e29b-41d4-a716-446655440001',
+  },
 };
 
 function makeMessage(content: unknown, retryCount?: number): ConsumeMessage {
@@ -105,6 +106,18 @@ describe('NotificationQueue', () => {
         durable: true,
         arguments: {
           'x-dead-letter-exchange': DLX_NAME,
+          'x-dead-letter-routing-key': QUEUE_NAME,
+        },
+      });
+    });
+
+    it('should assert the retry parking queue that dead-letters back onto the main queue', async () => {
+      await queue.setup();
+
+      expect(channel.assertQueue).toHaveBeenCalledWith(RETRY_QUEUE_NAME, {
+        durable: true,
+        arguments: {
+          'x-dead-letter-exchange': '',
           'x-dead-letter-routing-key': QUEUE_NAME,
         },
       });
@@ -211,22 +224,41 @@ describe('NotificationQueue', () => {
       const processingError = new Error('handler failed');
 
       it.each([0, 1, 2])(
-        'should re-queue the message with an incremented retry count when retryCount is %i',
+        'should park the message on the retry queue with an incremented retry count and a backoff delay when retryCount is %i',
         async (retryCount) => {
           handler.mockRejectedValue(processingError);
           const message = makeMessage(VALID_PAYLOAD, retryCount);
+          const expectedDelay =
+            RETRY_DELAYS_MS[Math.min(retryCount, RETRY_DELAYS_MS.length - 1)];
 
           await capturedMsgHandler(message);
 
           expect(channel.sendToQueue).toHaveBeenCalledWith(
-            QUEUE_NAME,
+            RETRY_QUEUE_NAME,
             message.content,
-            { persistent: true, headers: { 'x-retry-count': retryCount + 1 } },
+            {
+              persistent: true,
+              headers: { 'x-retry-count': retryCount + 1 },
+              expiration: String(expectedDelay),
+            },
           );
         },
       );
 
-      it('should ack the original message after re-queuing', async () => {
+      it('should not send the message straight back to the main queue', async () => {
+        handler.mockRejectedValue(processingError);
+        const message = makeMessage(VALID_PAYLOAD, 0);
+
+        await capturedMsgHandler(message);
+
+        expect(channel.sendToQueue).not.toHaveBeenCalledWith(
+          QUEUE_NAME,
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('should ack the original message after parking the retry', async () => {
         handler.mockRejectedValue(processingError);
         const message = makeMessage(VALID_PAYLOAD, 0);
 
@@ -235,7 +267,7 @@ describe('NotificationQueue', () => {
         expect(channel.ack).toHaveBeenCalledWith(message);
       });
 
-      it('should not nack the message when re-queuing', async () => {
+      it('should not nack the message when parking the retry', async () => {
         handler.mockRejectedValue(processingError);
         const message = makeMessage(VALID_PAYLOAD, 2);
 
@@ -269,7 +301,7 @@ describe('NotificationQueue', () => {
         expect(channel.nack).toHaveBeenCalledWith(message, false, false);
       });
 
-      it('should not re-queue the message', async () => {
+      it('should not park the message on the retry queue', async () => {
         handler.mockRejectedValue(processingError);
         const message = makeMessage(VALID_PAYLOAD, MAX_RETRIES);
 
@@ -374,9 +406,13 @@ describe('NotificationQueue', () => {
         await capturedMsgHandler(message);
 
         expect(channel.sendToQueue).toHaveBeenCalledWith(
-          QUEUE_NAME,
+          RETRY_QUEUE_NAME,
           message.content,
-          { persistent: true, headers: { 'x-retry-count': 1 } },
+          {
+            persistent: true,
+            headers: { 'x-retry-count': 1 },
+            expiration: String(RETRY_DELAYS_MS[0]),
+          },
         );
       });
     });
