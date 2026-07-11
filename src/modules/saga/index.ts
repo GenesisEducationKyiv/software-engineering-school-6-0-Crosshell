@@ -1,4 +1,5 @@
 export { SubscribeSagaOrchestrator } from './subscribe-saga.orchestrator';
+export { SagaCommandsQueue } from './saga-commands.queue';
 export { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
 export type {
   CreateSubscriptionStepConfig,

@@ -19,12 +19,12 @@ import type { ILogger } from '@/shared/logger/logger.interface';
 import { ScannerMetrics } from '@/infrastructure/metrics/scanner-metrics';
 import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { CronScheduler } from '@/infrastructure/scheduler/cron-scheduler';
-import type { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
 import {
   SubscribeSagaOrchestrator,
   CreateSubscriptionStep,
   SagaRepository,
   SubscribeSagaUoWContextBuilder,
+  type SagaCommandsQueue,
 } from '@/modules/saga';
 
 export interface AppContainer {

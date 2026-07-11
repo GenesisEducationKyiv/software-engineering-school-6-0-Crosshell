@@ -8,7 +8,7 @@ import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { NotificationQueue, NotificationService } from '@/modules/notification';
 import { createMailerService } from '@/modules/mailer';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
-import { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
+import { SagaCommandsQueue } from '@/modules/saga';
 import { SagaCommandHandler } from './saga-command.handler';
 import { logger } from '@/shared/logger';
 import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
