@@ -3,6 +3,12 @@ export type {
   SubscribeSagaConfig,
   ConfirmationEmailTransport,
 } from './subscribe-saga.orchestrator';
+export { SagaCommandsQueue } from './saga-commands.queue';
+export { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
+export type {
+  CreateSubscriptionStepConfig,
+  CreateSubscriptionStepResult,
+} from './subscribe-saga.create-subscription.step';
 export { SagaRepository } from './saga.repository';
 export { SubscribeSagaUoWContextBuilder } from './subscribe-saga.uow-context.builder';
 export type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
@@ -12,6 +18,7 @@ export type {
   SendConfirmationEmailInput,
 } from './interfaces/confirmation-email-sender.interface';
 export type { ISagaCommandsQueue } from './interfaces/saga-commands-queue.interface';
+export { AmbiguousConfirmationEmailError } from './interfaces/confirmation-email-sender.interface';
 export { GrpcConfirmationEmailSender } from './adapters/grpc-confirmation-email.sender';
 export type {
   SagaCommand,

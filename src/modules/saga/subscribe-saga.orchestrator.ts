@@ -1,22 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import type {
-  IRepositorySource,
   ISubscribeOrchestrator,
   SubscribeInput,
 } from '@/modules/subscription';
-import { ConflictError } from '@/shared/errors/app.errors';
-import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
-import {
-  buildConfirmUrl,
-  buildUnsubscribeUrl,
-} from '@/shared/utils/url-builders';
 import type { ISagaCommandsQueue } from './interfaces/saga-commands-queue.interface';
+import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
 import type { SagaReply, SagaStatus } from './saga.types';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
-import type { IConfirmationEmailSender } from './interfaces/confirmation-email-sender.interface';
+import {
+  AmbiguousConfirmationEmailError,
+  type IConfirmationEmailSender,
+} from './interfaces/confirmation-email-sender.interface';
 
 export type ConfirmationEmailTransport = 'queue' | 'grpc';
 
@@ -35,7 +32,7 @@ export class SubscribeSagaOrchestrator implements ISubscribeOrchestrator {
 
   constructor(
     private readonly uow: IUnitOfWork<SubscribeSagaUoWContext>,
-    private readonly repositorySource: IRepositorySource,
+    private readonly createSubscriptionStep: CreateSubscriptionStep,
     private readonly sagaCommandsQueue: ISagaCommandsQueue,
     private readonly sagaRepository: ISagaRepository,
     private readonly logger: ILogger,
@@ -118,55 +115,10 @@ export class SubscribeSagaOrchestrator implements ISubscribeOrchestrator {
   }
 
   async execute(input: SubscribeInput): Promise<void> {
-    const { owner, repo } = await this.repositorySource.getRepository(
-      input.repo,
-    );
-
     const correlationId = randomUUID();
 
-    const { subscriptionId, confirmUrl, unsubscribeUrl } = await this.uow.run(
-      async ({ repositories, subscriptions, sagaInstances }) => {
-        const repository = await repositories.findOrCreate(owner, repo);
-
-        let sub;
-        try {
-          sub = await subscriptions.createSubscription({
-            email: input.email,
-            repositoryId: repository.id,
-          });
-        } catch (err) {
-          if (isUniqueConstraintError(err)) {
-            throw new ConflictError(
-              'Email is already subscribed to this repository',
-            );
-          }
-          throw err;
-        }
-
-        const confirmUrl = buildConfirmUrl(
-          sub.confirmToken,
-          this.config.appUrl,
-        );
-        const unsubscribeUrl = buildUnsubscribeUrl(
-          sub.unsubscribeToken,
-          this.config.appUrl,
-        );
-
-        await sagaInstances.create({
-          correlationId,
-          type: 'SUBSCRIBE',
-          status: 'SUBSCRIPTION_CREATED',
-          payload: {
-            subscriptionId: sub.id,
-            email: input.email,
-            confirmUrl,
-            unsubscribeUrl,
-          },
-        });
-
-        return { subscriptionId: sub.id, confirmUrl, unsubscribeUrl };
-      },
-    );
+    const { subscriptionId, confirmUrl, unsubscribeUrl } =
+      await this.createSubscriptionStep.execute(input, correlationId);
 
     if (this.config.transport === 'grpc') {
       await this.executeGrpc(
@@ -249,6 +201,13 @@ export class SubscribeSagaOrchestrator implements ISubscribeOrchestrator {
         unsubscribeUrl,
       });
     } catch (err) {
+      if (err instanceof AmbiguousConfirmationEmailError) {
+        this.logger.warn(
+          { correlationId, err },
+          '[Saga] gRPC confirmation email outcome unknown — leaving saga pending, not compensating',
+        );
+      }
+
       this.logger.error(
         { correlationId, err },
         '[Saga] gRPC confirmation email failed — compensating',

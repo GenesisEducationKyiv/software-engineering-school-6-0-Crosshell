@@ -24,38 +24,32 @@ export class NotificationService {
         repositoryRepo,
         newTag,
         releaseUrl,
-        subscribers,
+        subscriber,
       } = payload;
       const repo = `${repositoryOwner}/${repositoryRepo}`;
 
       const start = performance.now();
-      const results = await Promise.allSettled(
-        subscribers.map(({ email, unsubscribeToken }) =>
-          this.mailer.sendReleaseNotification(
-            email,
-            repo,
-            newTag,
-            releaseUrl,
-            buildUnsubscribeUrl(unsubscribeToken, this.config.appUrl),
-          ),
-        ),
-      );
-      this.metrics.observeProcessingDuration(
-        (performance.now() - start) / 1000,
-      );
-
-      results.forEach((result, i) => {
-        if (result.status === 'fulfilled') {
-          this.metrics.incSent('success');
-        } else {
-          this.metrics.incSent('failure');
-          const err: unknown = result.reason;
-          this.logger.error(
-            { err, email: subscribers[i].email, repo },
-            '[Notifier] Failed to send release email',
-          );
-        }
-      });
+      try {
+        await this.mailer.sendReleaseNotification(
+          subscriber.email,
+          repo,
+          newTag,
+          releaseUrl,
+          buildUnsubscribeUrl(subscriber.unsubscribeToken, this.config.appUrl),
+        );
+        this.metrics.incSent('success');
+      } catch (err) {
+        this.metrics.incSent('failure');
+        this.logger.error(
+          { err, email: subscriber.email, repo },
+          '[Notifier] Failed to send release email',
+        );
+        throw err;
+      } finally {
+        this.metrics.observeProcessingDuration(
+          (performance.now() - start) / 1000,
+        );
+      }
     });
 
     this.logger.info('[Notifier] Listening for release notifications');

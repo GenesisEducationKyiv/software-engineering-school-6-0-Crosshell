@@ -10,7 +10,7 @@ export const releaseNotificationPayloadSchema = z.object({
   repositoryRepo: z.string(),
   newTag: z.string(),
   releaseUrl: z.url(),
-  subscribers: z.array(subscriberSchema),
+  subscriber: subscriberSchema,
 });
 
 export type ReleaseNotificationPayload = z.infer<

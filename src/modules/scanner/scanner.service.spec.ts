@@ -258,8 +258,28 @@ describe('ScannerService', () => {
           repositoryRepo: MOCK_REPOSITORY.repo,
           newTag: MOCK_RELEASE.tagName,
           releaseUrl: MOCK_RELEASE.releaseUrl,
-          subscribers: [MOCK_SUBSCRIBER],
+          subscriber: MOCK_SUBSCRIBER,
         });
+      });
+
+      it('should publish one message per subscriber so a failed retry cannot resend to subscribers who already succeeded', async () => {
+        const anotherSubscriber: SubscriberInfo = {
+          email: 'another@example.com',
+          unsubscribeToken: '00000000-0000-0000-0000-000000000002',
+        };
+        repositoryRepository.getRepositoriesWithActiveSubscriptions.mockResolvedValue(
+          [makeEntry(MOCK_REPOSITORY, [MOCK_SUBSCRIBER, anotherSubscriber])],
+        );
+
+        await service.scan();
+
+        expect(notificationPublisher.publish).toHaveBeenCalledTimes(2);
+        expect(notificationPublisher.publish).toHaveBeenCalledWith(
+          expect.objectContaining({ subscriber: MOCK_SUBSCRIBER }),
+        );
+        expect(notificationPublisher.publish).toHaveBeenCalledWith(
+          expect.objectContaining({ subscriber: anotherSubscriber }),
+        );
       });
 
       it('should update the last-seen tag to the new release tag', async () => {

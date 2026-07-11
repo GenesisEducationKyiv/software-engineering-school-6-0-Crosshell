@@ -9,7 +9,7 @@ import { QueueManager } from '@/infrastructure/queue/queue-manager';
 import { NotificationQueue, NotificationService } from '@/modules/notification';
 import { createMailerService } from '@/modules/mailer';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
-import { SagaCommandsQueue } from '@/infrastructure/queue/saga-commands.queue';
+import { SagaCommandsQueue } from '@/modules/saga';
 import { SagaCommandHandler } from './saga-command.handler';
 import {
   getSagaMailServiceDefinition,
@@ -82,7 +82,7 @@ const start = async () => {
     const sagaGrpcServer = new GrpcServer();
     sagaGrpcServer.addService(
       getSagaMailServiceDefinition(),
-      createSagaMailGrpcHandlers(mailer),
+      createSagaMailGrpcHandlers(mailer, logger),
     );
     await sagaGrpcServer.start(sagaGrpcConfig.port);
 
