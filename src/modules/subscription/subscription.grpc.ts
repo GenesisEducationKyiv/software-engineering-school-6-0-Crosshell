@@ -13,6 +13,7 @@ import {
   getSubscriptionsQuerySchema,
 } from './subscription.schemas';
 import { UnauthorizedError } from '@/shared/errors/app.errors';
+import type { SubscribeSagaOrchestrator } from '@/modules/saga';
 
 type SubscribeRequest = SubscribeInput;
 type TokenRequest = UnsubscribeInput;
@@ -52,12 +53,13 @@ function unaryHandler<Req, Res extends object>(
 
 export function createSubscriptionGrpcHandlers(
   service: ISubscriptionService,
+  orchestrator: SubscribeSagaOrchestrator,
   apiKey?: string,
 ): grpc.UntypedServiceImplementation {
   const subscribe = unaryHandler<SubscribeRequest, object>(async (call) => {
     verifyApiKey(call.metadata, apiKey);
     const input = subscribeSchema.parse(call.request);
-    await service.subscribe(input);
+    await orchestrator.execute(input);
 
     return {};
   });

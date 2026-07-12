@@ -1,4 +1,11 @@
-import { boolean, pgTable, unique, uuid, varchar } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  jsonb,
+  pgTable,
+  unique,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { baseTableColumns } from '@/infrastructure/database/helpers/columns.helper';
 import { relations } from 'drizzle-orm';
 
@@ -33,6 +40,14 @@ export const subscriptionsTable = pgTable(
     unique(SUBSCRIPTION_EMAIL_REPO_UNIQUE).on(table.email, table.repositoryId),
   ],
 );
+
+export const sagaInstancesTable = pgTable('saga_instances', {
+  ...baseTableColumns,
+  correlationId: varchar('correlation_id', { length: 64 }).notNull().unique(),
+  type: varchar({ length: 64 }).notNull(),
+  status: varchar({ length: 32 }).notNull(),
+  payload: jsonb().notNull(),
+});
 
 export const repositoriesRelations = relations(
   repositoriesTable,

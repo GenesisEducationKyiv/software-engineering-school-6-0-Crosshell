@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import type { FastifyInstance } from 'fastify';
-import { buildSubscriptionApp } from './helpers/app.helper';
 import { useSubscriptionTest } from './helpers/subscription-test.helper';
 import { mswServer } from './setup';
 
 const {
   getApp,
-  getService,
-  getSendConfirmationSpy,
+  buildApp,
   findRepoByOwnerAndRepo,
   findAllRepos,
   findAllSubscriptions,
@@ -17,7 +15,7 @@ const {
 } = useSubscriptionTest();
 
 describe('POST /api/subscribe', () => {
-  it('returns 200 and persists repository + unconfirmed subscription, then sends confirmation email', async () => {
+  it('returns 200 and persists repository + unconfirmed subscription', async () => {
     const response = await getApp().inject({
       method: 'POST',
       url: '/api/subscribe',
@@ -48,13 +46,6 @@ describe('POST /api/subscribe', () => {
     );
     expect(subRow?.unsubscribeToken).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    );
-
-    expect(getSendConfirmationSpy()).toHaveBeenCalledOnce();
-    expect(getSendConfirmationSpy()).toHaveBeenCalledWith(
-      'alice@example.com',
-      expect.stringContaining(subRow!.confirmToken),
-      expect.stringContaining(subRow!.unsubscribeToken),
     );
   });
 
@@ -101,7 +92,6 @@ describe('POST /api/subscribe', () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(getSendConfirmationSpy()).not.toHaveBeenCalled();
   });
 });
 
@@ -244,9 +234,7 @@ describe('API Key auth', () => {
   let apiKeyApp: FastifyInstance;
 
   beforeAll(async () => {
-    apiKeyApp = await buildSubscriptionApp(getService(), {
-      apiKey: 'test-key',
-    });
+    apiKeyApp = await buildApp({ apiKey: 'test-key' });
   });
 
   afterAll(async () => {

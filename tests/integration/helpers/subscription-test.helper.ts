@@ -1,12 +1,12 @@
-import { vi, type MockInstance, beforeAll, afterAll, beforeEach } from 'vitest';
+import { beforeAll, afterAll } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { UnitOfWork } from '@/infrastructure/database/unit-of-work';
 import {
-  SubscriptionUoWContextBuilder,
   SubscriptionRepository,
   GithubRepositorySourceAdapter,
   SubscriptionService,
   type ISubscriptionService,
+  type SubscribeInput,
 } from '@/modules/subscription';
 import {
   GithubHttpClient,
@@ -15,15 +15,51 @@ import {
 import { CacheService } from '@/infrastructure/cache/cache.service';
 import { GithubMetrics } from '@/infrastructure/metrics/github-metrics';
 import { logger } from '@/shared/logger';
+import { ConflictError } from '@/shared/errors/app.errors';
+import { isUniqueConstraintError } from '@/infrastructure/database/helpers/pg-errors.helper';
+import {
+  SubscribeSagaUoWContextBuilder,
+  type SubscribeSagaOrchestrator,
+} from '@/modules/saga';
 import { buildSubscriptionApp } from './app.helper';
 import { useDb, type UseDbReturn } from './db.helper';
 import { useRedis } from './redis.helper';
-import { createTestMailer } from './mailer.helper';
+
+function buildMockOrchestrator(
+  getDb: UseDbReturn['getDb'],
+  repositorySource: GithubRepositorySourceAdapter,
+): SubscribeSagaOrchestrator {
+  return {
+    startReplyConsumer: () => {},
+    execute: async (input: SubscribeInput) => {
+      const { owner, repo } = await repositorySource.getRepository(
+        input.repo,
+      );
+      const uow = new UnitOfWork(getDb(), new SubscribeSagaUoWContextBuilder());
+      await uow.run(async ({ repositories, subscriptions }) => {
+        const repository = await repositories.findOrCreate(owner, repo);
+        try {
+          await subscriptions.createSubscription({
+            email: input.email,
+            repositoryId: repository.id,
+          });
+        } catch (err) {
+          if (isUniqueConstraintError(err)) {
+            throw new ConflictError(
+              'Email is already subscribed to this repository',
+            );
+          }
+          throw err;
+        }
+      });
+    },
+  } as unknown as SubscribeSagaOrchestrator;
+}
 
 type SubscriptionTestReturn = {
   getApp: () => FastifyInstance;
   getService: () => ISubscriptionService;
-  getSendConfirmationSpy: () => MockInstance;
+  buildApp: (options?: { apiKey?: string }) => Promise<FastifyInstance>;
   findRepoByOwnerAndRepo: UseDbReturn['findRepoByOwnerAndRepo'];
   findAllRepos: UseDbReturn['findAllRepos'];
   findAllSubscriptions: UseDbReturn['findAllSubscriptions'];
@@ -44,47 +80,43 @@ export function useSubscriptionTest(): SubscriptionTestReturn {
 
   let app: FastifyInstance;
   let subscriptionService: ISubscriptionService;
-  let sendConfirmationSpy: MockInstance;
+  let repositorySource: GithubRepositorySourceAdapter;
 
   beforeAll(async () => {
-    const db = getDb();
     const cache = new CacheService(getRedis(), logger);
-    const mailer = createTestMailer();
 
-    sendConfirmationSpy = vi
-      .spyOn(mailer, 'sendConfirmationEmail')
-      .mockImplementation(async () => {});
-
-    subscriptionService = new SubscriptionService(
-      new UnitOfWork(db, new SubscriptionUoWContextBuilder()),
-      new SubscriptionRepository(db),
-      new GithubRepositorySourceAdapter(
-        new CachingGithubHttpClientDecorator(
-          new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
-          cache,
-          new GithubMetrics(),
-          { cacheTtlSeconds: 600 },
-        ),
+    repositorySource = new GithubRepositorySourceAdapter(
+      new CachingGithubHttpClientDecorator(
+        new GithubHttpClient({ baseUrl: 'https://api.github.com' }),
+        cache,
+        new GithubMetrics(),
+        { cacheTtlSeconds: 600 },
       ),
-      mailer,
-      { appUrl: 'http://localhost:3000' },
     );
 
-    app = await buildSubscriptionApp(subscriptionService);
+    subscriptionService = new SubscriptionService(
+      new SubscriptionRepository(getDb()),
+    );
+
+    app = await buildSubscriptionApp(
+      subscriptionService,
+      buildMockOrchestrator(getDb, repositorySource),
+    );
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  beforeEach(() => {
-    sendConfirmationSpy.mockClear();
-  });
-
   return {
     getApp: () => app,
     getService: () => subscriptionService,
-    getSendConfirmationSpy: () => sendConfirmationSpy,
+    buildApp: (options) =>
+      buildSubscriptionApp(
+        subscriptionService,
+        buildMockOrchestrator(getDb, repositorySource),
+        options,
+      ),
     findRepoByOwnerAndRepo,
     findAllRepos,
     findAllSubscriptions,

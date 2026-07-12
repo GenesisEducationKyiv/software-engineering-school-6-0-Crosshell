@@ -10,6 +10,8 @@ import {
 } from '@/modules/notification';
 import { createMailerService } from '@/modules/mailer';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
+import { SagaCommandsQueue } from '@/modules/saga-queue';
+import { SagaCommandHandler } from './saga-command.handler';
 import { logger } from '@/shared/logger';
 import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
 import healthPlugin from '@/shared/plugins/health.plugin';
@@ -32,11 +34,26 @@ const start = async () => {
       { appUrl: appConfig.appUrl },
     );
 
-    notificationService.start();
+    const sagaCommandsQueue = new SagaCommandsQueue(queueManager, logger);
+    await sagaCommandsQueue.setup();
+
+    const sagaCommandHandler = new SagaCommandHandler(
+      mailer,
+      sagaCommandsQueue,
+      logger,
+    );
+
+    const startConsumers = (): void => {
+      notificationService.start();
+      sagaCommandHandler.start();
+    };
+
+    startConsumers();
 
     queueManager.setReconnectHandler(async () => {
       await notificationQueue.setup();
-      notificationService.start();
+      await sagaCommandsQueue.setup();
+      startConsumers();
     });
 
     const workerServer = Fastify({

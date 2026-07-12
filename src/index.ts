@@ -5,6 +5,7 @@ import { server } from './server';
 import healthPlugin from '@/shared/plugins/health.plugin';
 import { db, pool } from '@/infrastructure/database';
 import { createNotificationQueue } from '@/modules/notification';
+import { SagaCommandsQueue } from '@/modules/saga-queue';
 import {
   subscriptionRoutes,
   createSubscriptionGrpcHandlers,
@@ -22,6 +23,8 @@ import {
 } from '@/shared/config';
 import { createRedisClient } from '@/infrastructure/cache/redis-client';
 import { CacheService } from '@/infrastructure/cache/cache.service';
+
+const RECOVERY_GRACE_MS = 2_000;
 
 const start = async () => {
   try {
@@ -43,16 +46,25 @@ const start = async () => {
       logger,
     );
 
-    const { subscriptionService, scannerService } = createContainer(
-      notificationQueue,
-      cache,
-      logger,
-    );
+    const sagaCommandsQueue = new SagaCommandsQueue(queueManager, logger);
+    await sagaCommandsQueue.setup();
+
+    const { subscriptionService, scannerService, subscribeSagaOrchestrator } =
+      createContainer(notificationQueue, sagaCommandsQueue, cache, logger);
+
+    subscribeSagaOrchestrator.startReplyConsumer();
+
+    await new Promise((resolve) => setTimeout(resolve, RECOVERY_GRACE_MS));
+    await subscribeSagaOrchestrator.recoverPendingSagas();
 
     const grpcServer = new GrpcServer();
     grpcServer.addService(
       getSubscriptionServiceDefinition(),
-      createSubscriptionGrpcHandlers(subscriptionService, appConfig.apiKey),
+      createSubscriptionGrpcHandlers(
+        subscriptionService,
+        subscribeSagaOrchestrator,
+        appConfig.apiKey,
+      ),
     );
 
     registerGracefulShutdown([
@@ -63,9 +75,12 @@ const start = async () => {
       { close: () => cache.quit() },
     ]);
 
-    await server.register(subscriptionRoutes(subscriptionService), {
-      prefix: '/api',
-    });
+    await server.register(
+      subscriptionRoutes(subscriptionService, subscribeSagaOrchestrator),
+      {
+        prefix: '/api',
+      },
+    );
 
     await server.listen({ port: appConfig.port, host: '0.0.0.0' });
     await grpcServer.start(grpcConfig.port);
@@ -74,6 +89,8 @@ const start = async () => {
 
     queueManager.setReconnectHandler(async () => {
       await notificationQueue.setup();
+      await sagaCommandsQueue.setup();
+      subscribeSagaOrchestrator.startReplyConsumer();
     });
 
     if (appConfig.nodeEnv === 'development') {

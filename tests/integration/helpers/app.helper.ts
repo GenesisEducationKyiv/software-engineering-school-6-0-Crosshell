@@ -12,9 +12,11 @@ import {
   subscriptionRoutes,
   type ISubscriptionService,
 } from '@/modules/subscription';
+import type { SubscribeSagaOrchestrator } from '@/modules/saga';
 
 export async function buildSubscriptionApp(
   service: ISubscriptionService,
+  orchestrator: SubscribeSagaOrchestrator,
   options: { apiKey?: string } = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
@@ -23,7 +25,7 @@ export async function buildSubscriptionApp(
   app.register(errorHandlerPlugin);
   app.register(healthPlugin, { probe: async () => {} });
   app.register(apiKeyPlugin, { apiKey: options.apiKey });
-  app.register(subscriptionRoutes(service), { prefix: '/api' });
+  app.register(subscriptionRoutes(service, orchestrator), { prefix: '/api' });
   await app.ready();
 
   return app;
