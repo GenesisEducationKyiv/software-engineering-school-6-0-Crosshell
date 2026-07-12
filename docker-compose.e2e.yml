@@ -80,8 +80,9 @@ services:
       - notifier-e2e-network
 
   notifier-worker:
-    build: .
-    command: ["node", "dist/notifier/index.js"]
+    build:
+      context: .
+      dockerfile: Dockerfile.notifier
     environment:
       RABBITMQ_URL: "amqp://e2e-rabbitmq:5672"
       APP_URL: "http://localhost:3000"
@@ -89,11 +90,18 @@ services:
       SMTP_PORT: "1025"
       SMTP_USER: "test"
       SMTP_PASS: "test"
+      NOTIFIER_WORKER_PORT: "3002"
     depends_on:
       e2e-rabbitmq:
         condition: service_healthy
       e2e-mailhog:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - notifier-e2e-network
 
