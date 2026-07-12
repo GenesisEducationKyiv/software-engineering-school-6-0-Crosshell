@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
-import metricsPlugin from '@/shared/plugins/metrics.plugin';
+import metricsPlugin from '@/infrastructure/metrics/metrics.plugin';
 import healthPlugin from '@/shared/plugins/health.plugin';
 
 async function buildApp(): Promise<FastifyInstance> {

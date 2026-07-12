@@ -1,12 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
-import type { SubscribeInput } from '@/modules/subscription';
-import type { SagaCommandsQueue, SagaReply } from '@/modules/saga-queue';
+import type {
+  ISubscribeOrchestrator,
+  SubscribeInput,
+} from '@/modules/subscription';
+import type { ISagaCommandsQueue } from './interfaces/saga-commands-queue.interface';
+import type { SagaReply } from '@/modules/saga-queue';
+import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
 import type { SagaStatus } from './saga.types';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
-import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
 import {
   AmbiguousConfirmationEmailError,
   type IConfirmationEmailSender,
@@ -20,7 +24,7 @@ export interface SubscribeSagaConfig {
   transport?: ConfirmationEmailTransport;
 }
 
-export class SubscribeSagaOrchestrator {
+export class SubscribeSagaOrchestrator implements ISubscribeOrchestrator {
   private static readonly DEFAULT_TIMEOUT_MS = 30_000;
   private readonly pendingReplies = new Map<
     string,
@@ -30,7 +34,7 @@ export class SubscribeSagaOrchestrator {
   constructor(
     private readonly uow: IUnitOfWork<SubscribeSagaUoWContext>,
     private readonly createSubscriptionStep: CreateSubscriptionStep,
-    private readonly sagaCommandsQueue: SagaCommandsQueue,
+    private readonly sagaCommandsQueue: ISagaCommandsQueue,
     private readonly sagaRepository: ISagaRepository,
     private readonly logger: ILogger,
     private readonly config: SubscribeSagaConfig,

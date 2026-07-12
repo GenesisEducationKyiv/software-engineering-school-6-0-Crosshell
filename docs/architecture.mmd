@@ -1,0 +1,57 @@
+---
+title: GitHub Release Notifier — Application Architecture
+---
+flowchart TD
+    Client["Client<br/>(REST / gRPC)"]
+
+    subgraph api["API process — src/index.ts"]
+        Present["Presentation<br/><small>subscription routes & gRPC handlers</small>"]
+        SubSvc["Subscription module<br/><small>SubscriptionService</small>"]
+        SagaOrch["Saga module<br/><small>SubscribeSagaOrchestrator</small>"]
+        Scanner["Scanner module<br/><small>ScannerService, cron every 10 min</small>"]
+        GH["GitHub module<br/><small>HTTP client + caching & metrics decorators</small>"]
+    end
+
+    subgraph worker["Notifier worker — src/notifier/index.ts"]
+        NotifCons["Notification module<br/><small>NotificationService (consumer)</small>"]
+        SagaHandler["Saga command handler"]
+        SagaMailGrpc["Saga-mail gRPC server"]
+        Mailer["Mailer module<br/><small>MailerService → Nodemailer</small>"]
+    end
+
+    subgraph backing["Backing services"]
+        PG[("PostgreSQL<br/><small>Drizzle ORM, unit of work</small>")]
+        Redis[("Redis<br/><small>GitHub response cache</small>")]
+        subgraph mq["RabbitMQ"]
+            NotifQ[/"release.notifications<br/><small>+ retry queue + DLQ</small>"/]
+            SagaQ[/"saga.subscription.commands & .replies<br/><small>+ DLQs</small>"/]
+        end
+    end
+
+    GitHubAPI(["GitHub API"])
+    SMTP(["Email provider (SMTP)"])
+
+    Client --> Present
+    Present -->|subscribe| SagaOrch
+    Present -->|confirm / unsubscribe / list| SubSvc
+
+    SubSvc --> PG
+    SagaOrch -->|"saga state + subscription<br/>(one transaction)"| PG
+    SagaOrch -->|validate repo| GH
+    SagaOrch <-->|"command / reply<br/>(queue transport)"| SagaQ
+    SagaOrch -.->|"gRPC transport<br/>(configurable alternative)"| SagaMailGrpc
+
+    Scanner -->|read repos, save releases| PG
+    Scanner -->|fetch releases| GH
+    Scanner -->|publish| NotifQ
+
+    GH --> Redis
+    GH --> GitHubAPI
+
+    NotifQ --> NotifCons
+    SagaQ <-->|"consume command / publish reply"| SagaHandler
+
+    NotifCons --> Mailer
+    SagaHandler --> Mailer
+    SagaMailGrpc --> Mailer
+    Mailer --> SMTP

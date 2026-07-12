@@ -21,7 +21,7 @@ import { GrpcServer } from '@/infrastructure/grpc/grpc-server';
 import { logger } from '@/shared/logger';
 import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
 import healthPlugin from '@/shared/plugins/health.plugin';
-import metricsPlugin from '@/shared/plugins/metrics.plugin';
+import metricsPlugin from '@/infrastructure/metrics/metrics.plugin';
 
 const start = async () => {
   try {

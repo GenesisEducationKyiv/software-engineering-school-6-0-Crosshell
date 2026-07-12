@@ -10,7 +10,7 @@ import type { SubscriptionWithRepo } from './types/subscription-with-repo.type';
 import type { ISubscriptionService } from './interfaces/subscription.service.interface';
 import type { AppServer } from '@/server';
 import { HttpStatus } from '@/shared/constants/http-status.constant';
-import type { SubscribeSagaOrchestrator } from '@/modules/saga';
+import type { ISubscribeOrchestrator } from './interfaces/subscribe-orchestrator.interface';
 
 function toResponse(subscription: SubscriptionWithRepo): SubscriptionResponse {
   return {
@@ -24,7 +24,7 @@ function toResponse(subscription: SubscriptionWithRepo): SubscriptionResponse {
 const subscriptionRoutes =
   (
     service: ISubscriptionService,
-    orchestrator: SubscribeSagaOrchestrator,
+    orchestrator: ISubscribeOrchestrator,
   ): FastifyPluginAsyncZod =>
   async (server: AppServer): Promise<void> => {
     server.post(

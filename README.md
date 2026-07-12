@@ -52,49 +52,20 @@ The service is fully deployed and publicly accessible on **Google Cloud Platform
 
 ## Architecture
 
-The service is a **monolithic Node.js application** composed of four concurrent subsystems started from a single entry point.
+> For the internal structure (modules, layers, dependency rules and how they're enforced), see [docs/architecture.md](docs/architecture.md). For the full system design (requirements, API, deployment, observability), see [docs/system-design.md](docs/system-design.md).
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      GitHub Release Notifier                │
-│                                                             │
-│  ┌──────────────────┐        ┌──────────────────────────┐   │
-│  │  Fastify REST    │        │       gRPC Server        │   │
-│  │  (port 3000)     │        │      (port 50051)        │   │
-│  │                  │        │                          │   │
-│  │  Static UI       │        │  subscription.proto      │   │
-│  │  /api/* routes   │        │  @grpc/grpc-js           │   │
-│  │  /health         │        │                          │   │
-│  │  /metrics        │        └──────────┬───────────────┘   │
-│  └────────┬─────────┘                   │                   │
-│           │                             │                   │
-│           └──────────────┬──────────────┘                   │
-│                          ▼                                   │
-│              ┌───────────────────────┐                      │
-│              │   SubscriptionService │                      │
-│              │   + SubscriptionRepo  │                      │
-│              └───────────┬───────────┘                      │
-│                          │                                   │
-│           ┌──────────────┼──────────────┐                   │
-│           ▼              ▼              ▼                   │
-│      PostgreSQL      RabbitMQ        Mailer                 │
-│      (Drizzle ORM)   Publisher      (Nodemailer)            │
-│                                                             │
-│  ┌──────────────────┐   ┌──────────────────────────────┐   │
-│  │  Scanner (cron)  │   │   Notification Consumer      │   │
-│  │                  │   │                              │   │
-│  │  node-cron       │──▶│  Reads release.notifications │   │
-│  │  GitHub API      │   │  queue → sends emails        │   │
-│  │  Redis cache     │   │  DLQ after 3 failed retries  │   │
-│  └──────────────────┘   └──────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
+The service is a **modular monolith running as two processes** that share one codebase:
+
+- **API process** — Fastify REST server (port 3000) + gRPC server (port 50051), subscription management, the subscribe-saga orchestrator, and the release scanner (cron).
+- **Notifier worker** — owns all outbound email: consumes the release-notification and saga-command queues and serves the saga-mail gRPC endpoint.
+
+The full component diagram (both processes, modules, backing services, and external systems) is in [docs/architecture.mmd](docs/architecture.mmd).
 
 ### Request Lifecycle
 
 1. A user submits their email and a repository slug (`owner/repo`) via the Web UI or API.
-2. The service stores a pending subscription and sends a confirmation email containing a unique token link.
-3. The user clicks the link; the subscription is marked as confirmed.
+2. The subscribe saga validates the repository against GitHub, stores a pending subscription, and hands the confirmation email off to the notifier worker (over RabbitMQ or gRPC, configurable).
+3. The user clicks the link in the email; the subscription is marked as confirmed.
 4. The **Scanner** runs on a cron schedule (`*/10 * * * *` by default). For each tracked repository it fetches the latest release from the GitHub API - results are cached in Redis to stay within rate limits. When a new release tag is detected, a JSON message is published to the `release.notifications` RabbitMQ queue.
 5. The **Notification Consumer** reads from the queue and emails every confirmed subscriber. Failed messages are retried up to 3 times before being routed to a dead-letter queue (`release.notifications.dead`).
 

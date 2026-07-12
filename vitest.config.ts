@@ -17,6 +17,7 @@ export default defineConfig({
       'dist/**',
       'tests/integration/**',
       'tests/e2e/**',
+      'tests/architecture/**',
     ],
   },
 });

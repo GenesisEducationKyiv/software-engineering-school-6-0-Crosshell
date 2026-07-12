@@ -135,3 +135,6 @@ dist
 # Playwright
 playwright-report/
 test-results/
+
+# Generated dependency graph (npm run arch:graph) - derived from source
+docs/architecture-graph.svg
