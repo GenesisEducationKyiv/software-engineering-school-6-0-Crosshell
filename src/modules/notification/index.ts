@@ -7,3 +7,8 @@ export type { INotificationConsumer } from './interfaces/notification.consumer.i
 export type { INotificationMetrics } from './interfaces/notification-metrics.interface';
 export { releaseNotificationPayloadSchema } from './notification.schemas';
 export type { ReleaseNotificationPayload } from './notification.schemas';
+export {
+  QUEUE_NAME,
+  DLQ_NAME,
+  RETRY_QUEUE_NAME,
+} from './notification.constants';

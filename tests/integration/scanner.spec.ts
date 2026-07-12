@@ -44,12 +44,10 @@ describe('ScannerService.scan()', () => {
       repositoryRepo: 'next.js',
       newTag: 'v15.0.0',
       releaseUrl: 'https://github.com/vercel/next.js/releases/tag/v15.0.0',
-      subscribers: [
-        {
-          email: 'subscriber@example.com',
-          unsubscribeToken: subRow.unsubscribeToken,
-        },
-      ],
+      subscriber: {
+        email: 'subscriber@example.com',
+        unsubscribeToken: subRow.unsubscribeToken,
+      },
     });
 
     const updatedRepo = await getRepoById(repoRow.id);
@@ -112,13 +110,16 @@ describe('ScannerService.scan()', () => {
 
     await getService().scan();
 
-    const message = await consumeOneNotification(
+    const firstMessage = await consumeOneNotification(
+      getQueueManager().getChannel(),
+    );
+    const secondMessage = await consumeOneNotification(
       getQueueManager().getChannel(),
     );
 
-    expect(message).not.toBeNull();
-    expect(message!.subscribers).toHaveLength(2);
-    expect(message!.subscribers).toEqual(
+    expect(firstMessage).not.toBeNull();
+    expect(secondMessage).not.toBeNull();
+    expect([firstMessage!.subscriber, secondMessage!.subscriber]).toEqual(
       expect.arrayContaining([
         {
           email: 'alice@example.com',
@@ -127,7 +128,7 @@ describe('ScannerService.scan()', () => {
         { email: 'bob@example.com', unsubscribeToken: bobSub.unsubscribeToken },
       ]),
     );
-    expect(message!.newTag).toBe('v19.0.0');
+    expect(firstMessage!.newTag).toBe('v19.0.0');
   });
 
   it('processes a first-ever release (lastSeenTag was null)', async () => {

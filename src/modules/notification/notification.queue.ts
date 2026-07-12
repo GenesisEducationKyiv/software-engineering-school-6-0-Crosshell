@@ -5,11 +5,14 @@ import type { ReleaseNotificationPayload } from './notification.schemas';
 import { releaseNotificationPayloadSchema } from './notification.schemas';
 import type { INotificationPublisher } from './interfaces/notification-publisher.interface';
 import type { INotificationConsumer } from './interfaces/notification.consumer.interface';
-
-const QUEUE_NAME = 'release.notifications';
-const DLX_NAME = 'release.notifications.dlx';
-const DLQ_NAME = 'release.notifications.dead';
-const MAX_RETRIES = 3;
+import {
+  QUEUE_NAME,
+  DLX_NAME,
+  DLQ_NAME,
+  RETRY_QUEUE_NAME,
+  MAX_RETRIES,
+  RETRY_DELAYS_MS,
+} from './notification.constants';
 
 export class NotificationQueue
   implements INotificationPublisher, INotificationConsumer
@@ -29,6 +32,14 @@ export class NotificationQueue
       durable: true,
       arguments: {
         'x-dead-letter-exchange': DLX_NAME,
+        'x-dead-letter-routing-key': QUEUE_NAME,
+      },
+    });
+
+    await ch.assertQueue(RETRY_QUEUE_NAME, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': '',
         'x-dead-letter-routing-key': QUEUE_NAME,
       },
     });
@@ -105,9 +116,13 @@ export class NotificationQueue
       return;
     }
 
-    const ok = channel.sendToQueue(QUEUE_NAME, msg.content, {
+    const delayMs =
+      RETRY_DELAYS_MS[Math.min(retryCount, RETRY_DELAYS_MS.length - 1)];
+
+    const ok = channel.sendToQueue(RETRY_QUEUE_NAME, msg.content, {
       persistent: true,
       headers: { 'x-retry-count': retryCount + 1 },
+      expiration: String(delayMs),
     });
     if (!ok) {
       this.logger.warn(
