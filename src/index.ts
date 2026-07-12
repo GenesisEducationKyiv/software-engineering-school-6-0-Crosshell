@@ -4,8 +4,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { server } from './server';
 import healthPlugin from '@/shared/plugins/health.plugin';
 import { db, pool } from '@/infrastructure/database';
-import { QueueManager } from '@/infrastructure/queue/queue-manager';
-import { NotificationQueue } from '@/modules/notification';
+import { createNotificationQueue } from '@/modules/notification';
 import {
   subscriptionRoutes,
   createSubscriptionGrpcHandlers,
@@ -39,11 +38,10 @@ const start = async () => {
       },
     });
 
-    const queueManager = new QueueManager({ url: queueConfig.url });
-    await queueManager.connect();
-
-    const notificationQueue = new NotificationQueue(queueManager, logger);
-    await notificationQueue.setup();
+    const { queueManager, notificationQueue } = await createNotificationQueue(
+      { url: queueConfig.url },
+      logger,
+    );
 
     const { subscriptionService, scannerService } = createContainer(
       notificationQueue,
