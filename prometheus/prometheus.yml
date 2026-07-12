@@ -9,6 +9,11 @@ scrape_configs:
       - targets: ['notifier-api:3000']
     metrics_path: /metrics
 
+  - job_name: notifier-worker
+    static_configs:
+      - targets: ['notifier-worker:3002']
+    metrics_path: /metrics
+
   - job_name: prometheus
     static_configs:
       - targets: ['localhost:9090']

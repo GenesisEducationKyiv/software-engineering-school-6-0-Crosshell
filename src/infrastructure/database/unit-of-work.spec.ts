@@ -1,25 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { UnitOfWork } from './unit-of-work';
-import type {
-  IUnitOfWorkContextBuilder,
-  UnitOfWorkContext,
-} from './unit-of-work';
+import type { IUnitOfWorkContextBuilder } from './unit-of-work';
 import type { Database } from './index';
 
 type TxClient = Parameters<Parameters<Database['transaction']>[0]>[0];
+type TestCtx = Record<string, unknown>;
 
 describe('UnitOfWork', () => {
   let db: ReturnType<typeof mock<Database>>;
-  let builder: ReturnType<typeof mock<IUnitOfWorkContextBuilder>>;
-  let ctx: ReturnType<typeof mock<UnitOfWorkContext>>;
-  let uow: UnitOfWork;
+  let builder: ReturnType<typeof mock<IUnitOfWorkContextBuilder<TestCtx>>>;
+  let ctx: TestCtx;
+  let uow: UnitOfWork<TestCtx>;
   let fakeTx: TxClient;
 
   beforeEach(() => {
     fakeTx = {} as TxClient;
-    ctx = mock<UnitOfWorkContext>();
-    builder = mock<IUnitOfWorkContextBuilder>();
+    ctx = {};
+    builder = mock<IUnitOfWorkContextBuilder<TestCtx>>();
     db = mock<Database>();
 
     builder.build.mockReturnValue(ctx);

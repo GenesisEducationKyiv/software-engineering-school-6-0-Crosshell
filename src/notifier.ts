@@ -1,0 +1,69 @@
+import 'dotenv/config';
+import Fastify from 'fastify';
+import type { FastifyBaseLogger } from 'fastify';
+import { queueConfig } from '@/shared/config/queue.config';
+import { appConfig } from '@/shared/config/app.config';
+import { notifierWorkerConfig } from '@/shared/config/notifier-worker.config';
+import {
+  createNotificationQueue,
+  NotificationService,
+} from '@/modules/notification';
+import { createMailerService } from '@/modules/mailer';
+import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
+import { logger } from '@/shared/logger';
+import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';
+import healthPlugin from '@/shared/plugins/health.plugin';
+import metricsPlugin from '@/shared/plugins/metrics.plugin';
+
+const start = async () => {
+  try {
+    const { queueManager, notificationQueue } = await createNotificationQueue(
+      { url: queueConfig.url },
+      logger,
+    );
+
+    const mailer = createMailerService();
+
+    const notificationService = new NotificationService(
+      mailer,
+      notificationQueue,
+      logger,
+      new NotificationMetrics(),
+      { appUrl: appConfig.appUrl },
+    );
+
+    notificationService.start();
+
+    queueManager.setReconnectHandler(async () => {
+      await notificationQueue.setup();
+      notificationService.start();
+    });
+
+    const workerServer = Fastify({
+      loggerInstance: logger as FastifyBaseLogger,
+    });
+
+    await workerServer.register(healthPlugin, {
+      probe: async () => {
+        if (!queueManager.isHealthy()) {
+          throw new Error('Queue connection is not healthy');
+        }
+      },
+    });
+    await workerServer.register(metricsPlugin);
+
+    await workerServer.listen({
+      port: notifierWorkerConfig.port,
+      host: '0.0.0.0',
+    });
+
+    registerGracefulShutdown([workerServer, queueManager]);
+
+    logger.info('[Notifier] Service started');
+  } catch (error) {
+    logger.error({ err: error }, '[Notifier] Startup failed');
+    process.exit(1);
+  }
+};
+
+void start();

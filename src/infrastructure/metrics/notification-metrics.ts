@@ -1,4 +1,4 @@
-import type { INotificationMetrics } from '@/modules/notification/interfaces/notification-metrics.interface';
+import type { INotificationMetrics } from '@/modules/notification';
 import {
   notificationsSentTotal,
   notificationProcessingDurationSeconds,

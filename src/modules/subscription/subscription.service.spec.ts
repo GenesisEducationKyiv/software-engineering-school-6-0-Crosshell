@@ -3,15 +3,13 @@ import { mock, mockDeep } from 'vitest-mock-extended';
 import { SubscriptionService } from './subscription.service';
 import { ConflictError, NotFoundError } from '@/shared/errors/app.errors';
 import type { ISubscriptionRepository } from './interfaces/subscription.repository.interface';
-import type { IRepositorySource } from '@/modules/subscription/interfaces/repository-source.interface';
-import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
-import type {
-  IUnitOfWork,
-  UnitOfWorkContext,
-} from '@/infrastructure/database/unit-of-work';
+import type { IRepositorySource } from './interfaces/repository-source.interface';
+import type { IMailerService } from '@/modules/mailer';
+import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
+import type { SubscriptionUoWContext } from './infrastructure/subscription-uow-context.builder';
 import type { SubscribeInput } from './subscription.schemas';
-import type { Repository } from '@/modules/repository/types/repository.type';
-import type { Subscription } from '@/modules/subscription/types/subscription.type';
+import type { Repository } from '@/modules/repository';
+import type { Subscription } from './types/subscription.type';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',
@@ -36,18 +34,18 @@ const MOCK_SUBSCRIPTION: Subscription = {
 
 describe('SubscriptionService', () => {
   let service: SubscriptionService;
-  let uow: ReturnType<typeof mock<IUnitOfWork>>;
+  let uow: ReturnType<typeof mock<IUnitOfWork<SubscriptionUoWContext>>>;
   let subscriptionRepository: ReturnType<typeof mock<ISubscriptionRepository>>;
   let repositorySource: ReturnType<typeof mock<IRepositorySource>>;
   let mailer: ReturnType<typeof mock<IMailerService>>;
-  let txCtx: ReturnType<typeof mockDeep<UnitOfWorkContext>>;
+  let txCtx: ReturnType<typeof mockDeep<SubscriptionUoWContext>>;
 
   beforeEach(() => {
-    txCtx = mockDeep<UnitOfWorkContext>();
+    txCtx = mockDeep<SubscriptionUoWContext>();
     txCtx.repositories.findOrCreate.mockResolvedValue(MOCK_REPOSITORY);
     txCtx.subscriptions.createSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
 
-    uow = mock<IUnitOfWork>();
+    uow = mock<IUnitOfWork<SubscriptionUoWContext>>();
     uow.run.mockImplementation((fn) => fn(txCtx));
 
     subscriptionRepository = mock<ISubscriptionRepository>();

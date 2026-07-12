@@ -1,4 +1,4 @@
-import type { IScannerMetrics } from '@/modules/scanner/interfaces/scanner-metrics.interface';
+import type { IScannerMetrics } from '@/modules/scanner';
 import {
   scannerRunsTotal,
   scannerNewReleasesTotal,

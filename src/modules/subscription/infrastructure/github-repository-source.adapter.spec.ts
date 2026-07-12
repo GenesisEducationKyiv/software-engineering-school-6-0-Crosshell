@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { GithubRepositorySourceAdapter } from './github-repository-source.adapter';
-import type { IGithubHttpClient } from '@/modules/github/interfaces/github-http-client.interface';
-import type { GitHubRepository } from '@/modules/github/github.schemas';
+import type { IGithubHttpClient, GitHubRepository } from '@/modules/github';
 import { NotFoundError } from '@/shared/errors/app.errors';
 
 const OWNER = 'acc';

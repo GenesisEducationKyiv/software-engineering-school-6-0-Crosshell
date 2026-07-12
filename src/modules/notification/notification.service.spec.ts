@@ -1,20 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { NotificationService } from './notification.service';
-import type { IMailerService } from '@/modules/mailer/interfaces/mailer.service.interface';
-import type { INotificationConsumer } from '@/modules/notification/interfaces/notification.consumer.interface';
-import type { ReleaseNotificationPayload } from '@/modules/notification/notification.schemas';
-import type { Subscriber } from '@/modules/notification/notification.schemas';
+import type { IMailerService } from '@/modules/mailer';
+import type { INotificationConsumer } from './interfaces/notification.consumer.interface';
+import type { ReleaseNotificationPayload } from './notification.schemas';
+import type { SubscriberInfo } from '@/shared/types';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { INotificationMetrics } from '@/modules/notification/interfaces/notification-metrics.interface';
-import { buildUnsubscribeUrl } from '@/modules/subscription/subscription.urls';
+import type { INotificationMetrics } from './interfaces/notification-metrics.interface';
+import { buildUnsubscribeUrl } from '@/shared/utils/url-builders';
 
-const SUBSCRIBER_ALICE: Subscriber = {
+const SUBSCRIBER_ALICE: SubscriberInfo = {
   email: 'alice@example.com',
   unsubscribeToken: '00000000-0000-0000-0000-000000000001',
 };
 
-const SUBSCRIBER_BOB: Subscriber = {
+const SUBSCRIBER_BOB: SubscriberInfo = {
   email: 'bob@example.com',
   unsubscribeToken: '00000000-0000-0000-0000-000000000002',
 };
@@ -133,7 +133,6 @@ describe('NotificationService', () => {
 
         expect(metrics.incSent).not.toHaveBeenCalledWith('failure');
       });
-
     });
 
     describe('when one email fails to send', () => {

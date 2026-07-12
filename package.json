@@ -4,8 +4,11 @@
   "description": "github-release-notifier api",
   "scripts": {
     "dev": "npx tsx watch src/index.ts",
-    "build": "tsup src/index.ts --format cjs --no-splitting",
+    "dev:notifier": "npx tsx watch src/notifier.ts",
+    "build": "tsup src/index.ts src/notifier.ts --format cjs --no-splitting",
+    "build:notifier": "tsup src/notifier.ts --format cjs --no-splitting",
     "start": "node dist/index.js",
+    "start:notifier": "node dist/notifier.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ tests/",
     "lint:fix": "eslint src/ tests/ --fix",

@@ -1,4 +1,4 @@
-import type { IGithubHttpClient } from '@/modules/github/interfaces/github-http-client.interface';
+import type { IGithubHttpClient } from '@/modules/github';
 import type { IReleaseFeed } from '../interfaces/release-feed.interface';
 import type { VcsRelease } from '../types/vcs-release.type';
 

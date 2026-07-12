@@ -4,13 +4,12 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { server } from './server';
 import healthPlugin from '@/shared/plugins/health.plugin';
 import { db, pool } from '@/infrastructure/database';
-import { QueueManager } from '@/infrastructure/queue/queue-manager';
-import { NotificationQueue } from '@/modules/notification/notification.queue';
-import subscriptionRoutes from '@/modules/subscription/subscription.routes';
+import { createNotificationQueue } from '@/modules/notification';
 import {
+  subscriptionRoutes,
   createSubscriptionGrpcHandlers,
   getSubscriptionServiceDefinition,
-} from '@/modules/subscription/subscription.grpc';
+} from '@/modules/subscription';
 import { GrpcServer } from '@/infrastructure/grpc/grpc-server';
 import { logger } from '@/shared/logger';
 import { createContainer } from '@/container';
@@ -39,14 +38,16 @@ const start = async () => {
       },
     });
 
-    const queueManager = new QueueManager({ url: queueConfig.url });
-    await queueManager.connect();
+    const { queueManager, notificationQueue } = await createNotificationQueue(
+      { url: queueConfig.url },
+      logger,
+    );
 
-    const notificationQueue = new NotificationQueue(queueManager, logger);
-    await notificationQueue.setup();
-
-    const { subscriptionService, scannerService, notificationService } =
-      createContainer(notificationQueue, cache, logger);
+    const { subscriptionService, scannerService } = createContainer(
+      notificationQueue,
+      cache,
+      logger,
+    );
 
     const grpcServer = new GrpcServer();
     grpcServer.addService(
@@ -54,7 +55,13 @@ const start = async () => {
       createSubscriptionGrpcHandlers(subscriptionService, appConfig.apiKey),
     );
 
-    registerGracefulShutdown({ server, grpcServer, queueManager, pool, cache });
+    registerGracefulShutdown([
+      server,
+      grpcServer,
+      queueManager,
+      { close: () => pool.end() },
+      { close: () => cache.quit() },
+    ]);
 
     await server.register(subscriptionRoutes(subscriptionService), {
       prefix: '/api',
@@ -63,12 +70,10 @@ const start = async () => {
     await server.listen({ port: appConfig.port, host: '0.0.0.0' });
     await grpcServer.start(grpcConfig.port);
 
-    notificationService.start();
     scannerService.start();
 
     queueManager.setReconnectHandler(async () => {
       await notificationQueue.setup();
-      notificationService.start();
     });
 
     if (appConfig.nodeEnv === 'development') {

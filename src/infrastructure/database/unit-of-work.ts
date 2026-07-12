@@ -1,27 +1,20 @@
 import type { Database, DbClient } from './index';
-import type { IRepositoryRepository } from '@/modules/repository/interfaces/repository.repository.interface';
-import type { ISubscriptionRepository } from '@/modules/subscription/interfaces/subscription.repository.interface';
 
-export interface UnitOfWorkContext {
-  repositories: IRepositoryRepository;
-  subscriptions: ISubscriptionRepository;
+export interface IUnitOfWorkContextBuilder<TContext> {
+  build(tx: DbClient): TContext;
 }
 
-export interface IUnitOfWorkContextBuilder {
-  build(tx: DbClient): UnitOfWorkContext;
+export interface IUnitOfWork<TContext> {
+  run<T>(fn: (ctx: TContext) => Promise<T>): Promise<T>;
 }
 
-export interface IUnitOfWork {
-  run<T>(fn: (uow: UnitOfWorkContext) => Promise<T>): Promise<T>;
-}
-
-export class UnitOfWork implements IUnitOfWork {
+export class UnitOfWork<TContext> implements IUnitOfWork<TContext> {
   constructor(
     private readonly db: Database,
-    private readonly contextBuilder: IUnitOfWorkContextBuilder,
+    private readonly contextBuilder: IUnitOfWorkContextBuilder<TContext>,
   ) {}
 
-  async run<T>(fn: (uow: UnitOfWorkContext) => Promise<T>): Promise<T> {
+  async run<T>(fn: (ctx: TContext) => Promise<T>): Promise<T> {
     return this.db.transaction((tx) => fn(this.contextBuilder.build(tx)));
   }
 }

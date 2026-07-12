@@ -8,8 +8,10 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import errorHandlerPlugin from '@/shared/plugins/error-handler.plugin';
 import healthPlugin from '@/shared/plugins/health.plugin';
 import apiKeyPlugin from '@/shared/plugins/api-key.plugin';
-import subscriptionRoutes from '@/modules/subscription/subscription.routes';
-import type { ISubscriptionService } from '@/modules/subscription/interfaces/subscription.service.interface';
+import {
+  subscriptionRoutes,
+  type ISubscriptionService,
+} from '@/modules/subscription';
 
 export async function buildSubscriptionApp(
   service: ISubscriptionService,
