@@ -1,4 +1,4 @@
-import { logger } from '@/shared/logger';
+import { logger, flushLogger } from '@/shared/logger';
 
 export interface AppResources {
   server: { close(): Promise<void> };
@@ -16,6 +16,7 @@ export function registerGracefulShutdown(resources: AppResources): void {
     await resources.queueManager.close();
     await resources.pool.end();
     await resources.cache.quit();
+    await flushLogger();
     process.exit(0);
   };
 

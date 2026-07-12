@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: notifier-prometheus
+    url: http://notifier-prometheus:9090
+    isDefault: true
+    access: proxy
+    jsonData:
+      timeInterval: 15s

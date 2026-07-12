@@ -19,7 +19,7 @@ export async function buildSubscriptionApp(
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.register(errorHandlerPlugin);
-  app.register(healthPlugin);
+  app.register(healthPlugin, { probe: async () => {} });
   app.register(apiKeyPlugin, { apiKey: options.apiKey });
   app.register(subscriptionRoutes(service), { prefix: '/api' });
   await app.ready();

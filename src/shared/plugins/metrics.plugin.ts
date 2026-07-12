@@ -14,11 +14,13 @@ const metricsPlugin: FastifyPluginAsync = fp(async (server): Promise<void> => {
       return done();
     }
 
-    httpRequestsTotal.inc({
+    const labels = {
       method: request.method,
       route,
       status_code: String(reply.statusCode),
-    });
+    };
+
+    httpRequestsTotal.inc(labels);
 
     httpRequestDurationSeconds.observe(
       { method: request.method, route },

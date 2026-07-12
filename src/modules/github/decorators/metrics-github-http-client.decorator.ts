@@ -12,17 +12,37 @@ export class MetricsGithubHttpClientDecorator implements IGithubHttpClient {
     owner: string,
     repo: string,
   ): Promise<GitHubRepository> {
+    const start = performance.now();
     this.metrics.incApiRequest('fetchRepository');
-
-    return this.inner.fetchRepository(owner, repo);
+    try {
+      return await this.inner.fetchRepository(owner, repo);
+    } catch (err) {
+      this.metrics.incApiError('fetchRepository');
+      throw err;
+    } finally {
+      this.metrics.observeApiDuration(
+        'fetchRepository',
+        (performance.now() - start) / 1000,
+      );
+    }
   }
 
   async fetchLatestRelease(
     owner: string,
     repo: string,
   ): Promise<GitHubRelease | null> {
+    const start = performance.now();
     this.metrics.incApiRequest('fetchLatestRelease');
-
-    return this.inner.fetchLatestRelease(owner, repo);
+    try {
+      return await this.inner.fetchLatestRelease(owner, repo);
+    } catch (err) {
+      this.metrics.incApiError('fetchLatestRelease');
+      throw err;
+    } finally {
+      this.metrics.observeApiDuration(
+        'fetchLatestRelease',
+        (performance.now() - start) / 1000,
+      );
+    }
   }
 }
