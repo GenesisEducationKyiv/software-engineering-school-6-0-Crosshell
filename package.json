@@ -6,7 +6,7 @@
     "dev": "npx tsx watch src/index.ts",
     "dev:notifier": "npx tsx watch src/notifier/index.ts",
     "build": "tsup src/index.ts src/notifier/index.ts --format cjs --no-splitting",
-    "build:notifier": "tsup src/notifier/index.ts --format cjs --no-splitting",
+    "build:notifier": "tsup src/notifier/index.ts --format cjs --no-splitting --out-dir dist/notifier",
     "start": "node dist/index.js",
     "start:notifier": "node dist/notifier/index.js",
     "typecheck": "tsc --noEmit",
