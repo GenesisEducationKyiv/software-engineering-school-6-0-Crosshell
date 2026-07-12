@@ -3,7 +3,7 @@ import type { ILogger } from '@/shared/logger/logger.interface';
 import type {
   SagaCommandsQueue,
   SendConfirmationEmailCommand,
-} from '@/modules/saga';
+} from '@/modules/saga-queue';
 
 export class SagaCommandHandler {
   constructor(
