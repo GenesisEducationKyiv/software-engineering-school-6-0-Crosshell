@@ -1,0 +1,50 @@
+name: notifier-integration
+
+services:
+  integration-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notifier_integration
+      POSTGRES_USER: notifier
+      POSTGRES_PASSWORD: notifier
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifier -d notifier_integration"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - notifier-integration-network
+
+  integration-redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - notifier-integration-network
+
+  integration-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+    networks:
+      - notifier-integration-network
+
+networks:
+  notifier-integration-network:
+    driver: bridge

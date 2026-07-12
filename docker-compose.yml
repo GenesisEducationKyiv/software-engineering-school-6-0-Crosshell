@@ -1,0 +1,226 @@
+name: notifier
+
+services:
+  notifier-api:
+    container_name: notifier-api
+    build: .
+    ports:
+      - "${APP_PORT:-3000}:3000"
+      - "${GRPC_PORT:-50051}:50051"
+    env_file: .env
+    environment:
+      APP_PORT: "3000"
+      GRPC_PORT: "50051"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@notifier-postgres:5432/${POSTGRES_DB}"
+      RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
+      REDIS_URL: "redis://notifier-redis:6379"
+      ELASTICSEARCH_URL: "http://notifier-elasticsearch:9200"
+      SAGA_MAIL_TRANSPORT: "${SAGA_MAIL_TRANSPORT:-queue}"
+      SAGA_GRPC_URL: "notifier-worker:50052"
+    depends_on:
+      notifier-postgres:
+        condition: service_healthy
+      notifier-rabbitmq:
+        condition: service_healthy
+      notifier-redis:
+        condition: service_healthy
+      notifier-elasticsearch:
+        condition: service_healthy
+      notifier-worker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - notifier-network
+
+  notifier-worker:
+    container_name: notifier-worker
+    build:
+      context: .
+      dockerfile: Dockerfile.notifier
+    ports:
+      - "${NOTIFIER_WORKER_PORT:-3002}:3002"
+    expose:
+      - "50052"
+    env_file: .env
+    environment:
+      RABBITMQ_URL: "amqp://notifier-rabbitmq:5672"
+      NOTIFIER_WORKER_PORT: "3002"
+      SAGA_GRPC_PORT: "50052"
+    depends_on:
+      notifier-rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - notifier-network
+
+  notifier-redis:
+    image: redis:7-alpine
+    container_name: notifier-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - notifier-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+  notifier-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: notifier-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+  notifier-postgres:
+    image: postgres:16-alpine
+    container_name: notifier-postgres
+    restart: always
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - notifier-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notifier-network
+
+  notifier-elasticsearch:
+    image: elasticsearch:8.13.0
+    container_name: notifier-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - notifier-elasticsearch:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - notifier-network
+
+  notifier-kibana:
+    image: kibana:8.13.0
+    container_name: notifier-kibana
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=http://notifier-elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      notifier-elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    networks:
+      - notifier-network
+
+  notifier-kibana-setup:
+    image: curlimages/curl:8.7.1
+    container_name: notifier-kibana-setup
+    restart: "no"
+    depends_on:
+      notifier-kibana:
+        condition: service_healthy
+    networks:
+      - notifier-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        curl -sf -X POST http://notifier-kibana:5601/api/data_views/data_view \
+          -H 'kbn-xsrf: true' \
+          -H 'Content-Type: application/json' \
+          -d '{"data_view":{"title":"notifier-logs-*","timeFieldName":"@timestamp","name":"Notifier Logs"}}' \
+          || echo "Data view may already exist, skipping"
+
+  notifier-prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: notifier-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - notifier-prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      notifier-api:
+        condition: service_healthy
+    networks:
+      - notifier-network
+
+  notifier-grafana:
+    image: grafana/grafana:10.4.0
+    container_name: notifier-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - notifier-grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - notifier-prometheus
+    networks:
+      - notifier-network
+
+networks:
+  notifier-network:
+    driver: bridge
+
+volumes:
+  notifier-postgres:
+  notifier-redis:
+  notifier-elasticsearch:
+  notifier-prometheus:
+  notifier-grafana:

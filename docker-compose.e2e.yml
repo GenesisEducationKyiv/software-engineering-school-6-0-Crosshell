@@ -1,0 +1,111 @@
+name: notifier-e2e
+
+services:
+  e2e-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notifier_e2e
+      POSTGRES_USER: notifier
+      POSTGRES_PASSWORD: notifier
+    ports:
+      - "5434:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifier -d notifier_e2e"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - notifier-e2e-network
+
+  e2e-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - notifier-e2e-network
+
+  e2e-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+    networks:
+      - notifier-e2e-network
+
+  e2e-mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"
+    networks:
+      - notifier-e2e-network
+
+  notifier-app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://notifier:notifier@e2e-postgres:5432/notifier_e2e"
+      RABBITMQ_URL: "amqp://e2e-rabbitmq:5672"
+      REDIS_URL: "redis://e2e-redis:6379"
+      APP_URL: "http://localhost:3000"
+      SMTP_HOST: "e2e-mailhog"
+      SMTP_PORT: "1025"
+      SMTP_USER: "test"
+      SMTP_PASS: "test"
+      APP_PORT: "3000"
+      SAGA_GRPC_URL: "notifier-worker:50052"
+    depends_on:
+      e2e-postgres:
+        condition: service_healthy
+      e2e-rabbitmq:
+        condition: service_healthy
+      e2e-redis:
+        condition: service_healthy
+      notifier-worker:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - notifier-e2e-network
+
+  notifier-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.notifier
+    environment:
+      RABBITMQ_URL: "amqp://e2e-rabbitmq:5672"
+      APP_URL: "http://localhost:3000"
+      SMTP_HOST: "e2e-mailhog"
+      SMTP_PORT: "1025"
+      SMTP_USER: "test"
+      SMTP_PASS: "test"
+      NOTIFIER_WORKER_PORT: "3002"
+    depends_on:
+      e2e-rabbitmq:
+        condition: service_healthy
+      e2e-mailhog:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - notifier-e2e-network
+
+networks:
+  notifier-e2e-network:
+    driver: bridge
