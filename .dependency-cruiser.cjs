@@ -110,7 +110,7 @@ module.exports = {
         'their ports to run the subscribe saga/2PC flow). Other modules must depend on it only ' +
         'through their own port interfaces (dependency inversion), never import it directly.',
       from: { path: '^src/modules/(?!saga/)' },
-      to: { path: '^src/modules/saga' },
+      to: { path: '^src/modules/saga/' },
     },
     {
       name: 'module-types-are-pure',

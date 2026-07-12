@@ -1,7 +1,6 @@
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { ISagaCommandsQueue } from './interfaces/saga-commands-queue.interface';
-import type { SagaCommand, SagaReply } from './saga.types';
+import type { SagaCommand, SagaReply } from './saga-commands.types';
 import {
   COMMANDS_QUEUE,
   COMMANDS_DLX,
@@ -11,7 +10,7 @@ import {
   REPLIES_DLQ,
 } from './saga-commands.constants';
 
-export class SagaCommandsQueue implements ISagaCommandsQueue {
+export class SagaCommandsQueue {
   constructor(
     private readonly queueManager: QueueManager,
     private readonly logger: ILogger,

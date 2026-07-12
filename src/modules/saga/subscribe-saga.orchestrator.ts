@@ -5,9 +5,10 @@ import type {
   SubscribeInput,
 } from '@/modules/subscription';
 import type { ISagaCommandsQueue } from './interfaces/saga-commands-queue.interface';
+import type { SagaReply } from '@/modules/saga-queue';
 import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
-import type { SagaReply, SagaStatus } from './saga.types';
+import type { SagaStatus } from './saga.types';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
 import {
@@ -205,6 +206,10 @@ export class SubscribeSagaOrchestrator implements ISubscribeOrchestrator {
         this.logger.warn(
           { correlationId, err },
           '[Saga] gRPC confirmation email outcome unknown — leaving saga pending, not compensating',
+        );
+        throw new Error(
+          'Subscription pending: confirmation email outcome unknown',
+          { cause: err },
         );
       }
 

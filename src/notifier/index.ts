@@ -5,11 +5,13 @@ import { queueConfig } from '@/shared/config/queue.config';
 import { appConfig } from '@/shared/config/app.config';
 import { notifierWorkerConfig } from '@/shared/config/notifier-worker.config';
 import { sagaGrpcConfig } from '@/shared/config/saga-grpc.config';
-import { QueueManager } from '@/infrastructure/queue/queue-manager';
-import { NotificationQueue, NotificationService } from '@/modules/notification';
+import {
+  createNotificationQueue,
+  NotificationService,
+} from '@/modules/notification';
 import { createMailerService } from '@/modules/mailer';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
-import { SagaCommandsQueue } from '@/modules/saga';
+import { SagaCommandsQueue } from '@/modules/saga-queue';
 import { SagaCommandHandler } from './saga-command.handler';
 import {
   getSagaMailServiceDefinition,
@@ -23,11 +25,10 @@ import metricsPlugin from '@/infrastructure/metrics/metrics.plugin';
 
 const start = async () => {
   try {
-    const queueManager = new QueueManager({ url: queueConfig.url });
-    await queueManager.connect();
-
-    const notificationQueue = new NotificationQueue(queueManager, logger);
-    await notificationQueue.setup();
+    const { queueManager, notificationQueue } = await createNotificationQueue(
+      { url: queueConfig.url },
+      logger,
+    );
 
     const mailer = createMailerService();
 

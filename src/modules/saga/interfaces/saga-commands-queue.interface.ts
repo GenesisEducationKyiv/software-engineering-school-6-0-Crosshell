@@ -1,4 +1,4 @@
-import type { SagaCommand, SagaReply } from '../saga.types';
+import type { SagaCommand, SagaReply } from '@/modules/saga-queue';
 
 export interface ISagaCommandsQueue {
   publishCommand(command: SagaCommand): void;
