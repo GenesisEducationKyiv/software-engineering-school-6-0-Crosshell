@@ -61,6 +61,7 @@ services:
       SMTP_USER: "test"
       SMTP_PASS: "test"
       APP_PORT: "3000"
+      SAGA_GRPC_URL: "notifier-worker:50052"
     depends_on:
       e2e-postgres:
         condition: service_healthy

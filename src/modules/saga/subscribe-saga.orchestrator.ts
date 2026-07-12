@@ -7,10 +7,17 @@ import type { SagaStatus } from './saga.types';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
 import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
+import {
+  AmbiguousConfirmationEmailError,
+  type IConfirmationEmailSender,
+} from './interfaces/confirmation-email-sender.interface';
+
+export type ConfirmationEmailTransport = 'queue' | 'grpc';
 
 export interface SubscribeSagaConfig {
   appUrl: string;
   replyTimeoutMs?: number;
+  transport?: ConfirmationEmailTransport;
 }
 
 export class SubscribeSagaOrchestrator {
@@ -27,7 +34,14 @@ export class SubscribeSagaOrchestrator {
     private readonly sagaRepository: ISagaRepository,
     private readonly logger: ILogger,
     private readonly config: SubscribeSagaConfig,
-  ) {}
+    private readonly confirmationEmailSender?: IConfirmationEmailSender,
+  ) {
+    if (config.transport === 'grpc' && !confirmationEmailSender) {
+      throw new Error(
+        'SubscribeSagaOrchestrator: transport is "grpc" but no confirmationEmailSender was provided',
+      );
+    }
+  }
 
   startReplyConsumer(): void {
     this.sagaCommandsQueue.consumeReplies(async (reply) => {
@@ -103,6 +117,18 @@ export class SubscribeSagaOrchestrator {
     const { subscriptionId, confirmUrl, unsubscribeUrl } =
       await this.createSubscriptionStep.execute(input, correlationId);
 
+    if (this.config.transport === 'grpc') {
+      await this.executeGrpc(
+        correlationId,
+        subscriptionId,
+        input.email,
+        confirmUrl,
+        unsubscribeUrl,
+      );
+
+      return;
+    }
+
     const { promise: replyPromise, cancel: cancelReply } =
       this.waitForReply(correlationId);
 
@@ -151,6 +177,56 @@ export class SubscribeSagaOrchestrator {
       await this.compensate(correlationId, subscriptionId);
       throw new Error('Subscription failed: could not send confirmation email');
     }
+  }
+
+  private async executeGrpc(
+    correlationId: string,
+    subscriptionId: string,
+    email: string,
+    confirmUrl: string,
+    unsubscribeUrl: string,
+  ): Promise<void> {
+    const confirmationEmailSender = this.confirmationEmailSender!;
+
+    await this.sagaRepository.updateStatus(correlationId, 'AWAITING_EMAIL');
+
+    try {
+      await confirmationEmailSender.send({
+        correlationId,
+        email,
+        confirmUrl,
+        unsubscribeUrl,
+      });
+    } catch (err) {
+      if (err instanceof AmbiguousConfirmationEmailError) {
+        this.logger.warn(
+          { correlationId, err },
+          '[Saga] gRPC confirmation email outcome unknown — leaving saga pending, not compensating',
+        );
+        throw new Error(
+          'Subscription pending: confirmation email outcome unknown',
+          { cause: err },
+        );
+      }
+
+      this.logger.error(
+        { correlationId, err },
+        '[Saga] gRPC confirmation email failed — compensating',
+      );
+      await this.compensate(correlationId, subscriptionId);
+      throw new Error(
+        'Subscription failed: could not send confirmation email',
+        {
+          cause: err,
+        },
+      );
+    }
+
+    await this.sagaRepository.updateStatus(correlationId, 'COMPLETED');
+    this.logger.info(
+      { correlationId },
+      '[Saga] Subscribe saga completed (grpc)',
+    );
   }
 
   private async compensate(
