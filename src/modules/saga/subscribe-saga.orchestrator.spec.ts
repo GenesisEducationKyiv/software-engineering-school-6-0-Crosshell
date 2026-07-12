@@ -4,11 +4,11 @@ import { SubscribeSagaOrchestrator } from './subscribe-saga.orchestrator';
 import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
-import type { SagaCommandsQueue } from './saga-commands.queue';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { SubscribeInput, Subscription } from '@/modules/subscription';
-import type { SagaInstance, SagaReply } from './saga.types';
+import type { SagaInstance } from './saga.types';
+import type { SagaCommandsQueue, SagaReply } from '@/modules/saga-queue';
 
 const VALID_INPUT: SubscribeInput = {
   email: 'user@example.com',

@@ -10,7 +10,7 @@ import {
 } from '@/modules/notification';
 import { createMailerService } from '@/modules/mailer';
 import { NotificationMetrics } from '@/infrastructure/metrics/notification-metrics';
-import { SagaCommandsQueue } from '@/modules/saga/saga-commands.queue';
+import { SagaCommandsQueue } from '@/modules/saga-queue';
 import { SagaCommandHandler } from './saga-command.handler';
 import { logger } from '@/shared/logger';
 import { registerGracefulShutdown } from '@/shared/lifecycle/graceful-shutdown';

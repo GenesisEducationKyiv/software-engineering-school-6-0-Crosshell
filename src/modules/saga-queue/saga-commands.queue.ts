@@ -1,6 +1,6 @@
 import type { QueueManager } from '@/infrastructure/queue/queue-manager';
 import type { ILogger } from '@/shared/logger/logger.interface';
-import type { SagaCommand, SagaReply } from './saga.types';
+import type { SagaCommand, SagaReply } from './saga-commands.types';
 import {
   COMMANDS_QUEUE,
   COMMANDS_DLX,

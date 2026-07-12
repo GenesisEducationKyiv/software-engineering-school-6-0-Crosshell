@@ -24,8 +24,8 @@ import {
   CreateSubscriptionStep,
   SagaRepository,
   SubscribeSagaUoWContextBuilder,
-  type SagaCommandsQueue,
 } from '@/modules/saga';
+import type { SagaCommandsQueue } from '@/modules/saga-queue';
 
 export interface AppContainer {
   subscriptionService: SubscriptionService;

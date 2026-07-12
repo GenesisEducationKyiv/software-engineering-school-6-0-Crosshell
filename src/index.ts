@@ -5,7 +5,7 @@ import { server } from './server';
 import healthPlugin from '@/shared/plugins/health.plugin';
 import { db, pool } from '@/infrastructure/database';
 import { createNotificationQueue } from '@/modules/notification';
-import { SagaCommandsQueue } from '@/modules/saga';
+import { SagaCommandsQueue } from '@/modules/saga-queue';
 import {
   subscriptionRoutes,
   createSubscriptionGrpcHandlers,

@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { IUnitOfWork } from '@/infrastructure/database/unit-of-work';
 import type { SubscribeInput } from '@/modules/subscription';
-import type { SagaCommandsQueue } from './saga-commands.queue';
+import type { SagaCommandsQueue, SagaReply } from '@/modules/saga-queue';
 import type { ISagaRepository } from './interfaces/saga.repository.interface';
-import type { SagaReply, SagaStatus } from './saga.types';
+import type { SagaStatus } from './saga.types';
 import type { ILogger } from '@/shared/logger/logger.interface';
 import type { SubscribeSagaUoWContext } from './subscribe-saga.uow-context.builder';
 import type { CreateSubscriptionStep } from './subscribe-saga.create-subscription.step';
