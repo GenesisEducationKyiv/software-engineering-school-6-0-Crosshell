@@ -203,6 +203,10 @@ export class SubscribeSagaOrchestrator {
           { correlationId, err },
           '[Saga] gRPC confirmation email outcome unknown — leaving saga pending, not compensating',
         );
+        throw new Error(
+          'Subscription pending: confirmation email outcome unknown',
+          { cause: err },
+        );
       }
 
       this.logger.error(
